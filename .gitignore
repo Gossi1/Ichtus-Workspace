@@ -1,0 +1,75 @@
+# ===========================
+# Python
+# ===========================
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+
+# Virtual environment
+.venv/
+venv/
+ENV/
+
+# ===========================
+# Node.js
+# ===========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# ===========================
+# IDE / OS
+# ===========================
+# VS Code
+.vscode/
+*.code-workspace
+
+# JetBrains (IntelliJ, PyCharm, etc.)
+.idea/
+*.iml
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# ===========================
+# Project-specific
+# ===========================
+# Error artifacts
+nul
+
+# Browser extension builds
+# (extensions are source-only, no build output)
+
+# Local development
+*.local
+.local.*
+
+# ===========================
+# Firebase (if used)
+# ===========================
+firebase-debug.log*
+ui-debug.log*
+
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+
+# ===========================
+# Temporary files
+# ===========================
+*.tmp
+*.temp
+temp/
+tmp/
