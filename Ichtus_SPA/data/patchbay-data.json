@@ -1,0 +1,66 @@
+{
+  "nodes": [
+    {
+      "id": "switcher",
+      "title": "Video Switcher",
+      "ip": "10.0.0.10",
+      "x": 600,
+      "y": 250,
+      "inputs": ["Cam 1 In", "Cam 2 In", "ProP In", "Audio L/R"],
+      "outputs": ["PGM Out", "Multiview"]
+    },
+    {
+      "id": "cam1",
+      "title": "Camera 1",
+      "ip": "10.0.0.21",
+      "x": 150,
+      "y": 100,
+      "inputs": ["PoE", "Tally"],
+      "outputs": ["SDI Out"]
+    },
+    {
+      "id": "cam2",
+      "title": "Camera 2",
+      "ip": "10.0.0.22",
+      "x": 150,
+      "y": 280,
+      "inputs": ["PoE", "Tally"],
+      "outputs": ["SDI Out"]
+    },
+    {
+      "id": "prop",
+      "title": "ProPresenter",
+      "ip": "10.0.0.50",
+      "x": 150,
+      "y": 460,
+      "inputs": ["Network"],
+      "outputs": ["HDMI 1", "SDI Key", "SDI Fill"]
+    },
+    {
+      "id": "audio",
+      "title": "Audio Mixer",
+      "ip": "10.0.0.100",
+      "x": 150,
+      "y": 660,
+      "inputs": ["Dante 1-16"],
+      "outputs": ["Main L/R", "Aux 1"]
+    },
+    {
+      "id": "livestream",
+      "title": "Encoder",
+      "ip": "10.0.0.150",
+      "x": 1000,
+      "y": 350,
+      "inputs": ["SDI PGM", "Audio In"],
+      "outputs": ["Network Out"]
+    }
+  ],
+  "connections": [
+    { "from": "cam1", "fromPort": 0, "to": "switcher", "toPort": 0, "type": "video" },
+    { "from": "cam2", "fromPort": 0, "to": "switcher", "toPort": 1, "type": "video" },
+    { "from": "prop", "fromPort": 0, "to": "switcher", "toPort": 2, "type": "video" },
+    { "from": "audio", "fromPort": 0, "to": "switcher", "toPort": 3, "type": "audio" },
+    { "from": "switcher", "fromPort": 0, "to": "livestream", "toPort": 0, "type": "video" },
+    { "from": "audio", "fromPort": 1, "to": "livestream", "toPort": 1, "type": "audio" }
+  ]
+}

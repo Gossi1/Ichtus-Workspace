@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang='nl'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <title>Ichtus Workspace</title>
+    <link rel='stylesheet' href='../shared-assets/css/branding.css'>
+    <link rel='stylesheet' href='css/style.css'>
+    <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
+</head>
+<body data-app='workspace'>
+
+    <!-- Mobile Hamburger Menu Button -->
+    <button class='mobile-hamburger' id='mobile-hamburger' aria-label='Menu'>
+        <span></span><span></span><span></span>
+    </button>
+
+    <!-- Sidebar Backdrop Overlay -->
+    <div class='sidebar-backdrop' id='sidebar-backdrop'></div>
+
+    <!-- Ichtus Sidebar Navigation -->
+    <nav class='ichtus-sidebar' id='ichtus-sidebar'>
+        <div class='sidebar-header'>
+            <img src='../shared-assets/images/Ichtus logo oranje.png' alt='Logo' class='sidebar-logo'>
+            <span class='sidebar-title'>WORKSPACE</span>
+        </div>
+        <ul class='sidebar-menu'>
+            <li data-view='dashboard'>
+                <a href='#' onclick="router.navigate('dashboard'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <rect x='3' y='3' width='7' height='7'></rect>
+                            <rect x='14' y='3' width='7' height='7'></rect>
+                            <rect x='3' y='14' width='7' height='7'></rect>
+                            <rect x='14' y='14' width='7' height='7'></rect>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Dashboard</span>
+                </a>
+            </li>
+            <li data-view='agenda' class='active'>
+                <a href='#' onclick="router.navigate('agenda'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <rect x='3' y='4' width='18' height='18' rx='2' ry='2'></rect>
+                            <line x1='16' y1='2' x2='16' y2='6'></line>
+                            <line x1='8' y1='2' x2='8' y2='6'></line>
+                            <line x1='3' y1='10' x2='21' y2='10'></line>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Agenda</span>
+                </a>
+            </li>
+            <li data-view='checklist'>
+                <a href='#' onclick="router.navigate('checklist'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <line x1='8' y1='6' x2='21' y2='6'></line>
+                            <line x1='8' y1='12' x2='21' y2='12'></line>
+                            <line x1='8' y1='18' x2='21' y2='18'></line>
+                            <line x1='3' y1='6' x2='3.01' y2='6'></line>
+                            <line x1='3' y1='12' x2='3.01' y2='12'></line>
+                            <line x1='3' y1='18' x2='3.01' y2='18'></line>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Checklist</span>
+                </a>
+            </li>
+            <li data-view='patchbay'>
+                <a href='#' onclick="router.navigate('patchbay'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <circle cx='5' cy='5' r='2'></circle>
+                            <circle cx='19' cy='5' r='2'></circle>
+                            <circle cx='12' cy='19' r='2'></circle>
+                            <line x1='5' y1='5' x2='19' y2='5'></line>
+                            <line x1='5' y1='5' x2='12' y2='19'></line>
+                            <line x1='19' y1='5' x2='12' y2='19'></line>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Patchbay</span>
+                </a>
+            </li>
+            <li data-view='analytics'>
+                <a href='#' onclick="router.navigate('analytics'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <rect x='2' y='2' width='20' height='20' rx='2' ry='2'></rect>
+                            <line x1='6' y1='18' x2='6' y2='14'></line>
+                            <line x1='10' y1='18' x2='10' y2='10'></line>
+                            <line x1='14' y1='18' x2='14' y2='12'></line>
+                            <line x1='18' y1='18' x2='18' y2='6'></line>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Analytics</span>
+                </a>
+            </li>
+            <li data-view='setlist'>
+                <a href='#' onclick="router.navigate('setlist'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <path d='M9 18V5l12-2v13'></path>
+                            <circle cx='6' cy='18' r='3'></circle>
+                            <circle cx='18' cy='16' r='3'></circle>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Setlist</span>
+                </a>
+            </li>
+        </ul>
+        <div class='sidebar-footer'>
+            <button class='toggle-btn' id='sidebar-toggle' title='Collapse/Expand Sidebar'>
+                <svg class='toggle-icon sidebar-nav-icon'><polyline points='15 18 9 12 15 6'></polyline></svg>
+            </button>
+            <button class='toggle-btn' id='btn-global-fullscreen' title='Toggle Fullscreen' onclick='toggleFullscreen()'>⛶</button>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class='main-content' id='app-container'>
+
+        <!-- AGENDA VIEW -->
+        <div id='view-agenda' class='app-view active'>
+            <header>
+                <h1>AGENDA MAKER</h1>
+            </header>
+
+            <div class='dashboard'>
+                <div class='action-bar'>
+                    <label class='btn-upload btn-label'>
+                        Template laden
+                        <input type='file' id='fileInput' accept='image/*'>
+                    </label>
+                    <button class='btn-load' onclick='agendaModule.fetchTockify()'>Agenda ophalen</button>
+                    <button class='btn-dl' onclick='agendaModule.downloadImage()'>Download PNG</button>
+                </div>
+
+                <div class='toolbar'>
+                    <div class='tool-group'>
+                        <button class='btn-nav' onclick='agendaModule.changeWeek(-1)'>&#10094; Vorige</button>
+                        <span id='week-label' class='week-label'>Deze Week</span>
+                        <button class='btn-nav' onclick='agendaModule.changeWeek(1)'>Volgende &#10095;</button>
+                    </div>
+
+                    <div class='tool-group center'>
+                        <div id='px-display' class='info-display'>X=0, Y=0</div>
+                        <div id='status' class='status-text'>Klaar voor gebruik</div>
+                        
+                        <div class='sunday-controls'>
+                            <label class='toggle-sunday'>
+                                <input type='checkbox' id='hideSpeakers' checked onchange='agendaModule.render()'> 
+                                Sprekers verbergen (Zondag)
+                            </label>
+                            <input type='text' id='customLabel' value='EREDIENST' oninput='agendaModule.render()'>
+                        </div>
+
+                        <div id='event-selector' class='event-selector'></div>
+                    </div>
+                </div>
+
+                <div class='canvas-wrapper'>
+                    <div id='container'>
+                        <canvas id='canvas'></canvas>
+                        <div id='agenda-group'>
+                            <div id='col-date' class='column'></div>
+                            <div id='col-pipe' class='column'></div>
+                            <div id='col-time' class='column'></div>
+                            <div id='col-event' class='column'></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- CHECKLIST VIEW -->
+        <div id='view-checklist' class='app-view'>
+            <!-- Role Selector Overlay -->
+            <div id='role-selector' class='overlay-screen overlay-role-selector'>
+                <h1 class='role-selector-title heading-font'>Selecteer Station</h1>
+                <div class='role-selector-container'>
+                    <button type='button' onclick="checklistModule.selectRole('Admin', event)" class='btn-role btn-role-admin'>Co&#246;rdinator</button>
+                    <button type='button' onclick="checklistModule.selectRole('Beamer', event)" class='btn-role btn-role-beamer'>Beamer Team</button>
+                    <button type='button' onclick="checklistModule.selectRole('Worship', event)" class='btn-role btn-role-worship'>Worship Team</button>
+                </div>
+            </div>
+
+            <!-- Admin Sidebar -->
+            <aside id='admin-sidebar' class='settings-panel hidden'>
+                <div class='panel-header'>
+                    <h2 class='panel-title heading-font'>Instellingen</h2>
+                </div>
+                <div class='panel-content spaced'>
+                    <div class='form-group'>
+                        <label class='form-label'>Start Datum &amp; Tijd</label>
+                        <div class='form-row'>
+                            <input type='date' id='inp-date' class='form-input'>
+                            <input type='time' id='inp-time' class='form-input time-input'>
+                        </div>
+                    </div>
+                    <div class='form-group'>
+                        <label class='form-label'>Service Preset</label>
+                        <div class='form-row relative-row'>
+                            <select id='inp-preset' class='form-input'></select>
+                            <button id='btn-preset-menu' class='btn-menu' title='Menu'>&#8942;</button>
+                            
+                            <div id='preset-dropdown' class='dropdown-menu hidden'>
+                                <button id='btn-add-preset' class='dropdown-item border-bottom'>Nieuwe lijst (Leeg)</button>
+                                <button id='btn-dup-preset' class='dropdown-item border-bottom'>Dupliceer lijst</button>
+                                <button id='btn-rename-preset' class='dropdown-item border-bottom text-blue'>Hernoem lijst</button>
+                                <button id='btn-del-preset' class='dropdown-item text-red'>Verwijder lijst</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class='form-group form-group-divider'>
+                        <h3 class='section-subheader'>Bericht aan US</h3>
+                        <textarea id='inp-note' rows='3' class='form-textarea' placeholder='Typ bericht...'></textarea>
+                        <div class='checkbox-row'>
+                            <input type='checkbox' id='inp-popup' class='form-checkbox'>
+                            <label for='inp-popup' class='checkbox-label'>Belangrijke Pop-up</label>
+                        </div>
+                        <div class='form-row mt-4'>
+                            <button id='btn-send-note' class='btn-broadcast'>Broadcast</button>
+                            <button id='btn-clear-note' class='btn-clear' title='Verwijder huidige broadcast'>&#10005;</button>
+                        </div>
+                    </div>
+                    <div class='task-manage-section'>
+                        <h3 class='section-subheader'>Takenbeheer</h3>
+                        <button id='btn-open-task-modal' class='btn-task-manage'>Taken Aanpassen</button>
+                    </div>
+                </div>
+                <div class='panel-footer'>
+                    <button id='btn-reset' class='btn-reset'>Reset &amp; Archiveer</button>
+                </div>
+            </aside>
+
+            <!-- Main Checklist Area -->
+            <div class='checklist-main'>
+                <div class='timer-container'>
+                    <div class='timer-header'>
+                        <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
+                        <button id='btn-open-task-modal-main' class='btn-add-task-main'>&#10133; Taak Toevoegen</button>
+                    </div>
+                    <div class='countdown-display'>
+                        <h2 class='countdown-label'>Tijd tot Opening</h2>
+                        <div id='main-countdown' class='heading-font'>00:00:00</div>
+                    </div>
+                </div>
+                <div id='note-banner' class='note-banner hidden'></div>
+                <div class='task-list-container'>
+                    <div id='checklist' class='task-list-inner'></div>
+                </div>
+            </div>
+
+            <!-- Master Sidebar -->
+            <aside id='master-sidebar' class='progress-panel hidden'>
+                <h2 class='progress-title heading-font'>Voortgang</h2>
+                <div id='progress-container'></div>
+            </aside>
+
+            <!-- Popup Modal -->
+            <div id='modal-popup' class='overlay-screen overlay-alert-modal hidden'>
+                <div class='modal-dialog'>
+                    <h2 class='alert-title heading-font'>Alert!</h2>
+                    <p id='modal-text' class='alert-text'></p>
+                    <button id='btn-close-modal' class='btn-alert-close'>Begrepen</button>
+                </div>
+            </div>
+
+            <!-- Task Management Modal -->
+            <div id='task-modal' class='overlay-screen overlay-task-modal hidden'>
+                <div class='task-modal-dialog'>
+                    <h2 class='task-modal-title heading-font'>Taken Aanpassen</h2>
+                    <div id='task-manage-list' class='task-manage-list'></div>
+                    <div class='modal-footer'>
+                        <h3 class='modal-subheader'>Nieuwe Taak Toevoegen</h3>
+                        <div class='modal-input-row'>
+                            <input type='text' id='new-task-name' placeholder='Taak omschrijving' class='modal-input'>
+                            <input type='number' id='new-task-time' placeholder='Min. voor' class='modal-input time'>
+                            <select id='new-task-team' class='modal-input team'>
+                                <option value='Beamer'>Beamer</option>
+                                <option value='Worship'>Worship</option>
+                            </select>
+                        </div>
+                        <div class='modal-button-row'>
+                            <button id='btn-add-task' class='btn-modal btn-modal-confirm'>Toevoegen</button>
+                            <button id='btn-close-task-modal' class='btn-modal btn-modal-close'>Sluiten</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- PATCHBAY VIEW -->
+        <div id='view-patchbay' class='app-view'>
+            <div id="pb-sidebar" class="pb-sidebar">
+                <button id="pb-menu-toggle" class="pb-menu-toggle" title="Manage Patchbays">
+                    <span></span><span></span><span></span>
+                </button>
+                <div class="pb-sidebar-header">
+                    <h2>Patchbays</h2>
+                    <div class="pb-sidebar-actions">
+                        <button id="btn-edit-sidebar" class="pb-sidebar-edit-btn" title="Edit Mode (drag to reorder)">✏️</button>
+                        <button id="btn-add-folder" title="New Folder / Group">📁</button>
+                        <button id="btn-add-file" title="New Canvas">📄</button>
+                        <button id="btn-import-file" title="Import Canvas(es)">📥</button>
+                        <button id="btn-export-all" title="Export All Canvases">💾</button>
+                    </div>
+                </div>
+                <div class="pb-sidebar-content" id="pb-sidebar-content"></div>
+            </div>
+            <div class="header-container-pb">
+                <div class="header-text">
+                    <h1>Digital Patchbay</h1>
+                    <p class="subtitle" id="current-canvas-subtitle">Signal Chain Visualization & Routing</p>
+                </div>
+            </div>
+            <div class="canvas-container" id="canvas-container" data-tool="select">
+                <svg id="svg-canvas"></svg>
+                <div id="nodes-container"></div>
+                <div class="toolbar-pb">
+                    <button id="btn-tool-select" class="tool-btn active" title="Select & Edit Nodes">👆 Select</button>
+                    <button id="btn-tool-pan" class="tool-btn" title="Pan Canvas">🖐 Pan</button>
+                    <button id="btn-add-node" class="tool-btn" title="Add New Node">➕ Add Node</button>
+                    <button id="btn-fit-screen" class="tool-btn" title="Fit All Nodes to Screen">⊞ Fit</button>
+                    <button id="btn-reset-view" class="tool-btn" title="Reset View to Show All Nodes">🔄 Reset</button>
+                </div>
+                <div class="overlay-controls">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="linked-networking">
+                        <span class="slider"></span>
+                        Linked Networking
+                    </label>
+                    <button id="ai-import-btn">AI Import</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ANALYTICS VIEW -->
+        <div id='view-analytics' class='app-view'>
+            <div class="header-container-an">
+                <div class="header-text">
+                    <h1>Service Tracking</h1>
+                    <p class="subtitle">Automatic Service Duration & SPL Tracking via ProPresenter</p>
+                </div>
+                <button id="fullscreen-btn" class="btn-fullscreen" onclick="analyticsModule.toggleFullScreen()" title="Toggle Fullscreen">
+                    <svg id="fs-enter" xmlns="http://www.w3.org/2000/svg" class="sidebar-nav-icon" style="width: 20px; height: 20px;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+                    <svg id="fs-exit" xmlns="http://www.w3.org/2000/svg" class="sidebar-nav-icon" style="width: 20px; height: 20px;"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>
+                </button>
+            </div>
+            <div class="dashboard-an">
+                <div class="panel">
+                    <div class="stat-box neutral">
+                        <div class="value" id="total-service-time">00:00:00</div>
+                        <div class="label">Total Service Time</div>
+                    </div>
+                    <div class="stat-box highlight">
+                        <div class="value" id="total-overage">+00:00</div>
+                        <div class="label">Total Overage</div>
+                    </div>
+                    <div class="stat-box secondary">
+                        <div class="value" id="items-tracked">0</div>
+                        <div class="label">Items Tracked</div>
+                    </div>
+                    <div class="stat-box neutral stat-box-auto-start">
+                        <div class="label auto-start-label">Auto-Start ('Welkom' Look)</div>
+                        <div class="auto-start-controls">
+                            <input type="time" id="auto-start-time" class="input-time">
+                            <button id="auto-start-btn" class="btn-set" onclick="analyticsModule.scheduleAutoStart()">Set</button>
+                        </div>
+                        <div id="auto-start-status"></div>
+                    </div>
+                    <button id="toggle-service-btn" onclick="analyticsModule.toggleService()">Start Tracking</button>
+                    <button class="btn-secondary-an" onclick="analyticsModule.exportCSV()">Export to CSV</button>
+                    <button class="btn-secondary-an btn-import-an" onclick="document.getElementById('csv-importer').click()">Import from CSV</button>
+                    <input type="file" id="csv-importer" accept=".csv" onchange="analyticsModule.importFromCSV(event)">
+                </div>
+                <div class="panel">
+                    <div class="sequence-config-container">
+                        <h2 class="sequence-config-header">Service Sequence Configuration</h2>
+                        <div id="service-sequence-display"></div>
+                        <div class="sequence-inputs-row">
+                            <input type="text" id="new-sequence-look-name" class="input-sequence" placeholder="Look Name (e.g., Worship)">
+                            <input type="text" id="new-sequence-display-name" class="input-sequence" placeholder="Display Name (e.g., Openingslied)">
+                            <input type="number" id="new-sequence-planned-duration" class="input-sequence duration-input" placeholder="Planned Duration (seconds)">
+                            <button class="btn-add-sequence" onclick="analyticsModule.addSequenceItem()">Add</button>
+                        </div>
+                    </div>
+                    <h2 class="session-log-header">Session Log</h2>
+                    <table>
+                        <thead>
+                            <tr><th>Look Name</th><th>Planned</th><th>Actual</th><th>Diff +/-</th><th>Avg SPL</th><th>Peak SPL</th></tr>
+                        </thead>
+                        <tbody id="log-body">
+                            <tr><td colspan="6" class="empty-log-message">Click 'Start Tracking' to begin monitoring Looks...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- SETLIST VIEW -->
+        <div id='view-setlist' class='app-view'>
+            <div class='setlist-layout'>
+                <!-- Connection Status Panel (Left) -->
+                <aside class='setlist-sidebar'>
+                    <div class='setlist-sidebar-header'>
+                        <h3 class='widget-title'>WorshipTools</h3>
+                    </div>
+                    <div class='setlist-sidebar-body'>
+                        <div class='connection-card'>
+                            <div class='connection-status-row'>
+                                <span id='setlist-status-dot' class='status-dot warning'></span>
+                                <span id='setlist-connection-status'>Wachten op setlist van WorshipTools...</span>
+                            </div>
+                            <p id='setlist-received-time' class='received-time'></p>
+                            <p class='connection-hint'>Open WorshipTools in een nieuw tabblad, ga naar Planning, en klik op "Extract Setlist" in de Chrome extensie. De setlist verschijnt dan automatisch hier.</p>
+                            <button id='btn-open-worshiptools' class='btn-setlist-secondary'>Open WorshipTools ↗</button>
+                        </div>
+
+                        <div class='connection-card'>
+                            <h4 class='card-subtitle'>ProPresenter</h4>
+                            <div class='connection-status-row'>
+                                <span id='pro-status-dot' class='status-dot offline'></span>
+                                <span id='pro-connection-status'>Niet verbonden</span>
+                            </div>
+                            <div id='pro-ip-display' class='pro-ip-display'>Verbinden met...</div>
+                            <button id='btn-test-proconnection' class='btn-setlist-secondary' onclick='setlistModule.testProPresenterConnection()'>🔍 Test Verbinding</button>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Editor (Right) -->
+                <div class='setlist-main'>
+                    <div class='setlist-toolbar'>
+                        <div class='template-selector-row'>
+                            <select id='setlist-service-type' class='form-select'></select>
+                            <button id='btn-setlist-template-edit' class='btn-setlist-secondary' title='Template bewerken'>⚙️</button>
+                            <button id='btn-setlist-template-new' class='btn-setlist-secondary' title='Nieuwe template'>➕</button>
+                        </div>
+                        <div class='setlist-actions'>
+                            <button id='btn-setlist-sync' class='btn-setlist-primary'>Sync naar ProPresenter</button>
+                            <button id='btn-setlist-clear' class='btn-setlist-secondary'>Wis Setlist</button>
+                        </div>
+                    </div>
+
+                    <div id='setlist-status-box' class='setlist-status' style='display:none;'></div>
+                    <div id='setlist-date-display' class='setlist-date-badge' style='display:none;'></div>
+
+                    <div class='setlist-preview-panel'>
+                        <h3 class='panel-heading'>Setlist Voorvertoning</h3>
+                        <div id='setlist-preview'>
+                            <p class='setlist-empty'>Open WorshipTools, ga naar Planning, en klik op "Extract Setlist" in de Chrome extensie.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Template Editor Modal -->
+            <div id='setlist-template-modal' class='overlay-screen overlay-task-modal hidden'>
+                <div class='task-modal-dialog'>
+                    <div class='modal-header'>
+                        <h3 class='task-modal-title'>Template Bewerken: <span id='edit-tpl-name'></span></h3>
+                        <button id='btn-close-setlist-modal' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='Sluiten'>✖</button>
+                    </div>
+                    <div id='tpl-items-container'></div>
+                    <div class='modal-footer'>
+                        <div>
+                            <button id='btn-add-tpl-item' class='btn-secondary'>+ Item Toevoegen</button>
+                            <button id='btn-reset-tpl' class='btn-secondary' style='margin-left:10px;'>Reset naar Standaard</button>
+                            <button id='btn-del-tpl' class='btn-secondary' style='margin-left:10px;border-color:var(--ichtus-red);color:var(--ichtus-red);'>Verwijder Template</button>
+                        </div>
+                        <div>
+                            <button id='btn-close-setlist-modal-alt' class='btn-secondary' onclick="setlistModule.closeTemplateModal()" style='margin-right:10px;'>Annuleren</button>
+                            <button id='btn-save-tpl' class='btn-setlist-primary'>Opslaan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Template Modal -->
+            <div id='new-template-modal' class='overlay-screen overlay-task-modal hidden'>
+                <div class='task-modal-dialog' style='max-width:400px;'>
+                    <div class='modal-header'>
+                        <h3 class='task-modal-title'>Nieuwe Template</h3>
+                        <button id='btn-close-new-tpl-modal' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='Sluiten'>✖</button>
+                    </div>
+                    <div style='margin-bottom:20px;'>
+                        <input type='text' id='new-tpl-name-input' placeholder='Template naam (bijv. Jeugd Dienst)' onkeydown="if(event.key==='Enter') setlistModule.confirmNewTemplate()" style='width:100%;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-light);padding:12px;border-radius:8px;outline:none;font-size:16px;'>
+                    </div>
+                    <div class='modal-footer' style='margin-top:0;padding-top:0;border-top:none;justify-content:flex-end;'>
+                        <button id='btn-cancel-new-tpl' class='btn-secondary' onclick="setlistModule.closeNewTemplateModal()" style='margin-right:10px;'>Annuleren</button>
+                        <button id='btn-confirm-new-tpl' class='btn-setlist-primary'>Aanmaken</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- DASHBOARD VIEW -->
+        <div id='view-dashboard' class='app-view'>
+            <div class='dashboard-header'>
+                <h1 class='dashboard-title heading-font'>Workspace Dashboard</h1>
+                <p class='dashboard-subtitle'>Drag widgets to rearrange your workspace</p>
+            </div>
+            <div id='widget-grid' class='widget-grid'>
+                <!-- Quick Links Widget -->
+                <div class='widget-card' draggable='true' data-widget-id='quicklinks'>
+                    <div class='widget-header'>
+                        <h3 class='widget-title'>Quick Links</h3>
+                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
+                    </div>
+                    <div class='widget-body'>
+                        <div class='quick-links'>
+                            <a href='#' class='quick-link' onclick="router.navigate('agenda'); return false;">
+                                <span class='quick-icon'>📅</span>
+                                <span>Agenda</span>
+                            </a>
+                            <a href='#' class='quick-link' onclick="router.navigate('checklist'); return false;">
+                                <span class='quick-icon'>✅</span>
+                                <span>Checklist</span>
+                            </a>
+                            <a href='#' class='quick-link' onclick="router.navigate('patchbay'); return false;">
+                                <span class='quick-icon'>🔌</span>
+                                <span>Patchbay</span>
+                            </a>
+                            <a href='#' class='quick-link' onclick="router.navigate('analytics'); return false;">
+                                <span class='quick-icon'>📊</span>
+                                <span>Analytics</span>
+                            </a>
+                            <a href='#' class='quick-link' onclick="router.navigate('setlist'); return false;">
+                                <span class='quick-icon'>🎵</span>
+                                <span>Setlist</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Service Timer Widget -->
+                <div class='widget-card' draggable='true' data-widget-id='servicetimer'>
+                    <div class='widget-header'>
+                        <h3 class='widget-title'>Service Timer</h3>
+                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
+                    </div>
+                    <div class='widget-body'>
+                        <div class='timer-widget'>
+                            <div id='dash-timer-display' class='dash-timer-display heading-font'>00:00:00</div>
+                            <div class='timer-controls'>
+                                <button id='dash-timer-start' class='timer-btn timer-start'>Start</button>
+                                <button id='dash-timer-stop' class='timer-btn timer-stop' disabled>Stop</button>
+                                <button id='dash-timer-reset' class='timer-btn timer-reset'>Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notes Widget -->
+                <div class='widget-card wide' draggable='true' data-widget-id='notes'>
+                    <div class='widget-header'>
+                        <h3 class='widget-title'>Quick Notes</h3>
+                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
+                    </div>
+                    <div class='widget-body'>
+                        <textarea id='dash-notes' class='dash-notes' placeholder='Type your notes here...'></textarea>
+                    </div>
+                </div>
+
+                <!-- Status Widget -->
+                <div class='widget-card' draggable='true' data-widget-id='status'>
+                    <div class='widget-header'>
+                        <h3 class='widget-title'>Workspace Status</h3>
+                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
+                    </div>
+                    <div class='widget-body'>
+                        <div class='status-list'>
+                            <div class='status-item'>
+                                <span class='status-dot online'></span>
+                                <span>Agenda Module</span>
+                            </div>
+                            <div class='status-item'>
+                                <span class='status-dot online'></span>
+                                <span>Checklist Module</span>
+                            </div>
+                            <div class='status-item'>
+                                <span class='status-dot online'></span>
+                                <span>Patchbay Module</span>
+                            </div>
+                            <div class='status-item'>
+                                <span class='status-dot online'></span>
+                                <span>Analytics Module</span>
+                            </div>
+                            <div class='status-item'>
+                                <span class='status-dot online'></span>
+                                <span>Setlist Module</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- ICAL Parser (loaded early for agenda parsing) - local copy, no CDN needed -->
+    <script src='js/vendor/ical.min.js'></script>
+
+    <!-- Firebase SDK - MUST load before firebase-init.js -->
+    <!-- Local backup: falls back gracefully if CDN unreachable -->
+    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'></script>
+    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js'></script>
+
+    <!-- SPA Core -->
+    <script src='js/router.js'></script>
+    <script src='js/firebase-init.js'></script>
+    <script src='js/state.js'></script>
+    <script src='js/modules/dashboard.js'></script>
+    <script src='js/modules/agenda.js'></script>
+    <script src='js/modules/checklist.js'></script>
+    <script src='js/modules/setlist.js'></script>
+    <script src='js/modules/patchbay.js'></script>
+    <script src='js/modules/analytics.js'></script>
+    <script src='js/app.js'></script>
+
+</body>
+</html>

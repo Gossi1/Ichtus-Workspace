@@ -1,0 +1,29 @@
+{
+  "manifest_version": 3,
+  "name": "WorshipTools to Ichtus SPA Sync",
+  "version": "1.1",
+  "description": "Extracts setlists from WorshipTools Planning and sends them directly to the Ichtus Workspace SPA.",
+  "permissions": ["activeTab", "clipboardWrite", "tabs"],
+  "host_permissions": ["*://*.worshiptools.com/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://*.worshiptools.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "file://*/*Ichtus_SPA/index.html",
+        "file://*/*Ichtus_SPA/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*"
+      ],
+      "js": ["spa-bridge.js"],
+      "run_at": "document_start",
+      "all_frames": true
+    }
+  ]
+}
