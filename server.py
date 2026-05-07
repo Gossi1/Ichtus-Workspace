@@ -13,73 +13,80 @@ from pathlib import Path
 ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
 
 # Try to import zeroconf for mDNS discovery
+ZEROCONF_AVAILABLE = False
 try:
     from zeroconf import ServiceListener, ServiceBrowser, Zeroconf
     ZEROCONF_AVAILABLE = True
 except ImportError:
-    ZEROCONF_AVAILABLE = False
     print('  ⚠️  zeroconf not installed - NDI discovery will use fallback method')
     print('     Install with: pip install zeroconf')
 
-
-class NDIListener(ServiceListener):
-    def __init__(self):
-        self.sources = []
-        self.lock = threading.Lock()
-    
-    def add_service(self, zc, type_, name):
-        info = zc.get_service_info(type_, name)
-        if info:
+# Only define NDIListener class if zeroconf is available
+if ZEROCONF_AVAILABLE:
+    class NDIListener(ServiceListener):
+        def __init__(self):
+            self.sources = []
+            self.lock = threading.Lock()
+        
+        def add_service(self, zc, type_, name):
+            info = zc.get_service_info(type_, name)
+            if info:
+                with self.lock:
+                    addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
+                    port = info.port
+                    source_name = name.replace('._ndi._tcp.local.', '').replace('._ndi._tcp.', '')
+                    self.sources.append({
+                        'name': source_name,
+                        'address': addresses[0] if addresses else 'unknown',
+                        'port': port,
+                        'type': 'NDI Source',
+                        'metadata': f'Port: {port}'
+                    })
+        
+        def remove_service(self, zc, type_, name):
+            pass
+        
+        def update_service(self, zc, type_, name):
+            pass
+        
+        def get_sources(self):
             with self.lock:
-                # Extract IP and port
-                addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
-                port = info.port
-                
-                # Parse source name (remove ._ndi._tcp.local)
-                source_name = name.replace('._ndi._tcp.local.', '').replace('._ndi._tcp.', '')
-                
-                self.sources.append({
-                    'name': source_name,
-                    'address': addresses[0] if addresses else 'unknown',
-                    'port': port,
-                    'type': 'NDI Source',
-                    'metadata': f'Port: {port}'
-                })
-    
-    def remove_service(self, zc, type_, name):
-        pass
-    
-    def update_service(self, zc, type_, name):
-        pass
-    
-    def get_sources(self):
-        with self.lock:
-            return list(self.sources)
+                return list(self.sources)
 
 
 class IchtusHandler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(ROOT_DIR), **kwargs)
+    # Class-level cache shared across all handler instances
+    _ndi_cache = None
+    _cache_timestamp = None
+    
+    # Set the directory for serving files (class variable)
+    directory = str(ROOT_DIR)
 
     def log_message(self, format, *args):
         method = self.command
         path = self.path.split('?')[0]
-        status_str = str(args[0]) if args else '-'
-        try:
-            status_int = int(status_str)
-            color = '\u03392m' if 200 <= status_int < 300 else '\u03393m' if 300 <= status_int < 400 else '\u03391m'
-        except ValueError:
-            color = '\u03390m'
-        reset = '\u03390m'
-        print(f'  {method:6s} {path:40s} {color}{status_str}{reset}')
+        print(f'  {method} {path}')
 
     def end_headers(self):
         self.send_header('Cache-Control', 'no-store, no-cache, must-revalidate')
         super().end_headers()
 
     def do_GET(self):
+        print(f'  DEBUG: GET path={repr(self.path)}')
+        
+        # Test endpoint - always works
+        if self.path.startswith('/api/test'):
+            print(f'  DEBUG: Test endpoint matched!')
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(b'{"test": "ok", "server": "IchtusHandler"}')
+            return
+        
         # Handle API routes
         if self.path.startswith('/api/ndi/sources'):
+            print(f'  DEBUG: Matched NDI route!')
             self.handle_ndi_sources()
             return
         
@@ -87,20 +94,54 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         super().do_GET()
     
     def handle_ndi_sources(self):
+        # Send headers immediately to avoid empty reply
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         
-        sources = self.discover_ndi_sources()
-        
-        response = {
-            'sources': sources,
-            'count': len(sources),
-            'timestamp': self.get_timestamp()
-        }
-        
-        self.wfile.write(json.dumps(response).encode())
+        try:
+            # Use cached sources if available and recent (within 10 seconds)
+            cache_age = self.get_timestamp_diff(self._cache_timestamp) if self._cache_timestamp else 999
+            if self._ndi_cache and cache_age < 10:
+                response = self._ndi_cache
+                self.wfile.write(json.dumps(response).encode())
+                return
+            
+            # Discover in a separate thread to not block the response
+            def background_discovery():
+                sources = self.discover_ndi_sources()
+                IchtusHandler._ndi_cache = {
+                    'sources': sources,
+                    'count': len(sources),
+                    'timestamp': self.get_timestamp()
+                }
+                IchtusHandler._cache_timestamp = IchtusHandler._ndi_cache['timestamp']
+            
+            thread = threading.Thread(target=background_discovery)
+            thread.daemon = True
+            thread.start()
+            
+            # Return cached or empty immediately
+            if self._ndi_cache:
+                response = self._ndi_cache
+            else:
+                response = {
+                    'sources': [],
+                    'count': 0,
+                    'timestamp': self.get_timestamp(),
+                    'scanning': True
+                }
+            
+            self.wfile.write(json.dumps(response).encode())
+            
+        except Exception as e:
+            print(f'  ⚠️  NDI API error: {e}')
+            # Headers already sent, send error as body
+            try:
+                self.wfile.write(json.dumps({'error': str(e), 'sources': [], 'count': 0}).encode())
+            except:
+                pass  # If even this fails, connection is broken
     
     def discover_ndi_sources(self):
         sources = []
@@ -129,31 +170,32 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         
         return sources
     
+    def get_timestamp_diff(self, iso_timestamp):
+        from datetime import datetime
+        try:
+            cached_time = datetime.fromisoformat(iso_timestamp)
+            return (datetime.now() - cached_time).total_seconds()
+        except:
+            return 999
+    
     def fallback_ndi_scan(self):
-        # Scan local subnet for potential NDI sources
-        # NDI Discovery uses UDP port 5961 (NDI 3.x) or 5960 (NDI 4.x)
         sources = []
         discovered_ips = set()
         
         try:
-            # UDP socket for NDI discovery broadcast
             sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-            sock.settimeout(1.5)  # Wait for responses
+            sock.settimeout(1.5)
             
-            # NDI discovery message (simple ping)
             discovery_packet = b'NDI_LIST'
             
-            # Send broadcast to port 5961
+            # Send broadcast to ports 5961 and 5960
             sock.sendto(discovery_packet, ('<broadcast>', 5961))
-            
-            # Also try port 5960 (NDI 4.x)
             try:
                 sock.sendto(discovery_packet, ('<broadcast>', 5960))
             except:
                 pass
             
-            # Collect responses for up to 1.5 seconds
             while True:
                 try:
                     data, addr = sock.recvfrom(4096)
@@ -162,7 +204,7 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
                         sources.append({
                             'name': f'NDI Device@{addr[0]}',
                             'address': addr[0],
-                            'port': addr[1],
+                            'port': 5961,  # NDI discovery port
                             'type': 'NDI Source (UDP)',
                             'metadata': 'Discovered via UDP broadcast'
                         })
