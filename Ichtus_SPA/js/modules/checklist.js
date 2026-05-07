@@ -268,6 +268,8 @@ const checklistModule = {
         }
         document.getElementById('admin-sidebar')?.classList.add('hidden');
         document.getElementById('master-sidebar')?.classList.add('hidden');
+        // Remove checklist-sidebar-open so role selector aligns with ichthus-sidebar only
+        document.body.classList.remove('checklist-sidebar-open');
         appState.role = null;
     },
 

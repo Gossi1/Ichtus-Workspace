@@ -25,6 +25,9 @@ window.patchbayModule = patchbayModule;
 window.analyticsModule = analyticsModule;
 window.router = router;
 
+// Make NDI module globally available
+window.ndiModule = ndiModule;
+
 // Keep fullscreenchange listener for updating button state
 document.addEventListener('fullscreenchange', () => {
     const btn = document.getElementById('btn-global-fullscreen');

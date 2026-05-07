@@ -9,7 +9,7 @@ const router = {
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard'].includes(hash)) ? hash : 'dashboard';
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi'].includes(hash)) ? hash : 'dashboard';
         
         this.navigate(initialView);
 
@@ -85,6 +85,11 @@ const router = {
             document.body.classList.remove('pb-sidebar-open');
         }
 
+        // Clean up NDI module when navigating away
+        if (this.currentView === 'ndi' && typeof ndiModule !== 'undefined' && ndiModule.cleanup) {
+            ndiModule.cleanup();
+        }
+
         // Hide all views
         document.querySelectorAll('.app-view').forEach(v => v.classList.remove('active'));
 
@@ -122,6 +127,8 @@ const router = {
             setlistModule.init();
         } else if (view === 'dashboard' && typeof dashboardModule !== 'undefined') {
             dashboardModule.init();
+        } else if (view === 'ndi' && typeof ndiModule !== 'undefined') {
+            ndiModule.init();
         }
     }
 };

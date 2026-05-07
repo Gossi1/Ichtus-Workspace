@@ -107,6 +107,17 @@
                     <span class='sidebar-text'>Setlist</span>
                 </a>
             </li>
+            <li data-view='ndi'>
+                <a href='#' onclick="router.navigate('ndi'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <circle cx='12' cy='12' r='3'></circle>
+                            <path d='M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83'></path>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>NDI Sources</span>
+                </a>
+            </li>
         </ul>
         <div class='sidebar-footer'>
             <button class='toggle-btn' id='sidebar-toggle' title='Collapse/Expand Sidebar'>
@@ -398,6 +409,40 @@
             </div>
         </div>
 
+        <!-- NDI SOURCES VIEW -->
+        <div id='view-ndi' class='app-view'>
+            <div class='ndi-header'>
+                <div class='ndi-header-content'>
+                    <div class='ndi-header-icon'>📡</div>
+                    <div>
+                        <h1 class='ndi-title'>NDI Bronnen</h1>
+                        <p class='ndi-subtitle'>Ontdek alle NDI streams op uw netwerk</p>
+                    </div>
+                </div>
+                <div class='ndi-header-controls'>
+                    <label class='ndi-auto-toggle'>
+                        <input type='checkbox' id='ndi-auto-refresh'>
+                        <span class='slider'></span>
+                        Auto-refresh (5s)
+                    </label>
+                    <button id='ndi-refresh' class='ndi-refresh-btn'>
+                        🔄 Vernieuwen
+                    </button>
+                </div>
+            </div>
+            
+            <div class='ndi-status-bar'>
+                <span id='ndi-status' class='ndi-status'>Zoeken...</span>
+                <span id='ndi-last-updated' class='ndi-last-updated'></span>
+            </div>
+            
+            <div class='ndi-content'>
+                <div id='ndi-source-list' class='ndi-source-list'>
+                    <!-- Sources will be rendered here -->
+                </div>
+            </div>
+        </div>
+
         <!-- SETLIST VIEW -->
         <div id='view-setlist' class='app-view'>
             <div class='setlist-layout'>
@@ -617,6 +662,7 @@
     <script src='js/modules/setlist.js'></script>
     <script src='js/modules/patchbay.js'></script>
     <script src='js/modules/analytics.js'></script>
+    <script src='js/modules/ndi.js'></script>
     <script src='js/app.js'></script>
 
 </body>
