@@ -1,0 +1,9 @@
+# Ichtus Workspace - Python Dependencies
+# This file documents the Python packages used in the project.
+# The .venv folder is committed to GitHub for easy setup.
+
+# Optional: mDNS/NDI discovery (install with: pip install zeroconf)
+zeroconf>=0.100.0
+
+# Note: The server uses only Python standard library (http.server, socket, etc.)
+# No additional packages are required for basic functionality.
