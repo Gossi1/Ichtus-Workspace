@@ -1429,6 +1429,22 @@ input:checked + .slider::before { transform: translateX(20px); }
     border-radius: 4px;
     margin: 0.5rem 0;
     display: inline-block;
+    border: 1px solid transparent;
+    outline: none;
+    min-width: 120px;
+    transition: all 0.2s ease;
+}
+
+.pro-ip-display:hover {
+    border-color: var(--border-light);
+    background: rgba(0,0,0,0.5);
+}
+
+.pro-ip-display:focus {
+    border-color: var(--ichtus-orange);
+    background: rgba(0,0,0,0.6);
+    color: white;
+    box-shadow: 0 0 8px rgba(244, 121, 32, 0.3);
 }
 
 /* Setlist Main Editor */

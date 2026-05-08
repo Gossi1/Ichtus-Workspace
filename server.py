@@ -7,10 +7,21 @@ import argparse
 import webbrowser
 import json
 import threading
+import urllib.request
+import urllib.error
+import zipfile
+import shutil
 from pathlib import Path
 
 # --- Configuratie ---
 ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
+
+# Auto-update configuratie
+UPDATE_CONFIG = {
+    'github_repo': 'shamivision/Ichtus_apps',  # Gebruiker/Repo
+    'current_version': '1.0.0',
+    'check_on_start': True,
+}
 
 # Try to import zeroconf for mDNS discovery
 ZEROCONF_AVAILABLE = False
@@ -235,6 +246,186 @@ def get_local_ip():
         return '127.0.0.1'
 
 
+def check_for_updates():
+    """Check GitHub for updates and return info dict."""
+    repo = UPDATE_CONFIG['github_repo']
+    try:
+        url = f'https://api.github.com/repos/{repo}/releases/latest'
+        req = urllib.request.Request(url, headers={'User-Agent': 'Ichtus-Workspace'})
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            latest_version = data.get('tag_name', 'v0.0.0').lstrip('v')
+            current_version = UPDATE_CONFIG['current_version']
+            
+            # Compare versions (simple comparison for now)
+            needs_update = parse_version(latest_version) > parse_version(current_version)
+            
+            return {
+                'available': True,
+                'needs_update': needs_update,
+                'latest_version': latest_version,
+                'current_version': current_version,
+                'release_url': data.get('html_url', ''),
+                'body': data.get('body', ''),
+                'download_url': data.get('zipball_url', '')
+            }
+    except urllib.error.HTTPError as e:
+        return {'available': False, 'error': f'HTTP Error: {e.code}'}
+    except Exception as e:
+        return {'available': False, 'error': str(e)}
+
+
+def parse_version(v):
+    """Parse version string to tuple for comparison."""
+    try:
+        return tuple(int(x) for x in v.split('.')[:3])
+    except:
+        return (0, 0, 0)
+
+
+def download_and_apply_update(download_url):
+    """Download update zip and apply it."""
+    print('  [DOWNLOAD] Downloading update...')
+    
+    temp_dir = ROOT_DIR / 'temp_update'
+    backup_dir = ROOT_DIR / 'backup_pre_update'
+    
+    def restore_backup():
+        """Restore files from backup directory."""
+        try:
+            print('  [RESTORE] Restoring from backup...')
+            for item in backup_dir.rglob('*'):
+                rel_path = item.relative_to(backup_dir)
+                dest_path = ROOT_DIR / rel_path
+                if item.is_file():
+                    dest_path.parent.mkdir(parents=True, exist_ok=True)
+                    shutil.copy2(item, dest_path)
+            print('  [RESTORE] Done.')
+        except Exception as restore_err:
+            print(f'  [RESTORE] Warning: Restore also failed: {restore_err}')
+    
+    try:
+        # Create temp directory
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Create backup of existing files (exclude .git and temp)
+        if backup_dir.exists():
+            shutil.rmtree(backup_dir)
+        print('  [BACKUP] Creating backup...')
+        for item in ROOT_DIR.iterdir():
+            if item.name in ['.git', 'temp_update', 'backup_pre_update', '.venv']:
+                continue
+            dest = backup_dir / item.name
+            if item.is_dir():
+                shutil.copytree(item, dest, ignore=shutil.ignore_patterns('.git', '__pycache__'))
+            else:
+                shutil.copy2(item, dest)
+        print('  [BACKUP] Backup saved in backup_pre_update/')
+        
+        # Download zip
+        zip_path = temp_dir / 'update.zip'
+        req = urllib.request.Request(download_url, headers={'User-Agent': 'Ichtus-Workspace'})
+        with urllib.request.urlopen(req, timeout=60) as response:
+            with open(zip_path, 'wb') as f:
+                shutil.copyfileobj(response, f)
+        
+        print('  [EXTRACT] Extracting update...')
+        
+        # Extract zip
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(temp_dir)
+        
+        # Find extracted folder
+        extracted_folders = list(temp_dir.iterdir())
+        if extracted_folders:
+            source_dir = extracted_folders[0]
+            if source_dir.is_dir():
+                print('  [APPLY] Applying update...')
+                
+                # Copy files (skipping .git)
+                files_updated = 0
+                errors = []
+                for item in source_dir.rglob('*'):
+                    if '.git' in item.parts:
+                        continue
+                    rel_path = item.relative_to(source_dir)
+                    dest_path = ROOT_DIR / rel_path
+                    
+                    if item.is_file():
+                        try:
+                            dest_path.parent.mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(item, dest_path)
+                            files_updated += 1
+                        except Exception as file_err:
+                            errors.append(f'{rel_path}: {file_err}')
+                
+                if errors:
+                    print(f'  [WARN] Some files had errors: {len(errors)}')
+                
+                print(f'  [OK] Update applied! ({files_updated} files updated)')
+                print('     Restart the server to use the new version.')
+                print('     Backup kept in backup_pre_update/ until next update.')
+                return True
+        
+        return False
+    except Exception as e:
+        print(f'  [ERROR] Update failed: {e}')
+        print('  [BACKUP] Your backup is in backup_pre_update/')
+        print('     To restore: python server.py --restore-backup')
+        return False
+    finally:
+        # Cleanup temp directory
+        if temp_dir.exists():
+            try:
+                shutil.rmtree(temp_dir)
+            except:
+                pass
+
+
+def restore_from_backup():
+    """Restore project from backup_pre_update folder."""
+    backup_dir = ROOT_DIR / 'backup_pre_update'
+    if not backup_dir.exists():
+        print('  [ERROR] No backup found to restore.')
+        return False
+    
+    print('  [RESTORE] Restoring from backup_pre_update...')
+    try:
+        for item in backup_dir.rglob('*'):
+            rel_path = item.relative_to(backup_dir)
+            dest_path = ROOT_DIR / rel_path
+            if item.is_file():
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(item, dest_path)
+        print('  [OK] Restore complete.')
+        return True
+    except Exception as e:
+        print(f'  [ERROR] Restore failed: {e}')
+        return False
+
+
+def show_update_banner(update_info):
+    """Display update notification banner."""
+    if not update_info.get('available'):
+        return
+    
+    print()
+    if update_info.get('needs_update'):
+        print('  +------------------------------------------------------+')
+        print('  |  [NEW] UPDATE AVAILABLE                               |')
+        print('  +------------------------------------------------------+')
+        print(f'  |  Current version: {update_info["current_version"]:<27} |')
+        print(f'  |  Latest version:  {update_info["latest_version"]:<27} |')
+        print('  +------------------------------------------------------+')
+        print('  |  To update, run:                                       |')
+        print('  |    python server.py --update                           |')
+        print('  +------------------------------------------------------+')
+    else:
+        print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
+
+
 def main():
     parser = argparse.ArgumentParser(
         description='Ichtus Workspace - Lokale ontwikkelserver',
@@ -264,7 +455,69 @@ Voorbeelden:
         action='store_true',
         help='Open de browser automatisch bij starten',
     )
+    parser.add_argument(
+        '--check-updates', '-c',
+        action='store_true',
+        help='Controleer voor updates en sluit af',
+    )
+    parser.add_argument(
+        '--update',
+        action='store_true',
+        help='Download en installeer de nieuwste update',
+    )
+    parser.add_argument(
+        '--no-update-check',
+        action='store_true',
+        help='Sla de automatische update controle over',
+    )
+    parser.add_argument(
+        '--restore-backup',
+        action='store_true',
+        help='Herstel vanuit backup_pre_update/',
+    )
     args = parser.parse_args()
+
+    # Handle --restore-backup mode
+    if args.restore_backup:
+        success = restore_from_backup()
+        return
+
+    # Handle --check-updates mode
+    if args.check_updates:
+        print('  [CHECK] Checking for updates...')
+        update_info = check_for_updates()
+        if update_info.get('available'):
+            if update_info.get('needs_update'):
+                print(f'  [NEW] Update available: {update_info["latest_version"]}')
+                print(f'        {update_info["release_url"]}')
+            else:
+                print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
+        else:
+            print(f'  [ERROR] Could not check updates: {update_info.get("error", "Unknown error")}')
+        return
+
+    # Handle --update mode
+    if args.update:
+        print('  [UPDATE] Starting update process...')
+        update_info = check_for_updates()
+        if update_info.get('needs_update'):
+            success = download_and_apply_update(update_info['download_url'])
+            if success:
+                print('\n  Server must be restarted to use the new version.')
+            else:
+                print('\n  Update failed. You can manually download from:')
+                print(f'  URL: {update_info["release_url"]}')
+        else:
+            print(f'  [OK] Version {update_info["current_version"]} is already up-to-date')
+        return
+
+    # Check for updates on startup (unless disabled)
+    if args.no_update_check:
+        print('  [SKIP] Update check disabled (--no-update-check)')
+    else:
+        print('  [CHECK] Checking for updates...')
+        update_info = check_for_updates()
+        show_update_banner(update_info)
 
     server = http.server.HTTPServer(
         (args.host, args.port),
