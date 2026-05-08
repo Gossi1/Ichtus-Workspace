@@ -406,24 +406,39 @@ def restore_from_backup():
         return False
 
 
-def show_update_banner(update_info):
-    """Display update notification banner."""
-    if not update_info.get('available'):
-        return
+def prompt_update_confirmation(update_info):
+    """Ask user if they want to apply the update. Returns True if user wants to update."""
+    if not update_info.get('needs_update'):
+        return False
     
     print()
-    if update_info.get('needs_update'):
+    print('  +------------------------------------------------------+')
+    print('  |  [NEW] UPDATE AVAILABLE                               |')
+    print('  +------------------------------------------------------+')
+    print(f'  |  Current:  {update_info["current_version"]:<30} |')
+    print(f'  |  Latest:   {update_info["latest_version"]:<30} |')
+    print('  +------------------------------------------------------+')
+    
+    if update_info.get('body'):
+        # Show first few lines of release notes
+        notes = update_info['body'][:200].replace('\n', ' ') + '...'
+        print(f'  |  {notes:<50} |')
         print('  +------------------------------------------------------+')
-        print('  |  [NEW] UPDATE AVAILABLE                               |')
-        print('  +------------------------------------------------------+')
-        print(f'  |  Current version: {update_info["current_version"]:<27} |')
-        print(f'  |  Latest version:  {update_info["latest_version"]:<27} |')
-        print('  +------------------------------------------------------+')
-        print('  |  To update, run:                                       |')
-        print('  |    python server.py --update                           |')
-        print('  +------------------------------------------------------+')
-    else:
-        print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
+    
+    print()
+    while True:
+        try:
+            response = input('  Update now? [Y/n]: ').strip().lower()
+            if response in ['', 'y', 'yes']:
+                return True
+            elif response in ['n', 'no']:
+                return False
+            else:
+                print('  Please enter Y or N')
+        except EOFError:
+            # Non-interactive mode (piped input), default to no
+            print('  (non-interactive, skipping update)')
+            return False
 
 
 def main():
@@ -512,12 +527,36 @@ Voorbeelden:
         return
 
     # Check for updates on startup (unless disabled)
+    update_info = None
     if args.no_update_check:
         print('  [SKIP] Update check disabled (--no-update-check)')
     else:
         print('  [CHECK] Checking for updates...')
         update_info = check_for_updates()
-        show_update_banner(update_info)
+        
+        if update_info.get('needs_update'):
+            # Ask for confirmation before updating
+            should_update = prompt_update_confirmation(update_info)
+            if should_update:
+                print()
+                print('  [UPDATE] Downloading and applying update...')
+                success = download_and_apply_update(update_info['download_url'])
+                if success:
+                    print()
+                    print('  Update applied! Please restart the server.')
+                    print('  Run: python server.py')
+                    return
+                else:
+                    print()
+                    print('  Update failed. Starting server with current version.')
+                    print('  (You can restore from backup with --restore-backup)')
+            else:
+                print()
+                print('  [SKIP] Update skipped. Starting server...')
+        elif update_info.get('available'):
+            print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
+        else:
+            print(f'  [WARN] Could not check updates: {update_info.get("error", "Unknown")}')
 
     server = http.server.HTTPServer(
         (args.host, args.port),
