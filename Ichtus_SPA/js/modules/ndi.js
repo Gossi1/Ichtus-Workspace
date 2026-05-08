@@ -36,7 +36,13 @@ const ndiModule = {
         }
 
         try {
-            const response = await fetch('/api/ndi/sources');
+            // Add timeout to prevent hanging requests
+            const controller = new AbortController();
+            const timeout = setTimeout(() => controller.abort(), 10000);
+            
+            const response = await fetch('/api/ndi/sources', { signal: controller.signal });
+            clearTimeout(timeout);
+            
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}`);
             }

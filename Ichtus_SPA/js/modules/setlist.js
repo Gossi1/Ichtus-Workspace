@@ -4,6 +4,23 @@
    Receives data from WorshipTools Chrome Extension
    ============================================ */
 
+// Helper for timed fetch calls
+async function proFetch(url, options = {}, timeoutMs = 10000) {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+        const resp = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(timeoutId);
+        return resp;
+    } catch (err) {
+        clearTimeout(timeoutId);
+        if (err.name === 'AbortError') {
+            throw new Error('Timeout - ProPresenter reageert niet');
+        }
+        throw err;
+    }
+}
+
 const setlistModule = {
     initialized: false,
 
@@ -11,7 +28,7 @@ const setlistModule = {
     CONFIG: {
         PRO_IP: "100.113.22.22",
         PRO_PORT: "51253",
-        LIBRARY_UUID: "7adad66d-a160-4411-a12c-b86fff85d19b",
+        LIBRARY_NAME: "Songs", // Library name to search for
         LOOP_VOOR_UUID: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52",
         MEDEDELINGEN_UUID: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9",
         LOOP_NA_UUID: "6e8e3626-ebcc-4efa-aad1-53253561d08a",
@@ -91,6 +108,14 @@ const setlistModule = {
             // Load templates
             this.SERVICE_TEMPLATES = JSON.parse(localStorage.getItem('setlistTemplates')) || JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES));
 
+            // Load saved ProPresenter IP from localStorage
+            const savedProIp = localStorage.getItem('setlistProIp');
+            if (savedProIp) {
+                const parts = savedProIp.split(':');
+                this.CONFIG.PRO_IP = parts[0] || this.CONFIG.PRO_IP;
+                this.CONFIG.PRO_PORT = parts[1] || this.CONFIG.PRO_PORT;
+            }
+
             // Render template dropdown
             this.renderTemplateDropdown();
 
@@ -102,6 +127,9 @@ const setlistModule = {
 
             // Initialize ProPresenter IP display
             this.updateProIpDisplay();
+
+            // Setup IP input change handler
+            this.setupProIpInputHandler();
 
             // Auto-test connection on first init (only if not yet tested)
             if (this.proConnectionStatus === 'unknown') {
@@ -307,7 +335,36 @@ const setlistModule = {
     updateProIpDisplay() {
         const ipDisplay = document.getElementById('pro-ip-display');
         if (ipDisplay) {
-            ipDisplay.textContent = `${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}`;
+            ipDisplay.value = `${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}`;
+        }
+    },
+
+    setupProIpInputHandler() {
+        const ipInput = document.getElementById('pro-ip-display');
+        if (ipInput) {
+            ipInput.addEventListener('change', () => {
+                const value = ipInput.value.trim();
+                if (value) {
+                    const parts = value.split(':');
+                    if (parts.length === 2) {
+                        this.CONFIG.PRO_IP = parts[0];
+                        this.CONFIG.PRO_PORT = parts[1];
+                        localStorage.setItem('setlistProIp', value);
+                        this.showStatus(`✅ IP opgeslagen: ${value}`, 'success');
+                    } else if (parts.length === 1 && parts[0]) {
+                        // Only IP provided, use default port
+                        this.CONFIG.PRO_IP = parts[0];
+                        localStorage.setItem('setlistProIp', `${parts[0]}:${this.CONFIG.PRO_PORT}`);
+                        this.showStatus(`✅ IP opgeslagen: ${parts[0]}:${this.CONFIG.PRO_PORT}`, 'success');
+                    }
+                }
+            });
+            // Update on Enter key as well
+            ipInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    ipInput.blur();
+                }
+            });
         }
     },
 
@@ -427,16 +484,52 @@ const setlistModule = {
         try {
             const BASE_URL = `http://${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}/v1`;
 
-            // Step 1: Fetch library to map song names to UUIDs
-            console.log('[Sync] Step 1: Fetching library...');
-            const libResp = await fetch(`${BASE_URL}/library/${this.CONFIG.LIBRARY_UUID}`);
+            // Step 1: Get library UUID from name
+            console.log('[Sync] Step 1: Fetching libraries list...');
+            
+            const libsResp = await proFetch(`${BASE_URL}/libraries`, { method: 'GET' });
+            console.log('[Sync] Libraries response status:', libsResp.status);
+            
+            if (!libsResp.ok) {
+                const errorText = await libsResp.text();
+                throw new Error(`Libraries list fetch failed: HTTP ${libsResp.status} - ${errorText}`);
+            }
+            
+            let libsData;
+            try {
+                libsData = await libsResp.json();
+            } catch (jsonErr) {
+                throw new Error(`Libraries response is not valid JSON: ${jsonErr.message}`);
+            }
+            
+            if (!Array.isArray(libsData)) {
+                throw new Error(`Libraries response is not an array: ${JSON.stringify(libsData).substring(0, 100)}`);
+            }
+            
+            // Find the library by name
+            const targetLib = libsData.find(lib => lib.name === this.CONFIG.LIBRARY_NAME);
+            if (!targetLib) {
+                throw new Error(`Library "${this.CONFIG.LIBRARY_NAME}" not found. Available: ${libsData.map(l => l.name).join(', ')}`);
+            }
+            console.log('[Sync] Found library:', targetLib.name, 'UUID:', targetLib.uuid);
+            
+            // Step 2: Fetch library contents
+            console.log('[Sync] Step 2: Fetching library contents...');
+            
+            const libResp = await proFetch(`${BASE_URL}/library/${targetLib.uuid}`, { method: 'GET' });
             console.log('[Sync] Library response status:', libResp.status);
             
             if (!libResp.ok) {
-                throw new Error(`Library fetch failed: HTTP ${libResp.status}`);
+                const errorText = await libResp.text();
+                throw new Error(`Library contents fetch failed: HTTP ${libResp.status} - ${errorText}`);
             }
             
-            const libData = await libResp.json();
+            let libData;
+            try {
+                libData = await libResp.json();
+            } catch (jsonErr) {
+                throw new Error(`Library response is not valid JSON: ${jsonErr.message}`);
+            }
             console.log('[Sync] Library items count:', libData.items?.length || 0);
             
             const libraryMap = {};
@@ -444,8 +537,8 @@ const setlistModule = {
                 libraryMap[item.name.toLowerCase().trim()] = item.uuid;
             });
 
-            // Step 2: Build setlist items
-            console.log('[Sync] Step 2: Building setlist items...');
+            // Step 3: Build setlist items
+            console.log('[Sync] Step 3: Building setlist items...');
             const { opening, praise, closing } = this.parsedSongs;
             console.log('[Sync] Songs found - Opening:', opening.length, 'Praise:', praise.length, 'Closing:', closing.length);
 
@@ -482,18 +575,18 @@ const setlistModule = {
                 console.warn('[Sync] Available library items (first 10):', Object.keys(libraryMap).slice(0, 10));
             }
 
-            // Step 3: Create new playlist
-            console.log('[Sync] Step 3: Creating playlist...');
+            // Step 4: Create new playlist
+            console.log('[Sync] Step 4: Creating playlist...');
             const playlistName = this.serviceDate || ("Web Sync: " + new Date().toLocaleTimeString('nl-NL'));
             console.log('[Sync] Creating playlist with name:', playlistName);
             if (!this.serviceDate) {
                 console.warn('[Sync] WARNING: No serviceDate available! Using fallback name.');
             }
-            const createPlaylist = await fetch(`${BASE_URL}/playlists`, {
+            const createPlaylist = await proFetch(`${BASE_URL}/playlists`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name: playlistName })
-            });
+            }, 15000);
             console.log('[Sync] Playlist creation status:', createPlaylist.status);
             
             if (!createPlaylist.ok) {
@@ -510,13 +603,13 @@ const setlistModule = {
             }
             console.log('[Sync] Created playlist UUID:', playlistUuid);
 
-            // Step 4: Add items to playlist
-            console.log('[Sync] Step 4: Adding items to playlist...');
-            const putResp = await fetch(`${BASE_URL}/playlist/${playlistUuid}`, {
+            // Step 5: Add items to playlist
+            console.log('[Sync] Step 5: Adding items to playlist...');
+            const putResp = await proFetch(`${BASE_URL}/playlist/${playlistUuid}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(items)
-            });
+            }, 15000);
             console.log('[Sync] Playlist update status:', putResp.status);
             
             if (!putResp.ok) {
