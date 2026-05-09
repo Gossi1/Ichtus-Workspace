@@ -1,0 +1,55 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to get user email
+    function userEmail() {
+      return request.auth.token.email;
+    }
+    
+    // ===========================================
+    // commandCenter - Active state (admin write, authenticated read)
+    // ===========================================
+    match /commandCenter/{docId} {
+      // Allow authenticated users to read
+      allow read: if isAuthenticated();
+      
+      // Only authenticated admins can write
+      // Admin is determined by email in the document or by being the owner
+      allow write: if isAuthenticated() && 
+        (resource.data.owner == userEmail() || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+    
+    // ===========================================
+    // commandCenterHistory - Archive (authenticated read/write)
+    // ===========================================
+    match /commandCenterHistory/{docId} {
+      // Allow authenticated users to read and write
+      allow read, write: if isAuthenticated();
+    }
+    
+    // ===========================================
+    // users - User profiles (only owner can read/write their own)
+    // ===========================================
+    match /users/{userId} {
+      // Users can read their own profile
+      allow read: if isAuthenticated() && request.auth.uid == userId;
+      
+      // Users can write their own profile
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // ===========================================
+    // Allow reading root-level collections for setup
+    // ===========================================
+    match /{document=**} {
+      allow read: if isAuthenticated();
+    }
+  }
+}

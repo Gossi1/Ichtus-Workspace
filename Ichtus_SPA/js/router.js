@@ -9,14 +9,12 @@ const router = {
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi'].includes(hash)) ? hash : 'dashboard';
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
         
-        this.navigate(initialView);
-
-        // Handle browser back/forward
+        this.navigate(initialView);            // Handle browser back/forward
         window.addEventListener('hashchange', () => {
             const view = window.location.hash.replace('#', '') || 'agenda';
-            if (['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard'].includes(view)) {
+            if (['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'settings'].includes(view)) {
                 this.navigate(view, false);
             }
         });
@@ -129,6 +127,8 @@ const router = {
             dashboardModule.init();
         } else if (view === 'ndi' && typeof ndiModule !== 'undefined') {
             ndiModule.init();
+        } else if (view === 'settings' && typeof settingsModule !== 'undefined') {
+            settingsModule.init();
         }
     }
 };
