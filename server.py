@@ -1,6 +1,18 @@
 #!/usr/bin/env python3
+import sys
+import io
+
+# Fix Unicode encoding for Windows console
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+    # Force unbuffered output
+    sys.stdout.flush()
+    sys.stderr.flush()
+
 import http.server
 import os
+import re
 import sys
 import socket
 import argparse
@@ -18,7 +30,7 @@ ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
 
 # Auto-update configuratie
 UPDATE_CONFIG = {
-    'github_repo': 'shamivision/Ichtus_apps',  # Gebruiker/Repo
+    'github_repo': 'Gossi1/Ichtus-Workspace',  # Gebruiker/Repo
     'current_version': '1.0.0',
     'check_on_start': True,
 }
@@ -29,8 +41,8 @@ try:
     from zeroconf import ServiceListener, ServiceBrowser, Zeroconf
     ZEROCONF_AVAILABLE = True
 except ImportError:
-    print('  ⚠️  zeroconf not installed - NDI discovery will use fallback method')
-    print('     Install with: pip install zeroconf')
+    print('  ⚠️  zeroconf not installed - NDI discovery will use fallback method', flush=True)
+    print('     Install with: pip install zeroconf', flush=True)
 
 # Only define NDIListener class if zeroconf is available
 if ZEROCONF_AVAILABLE:
@@ -65,10 +77,37 @@ if ZEROCONF_AVAILABLE:
                 return list(self.sources)
 
 
+def load_firebase_config():
+    """Load Firebase config from firebase-api-key.txt if it exists and has real values."""
+    config_file = ROOT_DIR / 'firebase-api-key.txt'
+    if not config_file.exists():
+        return None
+    
+    try:
+        content = config_file.read_text(encoding='utf-8')
+        # Parse all config values from the file
+        config = {}
+        for key in ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId']:
+            # Match both single and double quoted values (use raw string for regex)
+            key_match = re.search(rf'{key}:\s*["\']([^"\']+)["\']', content)
+            if key_match:
+                config[key] = key_match.group(1)
+        
+        # Validate required fields
+        if config.get('apiKey') and not config['apiKey'].startswith('YOUR_'):
+            return config
+    except Exception as e:
+        print(f'  [WARN] Could not load firebase config: {e}', flush=True)
+    return None
+
+
 class IchtusHandler(http.server.SimpleHTTPRequestHandler):
     # Class-level cache shared across all handler instances
     _ndi_cache = None
     _cache_timestamp = None
+    
+    # Firebase config loaded at class level
+    _firebase_config = None
     
     # Set the directory for serving files (class variable)
     directory = str(ROOT_DIR)
@@ -83,6 +122,15 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
+        # Load Firebase config if not already loaded
+        if IchtusHandler._firebase_config is None:
+            IchtusHandler._firebase_config = load_firebase_config()
+        
+        # Check if this is an HTML file that needs config injection
+        if self.path.endswith('.html') or self.path == '/':
+            self.serve_html_with_config()
+            return
+        
         print(f'  DEBUG: GET path={repr(self.path)}')
         
         # Test endpoint - always works
@@ -103,6 +151,40 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         
         # Default to serving static files
         super().do_GET()
+    
+    def serve_html_with_config(self):
+        """Serve HTML with Firebase config injected."""
+        # Determine the file path
+        if self.path == '/':
+            file_path = ROOT_DIR / 'Ichtus_SPA' / 'index.html'
+        elif self.path.startswith('/Ichtus_SPA/'):
+            file_path = ROOT_DIR / self.path.lstrip('/')
+        else:
+            file_path = ROOT_DIR / self.path.lstrip('/')
+        
+        if not file_path.exists():
+            self.send_error(404, 'File not found')
+            return
+        
+        # Read the HTML content
+        try:
+            content = file_path.read_text(encoding='utf-8')
+        except Exception as e:
+            self.send_error(500, f'Could not read file: {e}')
+            return
+        
+        # Inject Firebase config if we have it
+        if IchtusHandler._firebase_config:
+            config_json = json.dumps(IchtusHandler._firebase_config)
+            # Inject the config before </head>
+            config_script = f'<script>window.FIREBASE_CONFIG = {config_json};</script>'
+            content = content.replace('</head>', config_script + '</head>')
+        
+        # Send the response
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.end_headers()
+        self.wfile.write(content.encode('utf-8'))
     
     def handle_ndi_sources(self):
         # Send headers immediately to avoid empty reply
@@ -270,6 +352,8 @@ def check_for_updates():
                 'download_url': data.get('zipball_url', '')
             }
     except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return {'available': False, 'error': 'No releases found (repo may be private or no releases created yet)'}
         return {'available': False, 'error': f'HTTP Error: {e.code}'}
     except Exception as e:
         return {'available': False, 'error': str(e)}
@@ -442,6 +526,9 @@ def prompt_update_confirmation(update_info):
 
 
 def main():
+    # Force output flush before main() runs
+    sys.stdout.flush()
+    sys.stderr.flush()
     parser = argparse.ArgumentParser(
         description='Ichtus Workspace - Lokale ontwikkelserver',
         formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -503,12 +590,12 @@ Voorbeelden:
         update_info = check_for_updates()
         if update_info.get('available'):
             if update_info.get('needs_update'):
-                print(f'  [NEW] Update available: {update_info["latest_version"]}')
-                print(f'        {update_info["release_url"]}')
+                print(f'  [NEW] Update available: {update_info["latest_version"]}', flush=True)
+                print(f'        {update_info["release_url"]}', flush=True)
             else:
                 print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
         else:
-            print(f'  [ERROR] Could not check updates: {update_info.get("error", "Unknown error")}')
+            print(f'  [ERROR] Could not check updates: {update_info.get("error", "Unknown error")}', flush=True)
         return
 
     # Handle --update mode
@@ -556,7 +643,11 @@ Voorbeelden:
         elif update_info.get('available'):
             print(f'  [OK] Version {update_info["current_version"]} is up-to-date')
         else:
-            print(f'  [WARN] Could not check updates: {update_info.get("error", "Unknown")}')
+            print(f'  [WARN] Could not check updates: {update_info.get("error", "Unknown")}', flush=True)
+
+    # Flush before starting server
+    sys.stdout.flush()
+    sys.stderr.flush()
 
     server = http.server.HTTPServer(
         (args.host, args.port),
@@ -564,21 +655,24 @@ Voorbeelden:
     )
 
     local_ip = get_local_ip()
-    print()
-    print('  ==================================================')
-    print('         ICHTUS WORKSPACE - DEV SERVER')
-    print('  ==================================================')
-    print(f'  Lokaal:    http://localhost:{args.port}/Ichtus_SPA/')
-    if args.host == '0.0.0.0':
-        print(f'  Netwerk:   http://{local_ip}:{args.port}/Ichtus_SPA/')
-    print(f'  Root:      {ROOT_DIR}')
-    print('  --------------------------------------------------')
-    print('  API Endpoints:')
-    print(f'    GET /api/ndi/sources  - Ontdek NDI bronnen')
-    print('  --------------------------------------------------')
-    print('  Druk Ctrl+C om te stoppen')
-    print('  ==================================================')
-    print()
+    # Print entire header at once to avoid buffering issues on Windows
+    header = f"""
+  ==================================================
+         ICHTUS WORKSPACE - DEV SERVER
+  ==================================================
+  Lokaal:    http://localhost:{args.port}/Ichtus_SPA/
+  Netwerk:   http://{local_ip}:{args.port}/Ichtus_SPA/
+  Root:      {ROOT_DIR}
+  --------------------------------------------------
+  API Endpoints:
+    GET /api/ndi/sources  - Ontdek NDI bronnen
+  --------------------------------------------------
+  Druk Ctrl+C om te stoppen
+  ==================================================
+
+  Server draait. Wacht op verzoeken...
+"""
+    print(header, flush=True)
 
     if args.open:
         url = f'http://localhost:{args.port}/Ichtus_SPA/'

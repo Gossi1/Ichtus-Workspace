@@ -118,6 +118,17 @@
                     <span class='sidebar-text'>NDI Sources</span>
                 </a>
             </li>
+            <li data-view='settings'>
+                <a href='#' onclick="router.navigate('settings'); return false;">
+                    <div class='sidebar-icon'>
+                        <svg class='sidebar-nav-icon'>
+                            <circle cx='12' cy='12' r='3'></circle>
+                            <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'></path>
+                        </svg>
+                    </div>
+                    <span class='sidebar-text'>Instellingen</span>
+                </a>
+            </li>
         </ul>
         <div class='sidebar-footer'>
             <button class='toggle-btn' id='sidebar-toggle' title='Collapse/Expand Sidebar'>
@@ -443,6 +454,11 @@
             </div>
         </div>
 
+        <!-- SETTINGS VIEW -->
+        <div id='view-settings' class='app-view'>
+            <!-- Content rendered by settingsModule -->
+        </div>
+
         <!-- SETLIST VIEW -->
         <div id='view-setlist' class='app-view'>
             <div class='setlist-layout'>
@@ -650,7 +666,11 @@
     <!-- Firebase SDK - MUST load before firebase-init.js -->
     <!-- Local backup: falls back gracefully if CDN unreachable -->
     <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'></script>
+    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js'></script>
     <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js'></script>
+
+    <!-- Firebase Configuration - load BEFORE firebase-init.js -->
+    <script src='js/firebase-config.js'></script>
 
     <!-- SPA Core -->
     <script src='js/router.js'></script>
@@ -663,6 +683,7 @@
     <script src='js/modules/patchbay.js'></script>
     <script src='js/modules/analytics.js'></script>
     <script src='js/modules/ndi.js'></script>
+    <script src='js/modules/settings.js'></script>
     <script src='js/app.js'></script>
 
 </body>
