@@ -7,34 +7,10 @@ const router = {
         if (this.initialized) return;
         this.initialized = true;
 
-        // Handle initial hash or default view
-        const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
-        
-        this.navigate(initialView);            // Handle browser back/forward
-        window.addEventListener('hashchange', () => {
-            const view = window.location.hash.replace('#', '') || 'agenda';
-            if (['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'settings'].includes(view)) {
-                this.navigate(view, false);
-            }
-        });
-
-        // Sidebar toggle (desktop collapse/expand)
-        const sidebarToggle = document.getElementById('sidebar-toggle');
+        // Sidebar element (used by mobile hamburger; desktop toggle is handled by shared-assets/js/sidebar.js)
         const sidebar = document.getElementById('ichtus-sidebar');
-        if (sidebarToggle && sidebar) {
-            if (localStorage.getItem('ichtus_sidebar_collapsed') === 'true') {
-                sidebar.classList.add('collapsed');
-                document.body.classList.add('sidebar-collapsed');
-            }
-            sidebarToggle.addEventListener('click', () => {
-                sidebar.classList.toggle('collapsed');
-                document.body.classList.toggle('sidebar-collapsed');
-                localStorage.setItem('ichtus_sidebar_collapsed', sidebar.classList.contains('collapsed'));
-            });
-        }
 
-        // Mobile hamburger menu toggle
+        // Mobile hamburger menu toggle - set up BEFORE navigate() for robustness
         const hamburger = document.getElementById('mobile-hamburger');
         const backdrop = document.getElementById('sidebar-backdrop');
         if (hamburger && backdrop && sidebar) {
@@ -70,6 +46,20 @@ const router = {
                 });
             });
         }
+
+        // Handle initial hash or default view
+        const hash = window.location.hash.replace('#', '');
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
+        
+        this.navigate(initialView);
+        
+        window.addEventListener('hashchange', () => {
+            const hash = window.location.hash.replace('#', '');
+            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
+            if (view !== this.currentView) {
+                this.navigate(view, false);
+            }
+        });
     },
 
     navigate(view, updateHash = true) {
@@ -94,6 +84,7 @@ const router = {
         // Show target view
         const targetView = document.getElementById(`view-${view}`);
         if (targetView) {
+            targetView.classList.remove('hidden');
             targetView.classList.add('active');
         }
 

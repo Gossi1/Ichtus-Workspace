@@ -38,7 +38,7 @@
                     <span class='sidebar-text'>Dashboard</span>
                 </a>
             </li>
-            <li data-view='agenda' class='active'>
+            <li data-view='agenda'>
                 <a href='#' onclick="router.navigate('agenda'); return false;">
                     <div class='sidebar-icon'>
                         <svg class='sidebar-nav-icon'>
@@ -142,7 +142,7 @@
     <main class='main-content' id='app-container'>
 
         <!-- AGENDA VIEW -->
-        <div id='view-agenda' class='app-view active'>
+        <div id='view-agenda' class='app-view hidden'>
             <header>
                 <h1>AGENDA MAKER</h1>
             </header>
@@ -195,14 +195,16 @@
         </div>
 
         <!-- CHECKLIST VIEW -->
-        <div id='view-checklist' class='app-view'>
+        <div id='view-checklist' class='app-view hidden'>
             <!-- Role Selector Overlay -->
             <div id='role-selector' class='overlay-screen overlay-role-selector'>
-                <h1 class='role-selector-title heading-font'>Selecteer Station</h1>
-                <div class='role-selector-container'>
-                    <button type='button' onclick="checklistModule.selectRole('Admin', event)" class='btn-role btn-role-admin'>Co&#246;rdinator</button>
-                    <button type='button' onclick="checklistModule.selectRole('Beamer', event)" class='btn-role btn-role-beamer'>Beamer Team</button>
-                    <button type='button' onclick="checklistModule.selectRole('Worship', event)" class='btn-role btn-role-worship'>Worship Team</button>
+                <div class='role-selector-wrapper'>
+                    <h1 class='role-selector-title heading-font'>Selecteer Station</h1>
+                    <div class='role-selector-container'>
+                        <button type='button' onclick="checklistModule.selectRole('Admin', event)" class='btn-role btn-role-admin'>Co&#246;rdinator</button>
+                        <button type='button' onclick="checklistModule.selectRole('Beamer', event)" class='btn-role btn-role-beamer'>Beamer Team</button>
+                        <button type='button' onclick="checklistModule.selectRole('Worship', event)" class='btn-role btn-role-worship'>Worship Team</button>
+                    </div>
                 </div>
             </div>
 
@@ -313,7 +315,7 @@
         </div>
 
         <!-- PATCHBAY VIEW -->
-        <div id='view-patchbay' class='app-view'>
+        <div id='view-patchbay' class='app-view hidden'>
             <div id="pb-sidebar" class="pb-sidebar">
                 <button id="pb-menu-toggle" class="pb-menu-toggle" title="Manage Patchbays">
                     <span></span><span></span><span></span>
@@ -358,7 +360,7 @@
         </div>
 
         <!-- ANALYTICS VIEW -->
-        <div id='view-analytics' class='app-view'>
+        <div id='view-analytics' class='app-view hidden'>
             <div class="header-container-an">
                 <div class="header-text">
                     <h1>Service Tracking</h1>
@@ -421,7 +423,7 @@
         </div>
 
         <!-- NDI SOURCES VIEW -->
-        <div id='view-ndi' class='app-view'>
+        <div id='view-ndi' class='app-view hidden'>
             <div class='ndi-header'>
                 <div class='ndi-header-content'>
                     <div class='ndi-header-icon'>📡</div>
@@ -455,12 +457,12 @@
         </div>
 
         <!-- SETTINGS VIEW -->
-        <div id='view-settings' class='app-view'>
+        <div id='view-settings' class='app-view hidden'>
             <!-- Content rendered by settingsModule -->
         </div>
 
         <!-- SETLIST VIEW -->
-        <div id='view-setlist' class='app-view'>
+        <div id='view-setlist' class='app-view hidden'>
             <div class='setlist-layout'>
                 <!-- Connection Status Panel (Left) -->
                 <aside class='setlist-sidebar'>
@@ -487,6 +489,8 @@
                             <input type='text' id='pro-ip-display' class='pro-ip-display' value='100.113.22.22' placeholder='IP:Poort' title='ProPresenter IP en Poort'>
                             <button id='btn-test-proconnection' class='btn-setlist-secondary' onclick='setlistModule.testProPresenterConnection()'>🔍 Test Verbinding</button>
                         </div>
+
+
                     </div>
                 </aside>
 
@@ -557,7 +561,7 @@
         </div>
 
         <!-- DASHBOARD VIEW -->
-        <div id='view-dashboard' class='app-view'>
+        <div id='view-dashboard' class='app-view hidden'>
             <div class='dashboard-header'>
                 <h1 class='dashboard-title heading-font'>Workspace Dashboard</h1>
                 <p class='dashboard-subtitle'>Drag widgets to rearrange your workspace</p>
@@ -673,6 +677,7 @@
     <script src='js/firebase-config.js'></script>
 
     <!-- SPA Core -->
+    <script src='../shared-assets/js/sidebar.js'></script>
     <script src='js/router.js'></script>
     <script src='js/firebase-init.js'></script>
     <script src='js/state.js'></script>

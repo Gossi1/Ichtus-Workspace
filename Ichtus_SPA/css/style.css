@@ -2566,9 +2566,10 @@ input:checked + .slider::before { transform: translateX(20px); }
     transition: transform 0.2s ease-in-out;
     border: none;
     cursor: pointer;
+    text-align: center;
 }
 @media (min-width: 768px) {
-    .btn-role { width: auto; }
+    .btn-role { width: auto; min-width: 180px; }
 }
 .btn-role:hover { transform: scale(1.05); }
 .btn-role-admin { background-color: var(--border-light); }
@@ -2658,7 +2659,23 @@ input[type=checkbox] {
 }
 .overlay-screen.hidden { display: none; }
 
-.overlay-role-selector { flex-direction: column; background-color: var(--bg-main); }
+.overlay-role-selector { 
+    position: fixed;
+    top: 0;
+    left: 250px;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-main);
+    z-index: 100;
+}
+
+body.sidebar-collapsed .overlay-role-selector {
+    left: 70px;
+}
 
 /* Role selector - account for ichthus-sidebar (250px expanded, 70px collapsed) */
 body:not(.sidebar-collapsed) .overlay-role-selector { left: 250px; }
@@ -2791,7 +2808,7 @@ body.sidebar-collapsed .overlay-role-selector { left: 70px; }
 .note-banner { padding: 0.75rem; text-align: center; font-weight: 700; }
 
 /* Dialogs */
-.role-selector-title { font-size: 2.25rem; font-weight: 700; margin-bottom: 2.5rem; }
+.role-selector-title { font-size: 2.25rem; font-weight: 700; margin-bottom: 2.5rem; text-align: center; }
 .alert-title { font-size: 1.875rem; font-weight: 700; margin-bottom: 1rem; color: var(--ichtus-red); }
 .alert-text { font-size: 1.125rem; margin-bottom: 1.5rem; }
 .task-modal-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 1.5rem; }
@@ -3152,20 +3169,33 @@ body.sidebar-collapsed .overlay-role-selector { left: 70px; }
     background-color: var(--border-light);
 }
 
+.role-selector-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    max-width: 600px;
+    width: 100%;
+    margin: 0 auto;
+    text-align: center;
+    padding: 2rem;
+    box-sizing: border-box;
+}
+
 .role-selector-container {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    align-items: center;
     gap: 1rem;
     width: 100%;
     padding: 0;
+    text-align: center;
 }
 @media (min-width: 768px) {
     .role-selector-container {
         flex-direction: row;
         gap: 1.5rem;
-        max-width: none;
-        padding: 0;
     }
 }
 
