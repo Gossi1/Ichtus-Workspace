@@ -184,7 +184,7 @@ h1, h2, h3, .heading-font {
     z-index: 100; /* Stays above Tailwind z-50 overlays (like the Checklist Role Selector) */
 }
 
-.ichtus-sidebar.collapsed { width: 70px; }
+.ichtus-sidebar.collapsed { width: 70px !important; }
 
 .sidebar-header {
     height: 80px;
@@ -290,7 +290,7 @@ h1, h2, h3, .heading-font {
 
 .toggle-btn { background: transparent !important; border: none; color: #aaa; padding: 5px; display: flex; align-items: center; justify-content: center; width: auto; margin-bottom: 0; }
 .toggle-btn:hover { color: #f47920; }
-.toggle-icon { transition: transform 0.3s ease; }
+.toggle-icon { transition: transform 0.3s ease; pointer-events: none; }
 .ichtus-sidebar.collapsed .toggle-icon { transform: rotate(180deg); }
 
 /* Main Content */

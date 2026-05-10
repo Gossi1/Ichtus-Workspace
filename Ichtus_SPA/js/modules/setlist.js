@@ -135,6 +135,7 @@ const setlistModule = {
             if (this.proConnectionStatus === 'unknown') {
                 this.testProPresenterConnection();
             }
+
         }
 
 
@@ -320,6 +321,7 @@ const setlistModule = {
                 if (e.key === 'Enter') this.confirmNewTemplate();
             });
         }
+
     },
 
     clearSetlist() {
@@ -790,7 +792,8 @@ const setlistModule = {
             localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
             this.openTemplateEditor();
         }
-    }
+    },
+
 };
 
 // Make globally available for onclick handlers

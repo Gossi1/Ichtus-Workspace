@@ -24,6 +24,7 @@ import urllib.error
 import zipfile
 import shutil
 from pathlib import Path
+from datetime import datetime
 
 # --- Configuratie ---
 ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
@@ -194,38 +195,60 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         self.end_headers()
         
         try:
-            # Use cached sources if available and recent (within 10 seconds)
-            cache_age = self.get_timestamp_diff(self._cache_timestamp) if self._cache_timestamp else 999
-            if self._ndi_cache and cache_age < 10:
-                response = self._ndi_cache
+            # Check if we're already discovering (don't start duplicate)
+            if IchtusHandler._ndi_cache and IchtusHandler._ndi_cache.get('scanning'):
+                # Another request is already scanning, wait a bit and return
+                import time
+                for _ in range(10):  # Wait up to 2 seconds
+                    time.sleep(0.2)
+                    if not IchtusHandler._ndi_cache.get('scanning'):
+                        break
+                response = IchtusHandler._ndi_cache
                 self.wfile.write(json.dumps(response).encode())
                 return
             
-            # Discover in a separate thread to not block the response
+            # Use cached sources if available and recent (within 10 seconds)
+            cache_age = self.get_timestamp_diff(IchtusHandler._cache_timestamp) if IchtusHandler._cache_timestamp else 999
+            if IchtusHandler._ndi_cache and not IchtusHandler._ndi_cache.get('scanning') and cache_age < 10:
+                response = IchtusHandler._ndi_cache
+                self.wfile.write(json.dumps(response).encode())
+                return
+            
+            # Mark as scanning
+            IchtusHandler._ndi_cache = {'sources': [], 'count': 0, 'timestamp': self.get_timestamp(), 'scanning': True}
+            
+            # Discover in a separate thread
             def background_discovery():
-                sources = self.discover_ndi_sources()
-                IchtusHandler._ndi_cache = {
-                    'sources': sources,
-                    'count': len(sources),
-                    'timestamp': self.get_timestamp()
-                }
-                IchtusHandler._cache_timestamp = IchtusHandler._ndi_cache['timestamp']
+                try:
+                    sources = self.discover_ndi_sources()
+                    IchtusHandler._ndi_cache = {
+                        'sources': sources,
+                        'count': len(sources),
+                        'timestamp': self.get_timestamp(),
+                        'scanning': False
+                    }
+                except Exception as e:
+                    print(f'  ⚠️  NDI discovery error: {e}')
+                    IchtusHandler._ndi_cache = {
+                        'sources': [],
+                        'count': 0,
+                        'timestamp': self.get_timestamp(),
+                        'scanning': False,
+                        'error': str(e)
+                    }
             
             thread = threading.Thread(target=background_discovery)
             thread.daemon = True
             thread.start()
             
-            # Return cached or empty immediately
-            if self._ndi_cache:
-                response = self._ndi_cache
-            else:
-                response = {
-                    'sources': [],
-                    'count': 0,
-                    'timestamp': self.get_timestamp(),
-                    'scanning': True
-                }
+            # Wait for discovery to complete (up to 5 seconds)
+            import time
+            for _ in range(25):  # 25 * 0.2 = 5 seconds
+                time.sleep(0.2)
+                if IchtusHandler._ndi_cache and not IchtusHandler._ndi_cache.get('scanning'):
+                    break
             
+            response = IchtusHandler._ndi_cache
             self.wfile.write(json.dumps(response).encode())
             
         except Exception as e:
@@ -314,6 +337,7 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
     def get_timestamp(self):
         from datetime import datetime
         return datetime.now().isoformat()
+    
 
 
 def get_local_ip():
