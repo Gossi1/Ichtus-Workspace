@@ -357,6 +357,7 @@ input[type=file] { display: none; }
     align-items: center;
     gap: 8px;
     color: var(--ichtus-orange);
+    font-family: inherit;
 }
 
 #customLabel {
@@ -365,8 +366,6 @@ input[type=file] { display: none; }
     color: white;
     padding: 5px 10px;
     border-radius: 4px;
-    font-family: 'Blockprint';
-    text-transform: uppercase;
     width: 150px;
     font-size: 16px;
 }
@@ -403,6 +402,7 @@ input[type=file] { display: none; }
     align-items: center;
     gap: 8px;
     transition: background 0.2s;
+    font-family: inherit;
 }
 
 .toggle-item:hover { background: #555; }
