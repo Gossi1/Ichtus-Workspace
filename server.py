@@ -32,7 +32,7 @@ ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
 # Auto-update configuratie
 UPDATE_CONFIG = {
     'github_repo': 'Gossi1/Ichtus-Workspace',  # Gebruiker/Repo
-    'current_version': '1.2.2',
+    'current_version': '1.2.3',
     'check_on_start': True,
 }
 
@@ -424,8 +424,10 @@ def parse_version(v):
         return (0, 0, 0)
 
 
-def download_and_apply_update(download_url):
-    """Download update zip and apply it."""
+def download_and_apply_update(download_url, new_version=None):
+    """Download update zip and apply it.
+    new_version: after successful update, update current_version in local config.
+    """
     print('  [DOWNLOAD] Downloading update...')
     
     temp_dir = ROOT_DIR / 'temp_update'
@@ -505,6 +507,22 @@ def download_and_apply_update(download_url):
                 
                 if errors:
                     print(f'  [WARN] Some files had errors: {len(errors)}')
+                
+                # After successful update, update the local config version
+                if new_version:
+                    try:
+                        config_path = ROOT_DIR / 'server.py'
+                        old_config = config_path.read_text(encoding='utf-8')
+                        old_version = UPDATE_CONFIG['current_version']
+                        new_config = old_config.replace(
+                            f"'current_version': '{old_version}'",
+                            f"'current_version': '{new_version}'"
+                        )
+                        if old_config != new_config:
+                            config_path.write_text(new_config, encoding='utf-8')
+                            print(f'  [CONFIG] Updated version to {new_version}')
+                    except Exception as verr:
+                        print(f'  [CONFIG] Warning: could not update version: {verr}')
                 
                 print(f'  [OK] Update applied! ({files_updated} files updated)')
                 print('     Restart the server to use the new version.')
@@ -685,7 +703,7 @@ Voorbeelden:
             if should_update:
                 print()
                 print('  [UPDATE] Downloading and applying update...')
-                success = download_and_apply_update(update_info['download_url'])
+                success = download_and_apply_update(update_info['download_url'], new_version=update_info['latest_version'])
                 if success:
                     print()
                     print('  Update applied! Please restart the server.')
