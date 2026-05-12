@@ -235,7 +235,7 @@ const agendaModule = {
         const hideSpeakersEl = document.getElementById('hideSpeakers');
         const customLabelEl = document.getElementById('customLabel');
         const hideSpeakers = hideSpeakersEl ? hideSpeakersEl.checked : false;
-        const customLabel = customLabelEl ? customLabelEl.value.toUpperCase() : 'DIENST';
+        const customLabel = customLabelEl ? customLabelEl.value : 'Dienst';
 
         // Save preferences
         if (hideSpeakersEl) localStorage.setItem('ichtus_hide_speakers', hideSpeakers);
