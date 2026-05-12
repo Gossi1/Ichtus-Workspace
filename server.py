@@ -32,7 +32,7 @@ ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
 # Auto-update configuratie
 UPDATE_CONFIG = {
     'github_repo': 'Gossi1/Ichtus-Workspace',  # Gebruiker/Repo
-    'current_version': '1.0.0',
+    'current_version': '1.2.0',
     'check_on_start': True,
 }
 
@@ -454,6 +454,7 @@ def download_and_apply_update(download_url):
         # Create backup of existing files (exclude .git and temp)
         if backup_dir.exists():
             shutil.rmtree(backup_dir)
+        backup_dir.mkdir(parents=True, exist_ok=True)
         print('  [BACKUP] Creating backup...')
         for item in ROOT_DIR.iterdir():
             if item.name in ['.git', 'temp_update', 'backup_pre_update', '.venv']:
