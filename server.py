@@ -679,7 +679,7 @@ Voorbeelden:
         print('  [UPDATE] Starting update process...')
         update_info = check_for_updates()
         if update_info.get('needs_update'):
-            success = download_and_apply_update(update_info['download_url'])
+            success = download_and_apply_update(update_info['download_url'], new_version=update_info['latest_version'])
             if success:
                 print('\n  Server must be restarted to use the new version.')
             else:
