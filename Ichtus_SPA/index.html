@@ -319,17 +319,23 @@
             <div id="pb-sidebar" class="pb-sidebar">
                 <button id="pb-menu-toggle" class="pb-menu-toggle" title="Manage Patchbays">
                     <span></span><span></span><span></span>
-                </button>
-                <div class="pb-sidebar-header">
-                    <h2>Patchbays</h2>
-                    <div class="pb-sidebar-actions">
-                        <button id="btn-edit-sidebar" class="pb-sidebar-edit-btn" title="Edit Mode (drag to reorder)">✏️</button>
-                        <button id="btn-add-folder" title="New Folder / Group">📁</button>
-                        <button id="btn-add-file" title="New Canvas">📄</button>
-                        <button id="btn-import-file" title="Import Canvas(es)">📥</button>
-                        <button id="btn-export-all" title="Export All Canvases">💾</button>
+                </button>            <div class="pb-sidebar-header">
+                <h2>Patchbays</h2>
+                <div class="pb-sidebar-actions">
+                    <button id="btn-add-folder" title="New Folder / Group">📁</button>
+                    <button id="btn-add-file" title="New Canvas">📄</button>
+                    <button id="btn-cloud-save" title="☁️ Save Patchbays to Cloud (Firebase)">☁️</button>
+                    <div class="pb-actions-more" id="pb-actions-more">
+                        <button class="pb-more-trigger" id="pb-more-trigger" title="More actions">•••</button>
+                        <div class="pb-more-dropdown" id="pb-more-dropdown">
+                            <button id="btn-edit-sidebar" class="pb-sidebar-edit-btn" title="Edit Mode (drag to reorder)">✏️ Edit Mode</button>
+                            <button id="btn-import-file" title="Import Canvas(es)">📥 Import</button>
+                            <button id="btn-export-all" title="Export All Canvases">💾 Export</button>
+                            <button id="btn-cloud-load" title="📂 Load Patchbays from Cloud (Firebase)">📂 Load Cloud</button>
+                        </div>
                     </div>
                 </div>
+            </div>
                 <div class="pb-sidebar-content" id="pb-sidebar-content"></div>
             </div>
             <div class="header-container-pb">

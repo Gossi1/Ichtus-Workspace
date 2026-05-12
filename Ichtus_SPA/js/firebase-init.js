@@ -8,48 +8,50 @@ let currentUser = null;
 // Configuration loaded from external file
 let firebaseConfig = null;
 
-try {
-    // First check localStorage for saved config (persisted from setup screen)
-    const savedConfig = localStorage.getItem('firebaseConfig');
-    if (savedConfig) {
-        try {
-            firebaseConfig = JSON.parse(savedConfig);
-            if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
+(function initFirebaseConfig() {
+    try {
+        // First check localStorage for saved config (persisted from setup screen)
+        const savedConfig = localStorage.getItem('firebaseConfig');
+        if (savedConfig) {
+            try {
+                firebaseConfig = JSON.parse(savedConfig);
+                if (firebaseConfig && firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
+                    initializeFirebase(firebaseConfig);
+                    return;
+                }
+            } catch (parseErr) {
+                localStorage.removeItem('firebaseConfig');
+            }
+        }
+        
+        // Check server-injected config first (highest priority)
+        if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
+            firebaseConfig = window.FIREBASE_CONFIG;
+            if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
                 initializeFirebase(firebaseConfig);
                 return;
             }
-        } catch (parseErr) {
-            localStorage.removeItem('firebaseConfig');
         }
-    }
-    
-    // Check server-injected config first (highest priority)
-    if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
-        firebaseConfig = window.FIREBASE_CONFIG;
-        if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
-            initializeFirebase(firebaseConfig);
-            return;
-        }
-    }
-    
-    // Then check external config file (legacy fallback)
-    if (typeof FIREBASE_CONFIG !== 'undefined') {
-        firebaseConfig = FIREBASE_CONFIG;
         
-        // Check if it's still the placeholder
-        if (firebaseConfig.apiKey === 'YOUR_API_KEY_HERE' || !firebaseConfig.apiKey) {
-            showSetupScreen();
+        // Then check external config file (legacy fallback)
+        if (typeof FIREBASE_CONFIG !== 'undefined') {
+            firebaseConfig = FIREBASE_CONFIG;
+            
+            // Check if it's still the placeholder
+            if (firebaseConfig.apiKey === 'YOUR_API_KEY_HERE' || !firebaseConfig.apiKey) {
+                showSetupScreen();
+            } else {
+                initializeFirebase(firebaseConfig);
+            }
         } else {
-            initializeFirebase(firebaseConfig);
+            // No external config file found - show setup screen
+            showSetupScreen();
         }
-    } else {
-        // No external config file found - show setup screen
+    } catch (e) {
+        console.warn('Firebase not configured:', e.message);
         showSetupScreen();
     }
-} catch (e) {
-    console.warn('Firebase not configured:', e.message);
-    showSetupScreen();
-}
+})();
 
 function initializeFirebase(config) {
     try {
@@ -57,19 +59,22 @@ function initializeFirebase(config) {
         auth = firebase.auth();
         db = firebase.firestore();
         
-        try {
-            db.settings({
-                cache: new firebase.firestore.IndexedDbCache(),
-                experimentalForceLongPolling: true,
-                experimentalAutoDetectLongPolling: false
-            });
-        } catch (err) {
-            if (err.code === 'unimplemented') {
-                console.warn('Firebase persistence not supported in this browser.');
+        // Firestore settings for restrictive networks
+        db.settings({
+            experimentalForceLongPolling: true,
+            experimentalAutoDetectLongPolling: false,
+            merge: true
+        });
+        
+        // Enable IndexedDB persistence (Firebase v10 compat API)
+        db.enablePersistence().catch((err) => {
+            if (err.code === 'unimplemented' || err.code === 'failed-precondition') {
+                console.warn('Firebase persistence not supported (multiple tabs open?)');
             } else {
                 console.warn('Could not enable Firebase persistence.', err);
             }
-        }
+        });
+        
         useFirebase = true;
         console.log('Firebase Active.');
         
@@ -80,8 +85,10 @@ function initializeFirebase(config) {
                 console.log('User signed in:', user.email);
                 showApp();
             } else {
-                console.log('User signed out');
-                showSignInScreen();
+                // No user signed in — show the app anyway (Firestore may be restricted)
+                // Users can sign in later if needed
+                console.log('No user signed in — running unauthenticated.');
+                showApp();
             }
         });
     } catch (e) {
