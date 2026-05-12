@@ -150,6 +150,10 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_ndi_sources()
             return
         
+        if self.path.startswith('/api/tockify/ics'):
+            self.handle_tockify_ics()
+            return
+        
         # Default to serving static files
         super().do_GET()
     
@@ -333,6 +337,35 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             print(f'  ⚠️  Fallback scan error: {e}')
         
         return sources
+    
+    def handle_tockify_ics(self):
+        """Server-side proxy: fetch Tockify ICS feed (no CORS issues)."""
+        ics_url = 'https://tockify.com/api/feeds/ics/ichtus'
+        
+        try:
+            req = urllib.request.Request(ics_url, headers={'User-Agent': 'Ichtus-Workspace'})
+            with urllib.request.urlopen(req, timeout=15) as response:
+                ics_data = response.read().decode('utf-8')
+            
+            self.send_response(200)
+            self.send_header('Content-Type', 'text/calendar; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-cache')
+            self.end_headers()
+            self.wfile.write(ics_data.encode('utf-8'))
+            
+        except urllib.error.URLError as e:
+            self.send_response(502)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': f'Tockify unreachable: {str(e.reason)}'}).encode())
+        except Exception as e:
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(json.dumps({'error': str(e)}).encode())
     
     def get_timestamp(self):
         from datetime import datetime

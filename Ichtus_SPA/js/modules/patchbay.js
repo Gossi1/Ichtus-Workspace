@@ -132,6 +132,90 @@ const patchbayModule = (function() {
         localStorage.setItem('patchbay_current_project', state.currentProjectId);
     }
 
+    // ==================== CLOUD SYNC (FIREBASE) ====================
+
+    async function saveToCloud() {
+        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
+            showStatus('☁️ Geen Firebase verbinding', 'error');
+            return false;
+        }
+        try {
+            // First persist to localStorage so data is never lost on refresh
+            saveData();
+
+            // Save entire projects object to Firestore (shared team collection)
+            await db.collection('patchbay').doc('projects').set({
+                projects: state.projects,
+                currentProjectId: state.currentProjectId,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'anonymous'
+            }, { merge: true });
+            showStatus('☁️ Opgeslagen naar Cloud ✓', 'success');
+            return true;
+        } catch (e) {
+            console.error('Cloud save failed:', e);
+            showStatus('☁️ Cloud opslag mislukt: ' + e.message, 'error');
+            return false;
+        }
+    }
+
+    async function loadFromCloud() {
+        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
+            showStatus('☁️ Geen Firebase verbinding', 'error');
+            return false;
+        }
+        try {
+            const doc = await db.collection('patchbay').doc('projects').get();
+            if (doc.exists) {
+                const data = doc.data();
+                if (data.projects && Object.keys(data.projects).length > 0) {
+                    // If there is existing local data, ask for confirmation before overwriting
+                    const hasLocalData = Object.keys(state.projects).length > 0 && (
+                        state.projects[state.currentProjectId]?.data?.nodes?.length > 0 ||
+                        state.projects[state.currentProjectId]?.data?.connections?.length > 0 ||
+                        Object.keys(state.projects).length > 1
+                    );
+                    
+                    if (hasLocalData) {
+                        // Use a promise-based confirmation
+                        const confirmed = await new Promise((resolve) => {
+                            showConfirm(
+                                'Dit vervangt alle ' + Object.keys(state.projects).length + ' lokale patchbay projecten door de cloud versie. Alle niet-opgeslagen wijzigingen gaan verloren. Doorgaan?',
+                                () => resolve(true),
+                                () => resolve(false)
+                            );
+                        });
+                        if (!confirmed) {
+                            showStatus('☁️ Laden geannuleerd', 'info');
+                            return false;
+                        }
+                    }
+
+                    state.projects = data.projects;
+                    state.currentProjectId = data.currentProjectId || Object.keys(state.projects)[0];
+                    state.data = state.projects[state.currentProjectId].data;
+
+                    // Persist to localStorage as well
+                    localStorage.setItem('patchbay_projects', JSON.stringify(state.projects));
+                    localStorage.setItem('patchbay_current_project', state.currentProjectId);
+
+                    state.canvasTransform = { x: 0, y: 0, scale: 1 };
+                    updateTransform();
+                    renderAll();
+                    renderSidebar();
+                    showStatus('☁️ Geladen uit Cloud ✓', 'success');
+                    return true;
+                }
+            }
+            showStatus('☁️ Nog geen cloud data gevonden', 'info');
+            return false;
+        } catch (e) {
+            console.error('Cloud load failed:', e);
+            showStatus('☁️ Cloud laden mislukt: ' + e.message, 'error');
+            return false;
+        }
+    }
+
     // ==================== RENDERING ====================
 
     function renderAll() {
@@ -652,30 +736,46 @@ const patchbayModule = (function() {
             </div>
         `;
 
+        function movePort(containerId, row, direction) {
+            const c = document.getElementById(containerId);
+            const siblings = Array.from(c.children);
+            const idx = siblings.indexOf(row);
+            if (direction === 'up' && idx > 0) {
+                c.insertBefore(row, siblings[idx - 1]);
+            } else if (direction === 'down' && idx < siblings.length - 1) {
+                c.insertBefore(siblings[idx + 1], row);
+            }
+        }
+
+        function createPortRow(containerId, port) {
+            const row = document.createElement('div');
+            row.className = 'port-edit-row';
+            row.innerHTML = `
+                <button class="btn-move-port" data-dir="up" title="Move Up">▲</button>
+                <button class="btn-move-port" data-dir="down" title="Move Down">▼</button>
+                <input type="text" value="${port}" class="port-input-field">
+                <button class="btn-remove-port" title="Remove Port">&times;</button>
+            `;
+            row.querySelector('.btn-move-port[data-dir="up"]').onclick = () => movePort(containerId, row, 'up');
+            row.querySelector('.btn-move-port[data-dir="down"]').onclick = () => movePort(containerId, row, 'down');
+            row.querySelector('.btn-remove-port').onclick = () => row.remove();
+            return row;
+        }
+
         function renderPorts(containerId, ports) {
             const c = document.getElementById(containerId);
             c.innerHTML = '';
             ports.forEach(port => {
-                const row = document.createElement('div');
-                row.className = 'port-edit-row';
-                row.innerHTML = `
-                    <input type=\"text\" value=\"${port}\" class=\"port-input-field\">
-                    <button class=\"btn-remove-port\" title=\"Remove Port\">&times;</button>
-                `;
-                row.querySelector('.btn-remove-port').onclick = () => row.remove();
-                c.appendChild(row);
+                c.appendChild(createPortRow(containerId, port));
             });
         }
 
         renderPorts('cfg-inputs-container', node.inputs);
         renderPorts('cfg-outputs-container', node.outputs);
 
-        document.getElementById('cfg-add-input').onclick = () => {
+                document.getElementById('cfg-add-input').onclick = () => {
             const c = document.getElementById('cfg-inputs-container');
-            const row = document.createElement('div');
-            row.className = 'port-edit-row';
-            row.innerHTML = `<input type=\"text\" value=\"New Input\" class=\"port-input-field\"><button class=\"btn-remove-port\" title=\"Remove Port\">&times;</button>`;
-            row.querySelector('.btn-remove-port').onclick = () => row.remove();
+            const row = createPortRow('cfg-inputs-container', 'New Input');
             c.appendChild(row);
             
             const input = row.querySelector('input');
@@ -685,10 +785,7 @@ const patchbayModule = (function() {
 
         document.getElementById('cfg-add-output').onclick = () => {
             const c = document.getElementById('cfg-outputs-container');
-            const row = document.createElement('div');
-            row.className = 'port-edit-row';
-            row.innerHTML = `<input type=\"text\" value=\"New Output\" class=\"port-input-field\"><button class=\"btn-remove-port\" title=\"Remove Port\">&times;</button>`;
-            row.querySelector('.btn-remove-port').onclick = () => row.remove();
+            const row = createPortRow('cfg-outputs-container', 'New Output');
             c.appendChild(row);
             
             const input = row.querySelector('input');
@@ -833,6 +930,8 @@ const patchbayModule = (function() {
                 items.push({ label: 'Copy Canvas', action: () => copyCanvasToSidebar(), icon: '📋' });
                 items.push({ type: 'separator' });
                 items.push({ label: 'Export Canvas', action: () => exportCanvas(), icon: '💾' });
+        saveToCloud,
+        loadFromCloud
             }
         }
         
@@ -2913,6 +3012,9 @@ const patchbayModule = (function() {
                     pbSidebarEl.classList.toggle('edit-mode', state.editMode);
                 }
                 btnEditSidebar.classList.toggle('active', state.editMode);
+                // Visual indicator on the more-actions trigger
+                const moreTrigger = document.getElementById('pb-more-trigger');
+                if (moreTrigger) moreTrigger.classList.toggle('edit-active', state.editMode);
                 localStorage.setItem('patchbay_edit_mode', state.editMode ? 'true' : 'false');
             });
             // Restore edit mode state
@@ -2920,8 +3022,55 @@ const patchbayModule = (function() {
                 const pbSidebarEl = document.getElementById('pb-sidebar');
                 if (pbSidebarEl) pbSidebarEl.classList.add('edit-mode');
                 btnEditSidebar.classList.add('active');
+                const moreTrigger = document.getElementById('pb-more-trigger');
+                if (moreTrigger) moreTrigger.classList.add('edit-active');
             }
         }
+        // Cloud sync buttons
+        const btnCloudSave = document.getElementById('btn-cloud-save');
+        if (btnCloudSave) {
+            btnCloudSave.addEventListener('click', (e) => {
+                e.preventDefault();
+                saveToCloud();
+            });
+        }
+
+        const btnCloudLoad = document.getElementById('btn-cloud-load');
+        if (btnCloudLoad) {
+            btnCloudLoad.addEventListener('click', (e) => {
+                e.preventDefault();
+                loadFromCloud();
+            });
+        }
+
+        const btnExportAll = document.getElementById('btn-export-all');
+        if (btnExportAll) {
+            btnExportAll.addEventListener('click', (e) => {
+                e.preventDefault();
+                exportAllProjects();
+            });
+        }
+
+        // More-actions dropdown toggle
+        const moreTrigger = document.getElementById('pb-more-trigger');
+        const moreDropdown = document.getElementById('pb-more-dropdown');
+        if (moreTrigger && moreDropdown) {
+            let moreClick = false;
+            moreTrigger.addEventListener('click', () => {
+                moreClick = true;
+                moreDropdown.classList.toggle('open');
+            });
+            // Close dropdown when clicking outside
+            document.addEventListener('click', () => {
+                if (moreClick) { moreClick = false; return; }
+                moreDropdown.classList.remove('open');
+            });
+            // Close dropdown when clicking any button inside it
+            moreDropdown.addEventListener('click', () => {
+                moreDropdown.classList.remove('open');
+            });
+        }
+
     }
 
     function handleImportCanvases() {

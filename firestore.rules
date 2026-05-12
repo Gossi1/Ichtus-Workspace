@@ -35,6 +35,14 @@ service cloud.firestore {
     }
     
     // ===========================================
+    // patchbay - Shared patchbay project data (authenticated read/write)
+    // ===========================================
+    match /patchbay/{docId} {
+      // Allow authenticated users to read and write shared patchbay data
+      allow read, write: if isAuthenticated();
+    }
+    
+    // ===========================================
     // users - User profiles (only owner can read/write their own)
     // ===========================================
     match /users/{userId} {

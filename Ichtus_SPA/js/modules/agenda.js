@@ -97,8 +97,9 @@ const agendaModule = {
     async fetchTockify() {
         const status = document.getElementById('status');
         const icsUrl = 'https://tockify.com/api/feeds/ics/ichtus';
-        // CORS proxies — try each in order until one works
+        // CORS proxies — server-side proxy first (most reliable), then public proxies as fallback
         const corsProxies = [
+            '/api/tockify/ics',  // Server-side proxy (no CORS needed)
             'https://corsproxy.io/?' + encodeURIComponent(icsUrl),
             'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(icsUrl),
             'https://api.allorigins.win/raw?url=' + encodeURIComponent(icsUrl)
