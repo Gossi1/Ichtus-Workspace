@@ -1077,6 +1077,17 @@ input:checked + .slider::before { transform: translateX(20px); }
 .pb-context-menu-item.disabled { opacity: 0.4; cursor: not-allowed; }
 .pb-context-separator { height: 1px; background: #333; margin: 4px 0; }
 
+/* Checklist Context Menu */
+.cl-context-menu {
+    position: fixed; background: var(--bg-sidebar, #1e1e1e); border: 1px solid var(--border-light, #333);
+    border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.7); padding: 6px 0;
+    min-width: 180px; z-index: 10000; display: none; flex-direction: column; font-family: sans-serif;
+}
+.cl-context-menu-item { padding: 10px 16px; color: #eee; font-size: 13px; cursor: pointer; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 8px; }
+.cl-context-menu-item:hover { background: rgba(244, 121, 32, 0.15); color: var(--ichtus-orange, #f47920); }
+.cl-context-menu-item.danger:hover { background: rgba(237, 28, 36, 0.15); color: #ed1c24; }
+.cl-context-separator { height: 1px; background: #333; margin: 4px 0; }
+
 @keyframes toast-fade {
     0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
     15% { opacity: 1; transform: translateX(-50%) translateY(0); }
@@ -2614,6 +2625,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     flex-direction: column;
     background-color: var(--bg-main);
     min-height: 0;
+    padding: 16px 20px;
 }
 
 /* Role Selector */
@@ -2636,16 +2648,6 @@ input:checked + .slider::before { transform: translateX(20px); }
 .btn-role-admin { background-color: var(--border-light); }
 .btn-role-beamer { background-color: var(--ichtus-orange); }
 .btn-role-worship { background-color: var(--ichtus-blue); }
-
-/* Timer Display */
-#main-countdown {
-    color: var(--ichtus-orange);
-    text-shadow: 1px 1px 4px rgba(0,0,0,0.4);
-}
-
-#main-countdown.overdue {
-    color: var(--ichtus-red);
-}
 
 /* Inputs & Form Elements */
 input, select, textarea {
@@ -2749,6 +2751,7 @@ body.sidebar-collapsed .overlay-role-selector {
     flex-direction: column;
     background-color: var(--bg-main);
     min-height: 0;
+    padding: 16px 20px;
 }
 .overlay-task-modal { background-color: rgba(0,0,0,0.8); }
 .overlay-alert-modal { background-color: rgba(0,0,0,0.6); }
@@ -2995,41 +2998,9 @@ body.sidebar-collapsed .overlay-role-selector {
     }
 }
 
-/* Timer Container */
-.timer-container {
-    padding: 1rem;
-    border-bottom: 1px solid var(--border-light);
-    background-color: var(--bg-sidebar);
-    position: relative;
-}
-@media (min-width: 768px) {
-    .timer-container {
-        padding: 2rem;
-    }
-}
-
-.timer-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1rem;
-}
-@media (min-width: 768px) {
-    .timer-header {
-        margin-bottom: 0;
-    }
-}
-
 .btn-switch-role {
     font-size: 0.75rem;
     color: #9ca3af;
-}
-@media (min-width: 768px) {
-    .btn-switch-role {
-        position: absolute;
-        top: 1rem;
-        left: 1rem;
-    }
 }
 
 .btn-add-task-main {
@@ -3054,42 +3025,6 @@ body.sidebar-collapsed .overlay-role-selector {
         right: 1rem;
         padding-left: 1rem;
         padding-right: 1rem;
-    }
-}
-
-.countdown-display {
-    text-align: center;
-    margin-top: 0.5rem;
-}
-@media (min-width: 768px) {
-    .countdown-display {
-        margin-top: 0;
-    }
-}
-
-.countdown-label {
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 0.25rem;
-}
-@media (min-width: 768px) {
-    .countdown-label {
-        font-size: 0.875rem;
-        margin-bottom: 0.5rem;
-    }
-}
-
-#main-countdown {
-    font-size: 3rem;
-    font-weight: 700;
-    letter-spacing: -0.025em;
-}
-@media (min-width: 768px) {
-    #main-countdown {
-        font-size: 4.5rem;
     }
 }
 
@@ -3669,12 +3604,6 @@ body.sidebar-collapsed .overlay-role-selector {
         max-width: 100%;
     }
 
-    #main-countdown {
-        font-size: 2.5rem;
-    }
-    .countdown-label {
-        font-size: 0.7rem;
-    }
     .task-row {
         padding: 0.75rem;
         flex-wrap: wrap;
@@ -3723,16 +3652,7 @@ body.sidebar-collapsed .overlay-role-selector {
         font-size: 0.9rem;
     }
 
-    .timer-header {
-        flex-wrap: wrap;
-        gap: 8px;
-    }
-    .btn-switch-role, .btn-add-task-main {
-        position: static;
-        width: 100%;
-        text-align: center;
-        padding: 10px;
-        font-size: 0.8rem;
+    /* removed */
     }
 
     .modal-dialog {
@@ -3752,4 +3672,811 @@ body.sidebar-collapsed .overlay-role-selector {
     .manage-input.w-24 {
         width: 5rem;
     }
+/* ===============================
+   Checklist Overview Cards
+   =============================== */
+
+.cl-checklist-card {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: border-color 0.2s, transform 0.15s;
+    overflow: hidden;
+}
+
+.cl-checklist-card:hover {
+    border-color: var(--ichtus-orange, #f47920);
+    transform: translateY(-1px);
+}
+
+.cl-checklist-header {
+    display: flex;
+    align-items: center;
+    padding: 10px 14px 4px;
+    gap: 8px;
+}
+
+.cl-checklist-name {
+    font-weight: 600;
+    font-size: 1rem;
+    color: var(--text-main, #eee);
+    flex: 1;
+}
+
+/* Repeat Icon - only shown when repeat is configured */
+.cl-repeat-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    font-size: 0.85rem;
+    margin-left: 2px;
+    cursor: help;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+.cl-repeat-icon:hover {
+    opacity: 1;
+    transform: scale(1.15);
+}
+
+.cl-checklist-progress {
+    font-size: 0.8rem;
+    color: var(--text-dim, #888);
+    white-space: nowrap;
+    margin-right: 8px;
+}
+
+.cl-checklist-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px 10px;
+}
+
+.cl-checklist-progress-bar {
+    flex: 1;
+    height: 8px;
+    background: var(--border-light, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cl-checklist-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ichtus-orange, #f47920), #ff8c42);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 0;
+}
+
+.cl-checklist-progress-pct {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-dim, #888);
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
+.cl-checklist-due {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px 6px;
+    font-size: 0.8rem;
+    color: var(--text-dim, #888);
+}
+
+.cl-due-label {
+    opacity: 0.7;
+}
+
+.cl-due-time {
+    font-weight: 600;
+    color: var(--ichtus-orange, #f47920);
+}
+
+/* ===============================
+   Checklist Module
+   =============================== */
+
+.cl-overview {
+    margin-top: 16px;
+}
+
+.cl-checklist-list {
+    margin-bottom: 16px;
+}
+
+/* Header Bar */
+.cl-header-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.cl-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.cl-header-title {
+    font-size: 1.5rem;
+    color: var(--text-main, #eee);
+}
+
+.cl-header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.checklist-main.detail-open {
+    overflow-y: auto;
+}
+
+.checklist-main.detail-open .cl-header-right {
+    display: none;
+}
+
+.cl-back-btn {
+    font-size: 0.85rem;
+    color: var(--ichtus-orange, #f47920);
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+.cl-back-btn:hover {
+    opacity: 0.8;
+}
+
+/* Header Buttons */
+.cl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.2s, transform 0.15s;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text-main, #eee);
+    background: #333;
+}
+.cl-btn:hover {
+    background: #444;
+    transform: translateY(-1px);
+}
+
+.cl-btn-add {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.3rem;
+    font-weight: 700;
+    background: var(--ichtus-orange, #f47920);
+    color: #fff;
+    border-radius: 8px;
+    line-height: 1;
+}
+.cl-btn-add:hover {
+    background: #e06a10;
+}
+
+.cl-btn-settings {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.1rem;
+    background: transparent;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 8px;
+    color: var(--text-dim, #888);
+    line-height: 1;
+}
+.cl-btn-settings:hover {
+    background: #333;
+    color: var(--text-main, #eee);
+}
+
+/* Action Buttons */
+.cl-action-bar {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.cl-action-btn {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim, #888);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+}
+.cl-action-btn:hover {
+    border-color: var(--ichtus-orange, #f47920);
+    color: var(--text-main, #eee);
+}
+
+/* Tag Filters */
+.cl-tag-filters {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+    padding: 8px 12px;
+    background: var(--card-bg, #1e1e1e);
+    border-radius: 8px;
+    border: 1px solid var(--border-color, #333);
+}
+
+.cl-filter-label {
+    font-size: 0.78rem;
+    color: var(--text-dim, #888);
+    font-weight: 600;
+}
+
+.cl-tag-filter-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.cl-clear-filter {
+    font-size: 0.78rem;
+    color: var(--ichtus-orange, #f47920);
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+/* Detail View */
+/* ===============================
+   Checklist Detail View
+   =============================== */
+
+.cl-detail {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 8px;
+    padding: 16px;
+    margin-top: 8px;
+}
+
+.cl-detail-content {
+    max-width: 100%;
+}
+
+.cl-detail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border-color, #333);
+    margin-bottom: 12px;
+}
+
+.cl-detail-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.cl-detail-name {
+    font-weight: 700;
+    font-size: 1.15rem;
+    color: var(--text-main, #eee);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cl-detail-add-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: linear-gradient(145deg, rgba(244,121,32,0.88), rgba(212,98,10,0.72));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: #fff;
+    font-size: 1.3rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    flex-shrink: 0;
+    overflow: hidden;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.18);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.35),
+        inset 0 -2px 4px rgba(0,0,0,0.15);
+}
+
+.cl-detail-add-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    background: linear-gradient(
+        105deg,
+        transparent 20%,
+        rgba(255,255,255,0.25) 45%,
+        rgba(255,255,255,0.15) 50%,
+        transparent 75%
+    );
+    pointer-events: none;
+    animation: liquid-shimmer 4s ease-in-out infinite;
+}
+
+.cl-detail-add-btn::after {
+    content: '';
+    position: absolute;
+    top: 1px;
+    left: 4px;
+    right: 4px;
+    height: 40%;
+    border-radius: 6px 6px 50% 50%;
+    background: linear-gradient(180deg, rgba(255,255,255,0.20) 0%, transparent 100%);
+    pointer-events: none;
+}
+
+@keyframes liquid-shimmer {
+    0%   { transform: translateX(-60%) translateY(-20%) rotate(-8deg); opacity: 0.6; }
+    25%  { transform: translateX(-20%) translateY(-10%) rotate(-4deg); opacity: 0.9; }
+    50%  { transform: translateX(20%) translateY(5%) rotate(2deg); opacity: 0.7; }
+    75%  { transform: translateX(60%) translateY(15%) rotate(6deg); opacity: 0.9; }
+    100% { transform: translateX(110%) translateY(30%) rotate(10deg); opacity: 0.4; }
+}
+
+.cl-detail-add-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.45),
+        inset 0 -2px 4px rgba(0,0,0,0.15);
+    border-color: rgba(255,255,255,0.30);
+}
+
+.cl-detail-add-btn:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow:
+        inset 0 1px 0 rgba(255,255,255,0.15);
+}
+
+
+/* ===============================
+   Edit Checklist Modal
+   =============================== */
+
+.cl-edit-dialog {
+    max-width: 520px !important;
+    width: 90vw !important;
+}
+
+.cl-edit-content {
+    padding: 8px 20px 20px;
+    max-height: 70vh;
+    overflow-y: auto;
+}
+
+.cl-edit-section {
+    margin-bottom: 14px;
+}
+
+.cl-edit-label {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--text-dim, #888);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+}
+
+.cl-edit-count {
+    font-weight: 400;
+    color: var(--text-dim, #666);
+}
+
+.cl-edit-input {
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 0.9rem;
+    background: var(--bg-main, #121212);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    color: var(--text-main, #eee);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s;
+    box-sizing: border-box;
+}
+.cl-edit-input:focus {
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+.cl-edit-select {
+    cursor: pointer;
+    appearance: auto;
+}
+
+.cl-edit-tag-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cl-edit-empty-tags {
+    font-size: 0.82rem;
+    color: var(--text-dim, #666);
+    font-style: italic;
+}
+
+.cl-edit-actions {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.cl-btn-save {
+    padding: 8px 18px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: none;
+    border-radius: 6px;
+    background: var(--ichtus-orange, #f47920);
+    color: #fff;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.15s;
+    font-family: inherit;
+}
+.cl-btn-save:hover {
+    background: #d4620a;
+    transform: translateY(-1px);
+}
+
+.cl-edit-separator {
+    height: 1px;
+    background: var(--border-color, #333);
+    margin: 16px 0;
+}
+
+/* Items list */
+.cl-edit-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.cl-edit-empty {
+    text-align: center;
+    padding: 20px 12px;
+    font-size: 0.85rem;
+    color: var(--text-dim, #666);
+}
+
+.cl-edit-item-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    transition: border-color 0.15s;
+}
+.cl-edit-item-row:hover {
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+.cl-edit-item-name-input {
+    flex: 1;
+    padding: 6px 8px;
+    font-size: 0.88rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    color: var(--text-main, #eee);
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s, background 0.15s;
+}
+.cl-edit-item-name-input:focus {
+    border-color: var(--ichtus-orange, #f47920);
+    background: rgba(0,0,0,0.25);
+}
+.cl-edit-item-name-input:hover {
+    border-color: var(--border-color, #555);
+}
+
+.cl-edit-item-del {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: none;
+    border-radius: 5px;
+    background: transparent;
+    color: var(--text-dim, #888);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    flex-shrink: 0;
+}
+.cl-edit-item-del:hover {
+    background: rgba(231, 76, 60, 0.12);
+    color: #e74c3c;
+}
+
+/* Add item row */
+.cl-edit-add-item-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+.cl-edit-new-item-input {
+    flex: 1;
+}
+
+.cl-btn-add-item {
+    padding: 8px 16px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border: 1px solid var(--ichtus-orange, #f47920);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ichtus-orange, #f47920);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+    white-space: nowrap;
+}
+.cl-btn-add-item:hover {
+    background: var(--ichtus-orange, #f47920);
+    color: #fff;
+}
+
+/* Footer */
+.cl-edit-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-color, #333);
+}
+
+.cl-btn-close {
+    padding: 8px 20px;
+    font-size: 0.82rem;
+    border: 1px solid var(--border-color, #444);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-dim, #888);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    font-family: inherit;
+}
+.cl-btn-close:hover {
+    background: #333;
+    color: var(--text-main, #eee);
+}
+.cl-detail-progress-wrap {
+    margin-bottom: 16px;
+}
+
+.cl-detail-progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.cl-detail-progress-label {
+    font-size: 0.8rem;
+    color: var(--text-dim, #888);
+    font-weight: 500;
+}
+
+.cl-detail-progress-count {
+    font-size: 0.8rem;
+    color: var(--text-dim, #888);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+}
+
+.cl-detail-progress-bar {
+    height: 8px;
+    background: var(--border-light, #333);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.cl-detail-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ichtus-orange, #f47920), #ff8c42);
+    border-radius: 4px;
+    transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    min-width: 0;
+}
+
+.cl-detail-items {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 16px;
+}
+
+/* Empty state */
+.cl-empty-state {
+    text-align: center;
+    padding: 24px 16px;
+    color: var(--text-dim, #888);
+}
+.cl-empty-state p {
+    margin: 0 0 12px;
+    font-size: 0.9rem;
+}
+
+.cl-empty-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--ichtus-orange, #f47920);
+    border-radius: 6px;
+    background: transparent;
+    color: var(--ichtus-orange, #f47920);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+.cl-empty-btn:hover {
+    background: var(--ichtus-orange, #f47920);
+    color: #fff;
+}
+
+/* Completed separator */
+.cl-completed-separator {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0 4px;
+}
+.cl-completed-separator::before,
+.cl-completed-separator::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border-color, #333);
+}
+.cl-completed-separator-text {
+    font-size: 0.75rem;
+    color: var(--text-dim, #666);
+    white-space: nowrap;
+}
+
+/* ===============================
+   Checklist Item Cards
+   =============================== */
+
+.cl-item-card {
+    background: var(--card-bg, #1e1e1e);
+    border: 1px solid var(--border-color, #333);
+    border-radius: 6px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color 0.15s, opacity 0.2s;
+    user-select: none;
+}
+.cl-item-card:hover {
+    border-color: var(--ichtus-orange, #f47920);
+}
+.cl-item-card-completed {
+    opacity: 0.55;
+}
+
+.cl-item-card-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.cl-item-checkbox {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--ichtus-orange, #f47920);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.cl-item-card-name {
+    flex: 1;
+    font-size: 0.9rem;
+    color: var(--text-main, #eee);
+    word-break: break-word;
+    min-width: 0;
+    cursor: pointer;
+}
+.cl-item-card-name.completed {
+    text-decoration: line-through;
+    color: var(--text-dim, #666);
+}
+
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.cl-item-card-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 6px;
+    padding-left: 24px;
+}
+
+.cl-tag-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    background: color-mix(in srgb, var(--tag-color, #888) 20%, transparent);
+    color: var(--tag-color, #888);
+    cursor: pointer;
+    transition: opacity 0.15s;
+    border: 1px solid color-mix(in srgb, var(--tag-color, #888) 40%, transparent);
+}
+.cl-tag-pill:hover {
+    opacity: 0.8;
+}
+
+.cl-item-card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-left: 24px;
+    font-size: 0.75rem;
+    color: var(--text-dim, #888);
+}
+
+.cl-item-card-team {
+    color: var(--text-dim, #888);
+}
+
+.cl-item-card-time {
+    font-weight: 600;
+    color: var(--ichtus-orange, #f47920);
+    letter-spacing: 0.5px;
+}
+
+/* ===============================
+   Shared utility classes
+   =============================== */
+.heading-font {
+    font-family: 'Blockprint', sans-serif;
+    letter-spacing: 1px;
 }

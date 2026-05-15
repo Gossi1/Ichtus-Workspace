@@ -30,16 +30,15 @@ window.ndiModule = ndiModule;
 
 // Keep fullscreenchange listener for updating button state
 document.addEventListener('fullscreenchange', () => {
-    const btn = document.getElementById('btn-global-fullscreen');
-    if (btn) {
-        if (document.fullscreenElement) {
-            btn.classList.add('active');
-            btn.title = 'Exit Fullscreen';
-        } else {
-            btn.classList.remove('active');
-            btn.title = 'Toggle Fullscreen';
+    const btn = document.getElementById('btn-global-fullscreen');        if (btn) {
+            if (document.fullscreenElement) {
+                btn.classList.add('active');
+                btn.title = __('fullscreen_exit');
+            } else {
+                btn.classList.remove('active');
+                btn.title = __('fullscreen_enter');
+            }
         }
-    }
 });
 
 console.log('Ichtus Workspace SPA ready.');

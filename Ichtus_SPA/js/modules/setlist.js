@@ -200,17 +200,17 @@ const setlistModule = {
         this.renderSongPreview();
         this.renderDateDisplay();
         const dateMsg = this.serviceDate ? `📅 ${this.serviceDate} — ` : '';
-        this.showStatus(`✅ ${dateMsg}Setlist ontvangen! ${this.countSongs()} nummers geladen.`, 'success');
+        this.showStatus(`✅ ${dateMsg}${__('setlist_received')}! ${this.countSongs()} ${__('cl_edit_items_count')} ${__('ndi_sources_found')}.`, 'success');
     },
 
     renderDateDisplay() {
         const el = document.getElementById('setlist-date-display');
         if (!el) return;
         if (this.serviceDate) {
-            el.textContent = `Dienst datum: ${this.serviceDate}`;
+            el.textContent = __('setlist_service_date') + this.serviceDate;
             el.style.display = 'block';
         } else {
-            el.textContent = 'Geen datum ontvangen (playlist wordt "Web Sync")';
+            el.textContent = __('setlist_no_date');
             el.style.display = 'block';
             el.style.color = '#f47920';
         }
@@ -230,18 +230,18 @@ const setlistModule = {
         if (!statusEl) return;
 
         if (state === 'waiting') {
-            statusEl.textContent = 'Wachten op setlist van WorshipTools...';
+            statusEl.textContent = __('setlist_waiting');
             if (dotEl) dotEl.className = 'status-dot warning';
-            if (previewEl) previewEl.innerHTML = '<p class="setlist-empty">Open WorshipTools, ga naar Planning, en klik op "Extract Setlist" in de Chrome extensie.</p>';
+            if (previewEl) previewEl.innerHTML = '<p class="setlist-empty">' + __('setlist_empty_preview') + '</p>';
         } else if (state === 'received') {
-            statusEl.textContent = 'Setlist ontvangen van WorshipTools';
+            statusEl.textContent = __('setlist_received');
             if (dotEl) dotEl.className = 'status-dot online';
             const saved = localStorage.getItem('ichtus_received_setlist');
             if (saved && timeEl) {
                 try {
                     const data = JSON.parse(saved);
                     const time = new Date(data.receivedAt);
-                    timeEl.textContent = 'Ontvangen: ' + time.toLocaleTimeString('nl-NL');
+                    timeEl.textContent = __('setlist_received_at') + time.toLocaleTimeString(i18n.getLocale());
                 } catch (e) {}
             }
         }
@@ -330,7 +330,7 @@ const setlistModule = {
         this.serviceDate = null;
         localStorage.removeItem('ichtus_received_setlist');
         this.updateConnectionStatus('waiting');
-        this.showStatus('Setlist gewist.', '');
+        this.showStatus(__('setlist_cleared'), '');
         this.renderDateDisplay();
     },
 
@@ -376,7 +376,7 @@ const setlistModule = {
         const testBtn = document.getElementById('btn-test-proconnection');
         
         if (statusDot) statusDot.className = 'status-dot warning';
-        if (statusText) statusText.textContent = 'Testen...';
+        if (statusText) statusText.textContent = __('setlist_testing');
         if (testBtn) testBtn.disabled = true;
 
         const BASE_URL = `http://${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}/v1`;
@@ -396,7 +396,7 @@ const setlistModule = {
             if (response.ok) {
                 this.proConnectionStatus = 'online';
                 if (statusDot) statusDot.className = 'status-dot online';
-                if (statusText) statusText.textContent = 'Verbonden ✓';
+                if (statusText) statusText.textContent = __('setlist_connected');
                 this.showStatus(`✅ ProPresenter API is bereikbaar op ${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}`, 'success');
             } else {
                 throw new Error(`HTTP ${response.status}`);
@@ -419,7 +419,7 @@ const setlistModule = {
         } finally {
             if (testBtn) {
                 testBtn.disabled = false;
-                testBtn.textContent = '🔍 Test Verbinding';
+                testBtn.textContent = __('setlist_test_connection');
             }
         }
     },
@@ -476,12 +476,12 @@ const setlistModule = {
         const statusBox = document.getElementById('setlist-status-box');
 
         if (!this.parsedSongs || this.countSongs() === 0) {
-            this.showStatus("Geen setlist ontvangen. Open WorshipTools en klik 'Extract Setlist' in de extensie.", "error");
+            this.showStatus(__('setlist_waiting') + ' ' + __('setlist_extract_help'), "error");
             return;
         }
 
         console.log('[Sync] Starting sync...');
-        this.showStatus('Sync bezig...', '');
+        this.showStatus(__('setlist_syncing'), '');
 
         try {
             const BASE_URL = `http://${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}/v1`;
@@ -579,7 +579,7 @@ const setlistModule = {
 
             // Step 4: Create new playlist
             console.log('[Sync] Step 4: Creating playlist...');
-            const playlistName = this.serviceDate || ("Web Sync: " + new Date().toLocaleTimeString('nl-NL'));
+            const playlistName = this.serviceDate || ("Web Sync: " + new Date().toLocaleTimeString(i18n.getLocale()));
             console.log('[Sync] Creating playlist with name:', playlistName);
             if (!this.serviceDate) {
                 console.warn('[Sync] WARNING: No serviceDate available! Using fallback name.');
@@ -774,10 +774,10 @@ const setlistModule = {
 
     deleteCurrentTemplate() {
         if (Object.keys(this.SERVICE_TEMPLATES).length <= 1) {
-            alert("Je kunt de laatste template niet verwijderen.");
+            alert(__('setlist_cannot_delete_last'));
             return;
         }
-        if (confirm(`Weet je zeker dat je '${this.SERVICE_TEMPLATES[this.editingTemplateKey].name}' wilt verwijderen?`)) {
+        if (confirm(__('setlist_confirm_delete') + ' \'' + this.SERVICE_TEMPLATES[this.editingTemplateKey].name + '\' ' + __('setlist_wilt_verwijderen'))) {
             delete this.SERVICE_TEMPLATES[this.editingTemplateKey];
             localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
             this.closeTemplateModal();
@@ -787,7 +787,7 @@ const setlistModule = {
     },
 
     resetTemplateToDefault() {
-        if (confirm("Terugzetten naar standaard instellingen? Alle wijzigingen gaan verloren.")) {
+        if (confirm(__('setlist_confirm_reset'))) {
             this.SERVICE_TEMPLATES[this.editingTemplateKey] = JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES[this.editingTemplateKey]));
             localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
             this.openTemplateEditor();

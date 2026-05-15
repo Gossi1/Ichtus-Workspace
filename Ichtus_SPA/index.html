@@ -3,9 +3,10 @@
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <base href='/Ichtus_SPA/'>
     <title>Ichtus Workspace</title>
     <link rel='stylesheet' href='../shared-assets/css/branding.css'>
-    <link rel='stylesheet' href='css/style.css'>
+    <link rel='stylesheet' href='css/style.css?v=2'>
     <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
 </head>
 <body data-app='workspace'>
@@ -35,7 +36,7 @@
                             <rect x='14' y='14' width='7' height='7'></rect>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Dashboard</span>
+                    <span class='sidebar-text' data-i18n='nav_dashboard'>Dashboard</span>
                 </a>
             </li>
             <li data-view='agenda'>
@@ -48,7 +49,7 @@
                             <line x1='3' y1='10' x2='21' y2='10'></line>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Agenda</span>
+                    <span class='sidebar-text' data-i18n='nav_agenda'>Agenda</span>
                 </a>
             </li>
             <li data-view='checklist'>
@@ -63,7 +64,7 @@
                             <line x1='3' y1='18' x2='3.01' y2='18'></line>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Checklist</span>
+                    <span class='sidebar-text' data-i18n='nav_checklist'>Checklist</span>
                 </a>
             </li>
             <li data-view='patchbay'>
@@ -78,7 +79,7 @@
                             <line x1='19' y1='5' x2='12' y2='19'></line>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Patchbay</span>
+                    <span class='sidebar-text' data-i18n='nav_patchbay'>Patchbay</span>
                 </a>
             </li>
             <li data-view='analytics'>
@@ -92,7 +93,7 @@
                             <line x1='18' y1='18' x2='18' y2='6'></line>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Analytics</span>
+                    <span class='sidebar-text' data-i18n='nav_analytics'>Analytics</span>
                 </a>
             </li>
             <li data-view='setlist'>
@@ -104,7 +105,7 @@
                             <circle cx='18' cy='16' r='3'></circle>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Setlist</span>
+                    <span class='sidebar-text' data-i18n='nav_setlist'>Setlist</span>
                 </a>
             </li>
             <li data-view='ndi'>
@@ -115,7 +116,7 @@
                             <path d='M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83'></path>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>NDI Sources</span>
+                    <span class='sidebar-text' data-i18n='nav_ndi'>NDI Sources</span>
                 </a>
             </li>
             <li data-view='settings'>
@@ -126,7 +127,7 @@
                             <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'></path>
                         </svg>
                     </div>
-                    <span class='sidebar-text'>Instellingen</span>
+                    <span class='sidebar-text' data-i18n='nav_settings'>Instellingen</span>
                 </a>
             </li>
         </ul>
@@ -201,14 +202,14 @@
                 <div class='role-selector-wrapper'>
                     <h1 class='role-selector-title heading-font'>Selecteer Station</h1>
                     <div class='role-selector-container'>
-                        <button type='button' onclick="checklistModule.selectRole('Admin', event)" class='btn-role btn-role-admin'>Co&#246;rdinator</button>
+                        <button type='button' onclick="checklistModule.selectRole('Admin', event)" class='btn-role btn-role-admin'>Co&ouml;rdinator</button>
                         <button type='button' onclick="checklistModule.selectRole('Beamer', event)" class='btn-role btn-role-beamer'>Beamer Team</button>
                         <button type='button' onclick="checklistModule.selectRole('Worship', event)" class='btn-role btn-role-worship'>Worship Team</button>
                     </div>
                 </div>
             </div>
 
-            <!-- Admin Sidebar -->
+            <!-- Admin Sidebar (left) -->
             <aside id='admin-sidebar' class='settings-panel hidden'>
                 <div class='panel-header'>
                     <h2 class='panel-title heading-font'>Instellingen</h2>
@@ -247,10 +248,6 @@
                             <button id='btn-clear-note' class='btn-clear' title='Verwijder huidige broadcast'>&#10005;</button>
                         </div>
                     </div>
-                    <div class='task-manage-section'>
-                        <h3 class='section-subheader'>Takenbeheer</h3>
-                        <button id='btn-open-task-modal' class='btn-task-manage'>Taken Aanpassen</button>
-                    </div>
                 </div>
                 <div class='panel-footer'>
                     <button id='btn-reset' class='btn-reset'>Reset &amp; Archiveer</button>
@@ -259,30 +256,143 @@
 
             <!-- Main Checklist Area -->
             <div class='checklist-main'>
-                <div class='timer-container'>
-                    <div class='timer-header'>
-                        <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
-                        <button id='btn-open-task-modal-main' class='btn-add-task-main'>&#10133; Taak Toevoegen</button>
+                <!-- Header with action buttons -->
+                <div class='cl-header-bar'>
+                    <div class='cl-header-left'>
+                        <span class='cl-header-title heading-font'>Checklists</span>
+                        <span id='cl-back-btn' class='cl-back-btn hidden' onclick='checklistModule.closeChecklistDetail()'>&#8592; Terug naar overzicht</span>
                     </div>
-                    <div class='countdown-display'>
-                        <h2 class='countdown-label'>Tijd tot Opening</h2>
-                        <div id='main-countdown' class='heading-font'>00:00:00</div>
+                    <div class='cl-header-right'>
+                        <button id='btn-add-checklist' class='cl-btn cl-btn-add' title='Nieuwe checklist toevoegen' onclick='checklistModule.showCreateChecklistModal()'>+</button>
+                        <button id='btn-settings' class='cl-btn cl-btn-settings' title='Instellingen' onclick="checklistModule.toggleAdminSidebar()">&nbsp;&#9881;&nbsp;</button>
+                        <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
                     </div>
                 </div>
+
+                <!-- Timer and Preset Info -->
+
+
                 <div id='note-banner' class='note-banner hidden'></div>
-                <div class='task-list-container'>
-                    <div id='checklist' class='task-list-inner'></div>
+
+                <!-- Checklist Overview (default view) -->
+                <div id='cl-overview' class='cl-overview'>
+                    <div id='cl-checklist-list' class='cl-checklist-list'>
+                        <!-- Checklists rendered here -->
+                    </div>
+
+                    <!-- Action Buttons Bar -->
+                    <div class='cl-action-bar'>
+                        <button id='btn-open-tag-manager' class='cl-action-btn'>&#127991; Tags</button>
+                        <button id='btn-open-task-modal-main' class='cl-action-btn'>&#9999;&#65039; Beheer</button>
+                    </div>
+
+                    <!-- Tag Filter Bar -->
+                    <div id='cl-tag-filters' class='cl-tag-filters hidden'>
+                        <span class='cl-filter-label'>Filter:</span>
+                        <div id='cl-tag-filter-list' class='cl-tag-filter-list'></div>
+                        <button id='cl-clear-tag-filter' class='cl-clear-filter hidden' onclick='checklistModule.clearTagFilter()'>&#10005; wissen</button>
+                    </div>
+
+                </div>
+
+                <!-- Checklist Detail View (hidden by default) -->
+                <div id='cl-detail' class='cl-detail hidden'>
+                    <div id='cl-detail-content' class='cl-detail-content'>
+                        <!-- Detail view rendered here -->
+                    </div>
                 </div>
             </div>
 
-            <!-- Master Sidebar -->
-            <aside id='master-sidebar' class='progress-panel hidden'>
-                <h2 class='progress-title heading-font'>Voortgang</h2>
-                <div id='progress-container'></div>
-            </aside>
 
-            <!-- Popup Modal -->
-            <div id='modal-popup' class='overlay-screen overlay-alert-modal hidden'>
+        <!-- Add Item Modal -->
+        <div id='cl-add-item-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog'>
+                <div class='modal-header'>
+                    <h3 class='task-modal-title'>Nieuw Item</h3>
+                </div>
+                <div class='modal-form-content'>
+                    <div class='form-group'>
+                        <label for='cl-add-item-name'>Taak naam</label>
+                        <input type='text' id='cl-add-item-name' class='form-input' placeholder='Bijv. Projector aan' required>
+                    </div>
+                    <div class='form-group'>
+                        <label for='cl-add-item-time'>Deadline tijd</label>
+                        <input type='time' id='cl-add-item-time' class='form-input'>
+                    </div>
+                    <div class='form-group'>
+                        <label for='cl-add-item-team'>Team</label>
+                        <input type='text' id='cl-add-item-team' class='form-input' placeholder='Bijv. Beamer'>
+                    </div>
+                </div>
+                <div class='modal-footer'>
+                    <button class='btn-secondary' onclick='checklistModule.closeAddItemModal()'>Annuleren</button>
+                    <button id='cl-add-item-submit' class='btn-setlist-primary' onclick='checklistModule.submitAddItem()'>Toevoegen</button>
+                </div>            </div>
+        </div>
+
+        <!-- Create Checklist Modal -->
+        <div id='cl-create-checklist-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog'>
+                <div class='modal-header'>
+                    <h3 class='task-modal-title'>Nieuwe Checklist</h3>
+                </div>
+                <div class='modal-form-content'>
+                    <div class='form-group'>
+                        <label for='cl-create-checklist-name'>Naam</label>
+                        <input type='text' id='cl-create-checklist-name' class='form-input' placeholder='Bijv. Zondagochtend' required>
+                    </div>
+                    <div class='form-group'>
+                        <label for='cl-checklist-due-date'>Datum</label>
+                        <input type='date' id='cl-checklist-due-date' class='form-input'>
+                    </div>
+                    <div class='form-group'>
+                        <label for='cl-checklist-due-time'>Tijd</label>
+                        <input type='time' id='cl-checklist-due-time' class='form-input'>
+                    </div>
+                </div>
+                <div class='modal-footer'>
+                    <button class='btn-secondary' onclick='checklistModule.closeCreateChecklistModal()'>Annuleren</button>
+                    <button id='cl-create-checklist-submit' class='btn-setlist-primary' onclick='checklistModule.submitCreateChecklist()'>Aanmaken</button>
+                </div>
+            </div>
+        </div>
+
+        <div id='cl-edit-due-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog'>
+                <div class='modal-header'>
+                    <h3 class='task-modal-title'>Deadline Bewerken</h3>
+                </div>
+                <div class='modal-form-content'>
+                    <div class='form-group'>
+                        <label for='cl-edit-due-date'>Datum</label>
+                        <input type='date' id='cl-edit-due-date' class='form-input'>
+                    </div>
+                    <div class='form-group'>
+                        <label for='cl-edit-due-time'>Tijd</label>
+                        <input type='time' id='cl-edit-due-time' class='form-input'>
+                    </div>
+                </div>
+                <div class='modal-footer'>
+                    <button class='btn-secondary' onclick='checklistModule.closeEditDueDateModal()'>Annuleren</button>
+                    <button class='btn-setlist-primary' onclick='checklistModule.saveEditDueDate()'>Opslaan</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Edit Checklist Modal -->
+        <div id='cl-edit-checklist-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog cl-edit-dialog'>
+                <div class='modal-header'>
+                    <h3 class='task-modal-title heading-font'>Bewerk Checklist</h3>
+                </div>
+                <div id='cl-edit-checklist-content' class='cl-edit-content'>
+                    <!-- Rendered by JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Popup Modal -->
+        <div id='modal-popup' class='overlay-screen overlay-alert-modal hidden'>
                 <div class='modal-dialog'>
                     <h2 class='alert-title heading-font'>Alert!</h2>
                     <p id='modal-text' class='alert-text'></p>
@@ -290,7 +400,49 @@
                 </div>
             </div>
 
-            <!-- Task Management Modal -->
+            <!-- Tag Manager Modal -->
+            <div id='tag-manager-modal' class='overlay-screen overlay-task-modal hidden'>
+                <div class='task-modal-dialog tag-manager-dialog'>
+                    <h2 class='task-modal-title heading-font'>&#127991; Tag Manager</h2>
+                    <div id='tag-manager-list' class='tag-manager-list'>
+                        <!-- Tags rendered here -->
+                    </div>
+                    <div class='modal-footer'>
+                        <h3 class='modal-subheader'>Nieuwe Tag Toevoegen</h3>
+                        <div class='tag-input-row'>
+                            <input type='text' id='new-tag-icon' placeholder='Icoon' class='modal-input tag-icon' maxlength='2'>
+                            <input type='text' id='new-tag-name' placeholder='Naam' class='modal-input tag-name'>
+                            <div class='tag-color-picker' id='new-tag-color'>
+                                <button class='tag-color-dot' style='background:#f47920' data-color='#f47920'></button>
+                                <button class='tag-color-dot' style='background:#3b82f6' data-color='#3b82f6'></button>
+                                <button class='tag-color-dot' style='background:#22c55e' data-color='#22c55e'></button>
+                                <button class='tag-color-dot' style='background:#ef4444' data-color='#ef4444'></button>
+                                <button class='tag-color-dot' style='background:#a855f7' data-color='#a855f7'></button>
+                                <button class='tag-color-dot' style='background:#6b7280' data-color='#6b7280'></button>
+                            </div>
+                        </div>
+                        <div class='modal-button-row'>
+                            <button id='btn-add-tag' class='btn-modal btn-modal-confirm'>Toevoegen</button>
+                            <button id='btn-close-tag-manager' class='btn-modal btn-modal-close'>Sluiten</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manage Checklists Modal -->
+            <div id='manage-modal' class='overlay-screen overlay-task-modal hidden'>
+                <div class='task-modal-dialog manage-modal-dialog'>
+                    <h2 class='task-modal-title heading-font'>&#9999;&#65039; Beheer Checklists</h2>
+                    <div id='manage-checklist-list' class='tag-manager-list'>
+                        <!-- Checklists rendered here for management -->
+                    </div>
+                    <div class='modal-button-row'>
+                        <button id='btn-close-manage-modal' class='btn-modal btn-modal-close'>Sluiten</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Task Management Modal (item editor) -->
             <div id='task-modal' class='overlay-screen overlay-task-modal hidden'>
                 <div class='task-modal-dialog'>
                     <h2 class='task-modal-title heading-font'>Taken Aanpassen</h2>
@@ -681,6 +833,9 @@
 
     <!-- Firebase Configuration - load BEFORE firebase-init.js -->
     <script src='js/firebase-config.js'></script>
+
+    <!-- i18n - must load before other modules -->
+    <script src='js/i18n.js'></script>
 
     <!-- SPA Core -->
     <script src='../shared-assets/js/sidebar.js'></script>

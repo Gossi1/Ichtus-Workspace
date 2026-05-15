@@ -16,6 +16,7 @@ const router = {
         if (hamburger && backdrop && sidebar) {
             const openMobileSidebar = () => {
                 sidebar.classList.add('mobile-open');
+                sidebar.classList.add('collapsed');
                 hamburger.classList.add('open');
                 backdrop.classList.add('visible');
                 document.body.style.overflow = 'hidden';

@@ -672,7 +672,7 @@ const patchbayModule = (function() {
                         
                         isEditing = false;
                         nameSpan.contentEditable = 'false';
-                        state.projects[proj.id].name = nameSpan.innerText.trim() || 'Unnamed Canvas';
+                        state.projects[proj.id].name = nameSpan.innerText.trim() || __('pb_unnamed');
                         saveSilent();
                         renderSidebar();
                     };
@@ -1299,7 +1299,7 @@ const patchbayModule = (function() {
         `;
         
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
+        cancelBtn.textContent = __('pb_cancel');
         cancelBtn.style.cssText = `
             background: transparent;
             border: 2px solid #666;
@@ -1315,7 +1315,7 @@ const patchbayModule = (function() {
         cancelBtn.onmouseleave = () => { cancelBtn.style.borderColor = '#666'; cancelBtn.style.color = '#aaa'; };
         
         const confirmBtn = document.createElement('button');
-        confirmBtn.textContent = 'OK';
+        confirmBtn.textContent = __('pb_ok');
         confirmBtn.style.cssText = `
             background: var(--ichtus-orange, #f47920);
             border: 2px solid var(--ichtus-orange, #f47920);
@@ -1471,7 +1471,7 @@ const patchbayModule = (function() {
         groupTitle.className = 'pb-group-title';
         
         const newSpan = document.createElement('span');
-        newSpan.innerText = 'New Folder';
+        newSpan.innerText = __('pb_new_folder_name');
         newSpan.contentEditable = 'true';
         newSpan.style.outline = 'none';
         newSpan.style.borderBottom = '1px solid var(--ichtus-orange)';
@@ -1718,7 +1718,7 @@ const patchbayModule = (function() {
         `;
         
         const cancelBtn = document.createElement('button');
-        cancelBtn.textContent = 'Cancel';
+        cancelBtn.textContent = __('pb_cancel');
         cancelBtn.style.cssText = `
             background: transparent;
             border: 2px solid #666;
@@ -1740,7 +1740,7 @@ const patchbayModule = (function() {
         };
         
         const confirmBtn = document.createElement('button');
-        confirmBtn.textContent = 'Delete';
+        confirmBtn.textContent = __('pb_confirm_delete');
         confirmBtn.style.cssText = `
             background: var(--ichtus-orange, #f47920);
             border: 2px solid var(--ichtus-orange, #f47920);
@@ -2922,7 +2922,7 @@ const patchbayModule = (function() {
                 groupTitle.className = 'pb-group-title';
                 
                 const newSpan = document.createElement('span');
-                newSpan.innerText = 'New Folder';
+                newSpan.innerText = __('pb_new_folder_name');
                 newSpan.contentEditable = 'true';
                 newSpan.style.outline = 'none';
                 newSpan.style.borderBottom = '1px solid var(--ichtus-orange)';

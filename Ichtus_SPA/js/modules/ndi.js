@@ -31,7 +31,7 @@ const ndiModule = {
         const listEl = document.getElementById('ndi-source-list');
         
         if (statusEl) {
-            statusEl.textContent = 'Zoeken naar NDI bronnen...';
+            statusEl.textContent = __('ndi_searching');
             statusEl.className = 'ndi-status searching';
         }
 
@@ -55,17 +55,17 @@ const ndiModule = {
             
             if (statusEl) {
                 if (this.sources.length === 0) {
-                    statusEl.textContent = 'Geen NDI bronnen gevonden';
+                    statusEl.textContent = __('ndi_none_found');
                     statusEl.className = 'ndi-status none';
                 } else {
-                    statusEl.textContent = `${this.sources.length} bron${this.sources.length !== 1 ? 'nen' : ''} gevonden`;
+                    statusEl.textContent = `${this.sources.length} ${this.sources.length !== 1 ? __('ndi_sources_found') : __('ndi_source_found')}`;
                     statusEl.className = 'ndi-status found';
                 }
             }
         } catch (error) {
             console.error('NDI discovery error:', error);
             if (statusEl) {
-                statusEl.textContent = 'Fout bij zoeken: ' + error.message;
+                statusEl.textContent = __('ndi_error') + error.message;
                 statusEl.className = 'ndi-status error';
             }
             this.renderError();
@@ -80,8 +80,8 @@ const ndiModule = {
             listEl.innerHTML = `
                 <div class='ndi-empty'>
                     <div class='ndi-empty-icon'>📡</div>
-                    <div class='ndi-empty-text'>Geen NDI bronnen actief op dit netwerk</div>
-                    <div class='ndi-empty-hint'>Zorg dat NDI bronnen actief zijn (bijv. NDI Tools, ProPresenter, vMix)</div>
+                    <div class='ndi-empty-text'>${__('ndi_empty_text')}</div>
+                    <div class='ndi-empty-hint'>${__('ndi_empty_hint')}</div>
                 </div>
             `;
             return;
@@ -96,16 +96,16 @@ const ndiModule = {
                     <div class='ndi-source-info'>
                         <div class='ndi-source-name'>${this.escapeHtml(source.name)}</div>
                         <div class='ndi-source-details'>
-                            <span class='ndi-source-ip'>${this.escapeHtml(source.address || 'Onbekend')}</span>
+                            <span class='ndi-source-ip'>${this.escapeHtml(source.address || __('ndi_unknown'))}</span>
                             ${source.type ? `<span class='ndi-source-type'>${this.escapeHtml(source.type)}</span>` : ''}
                         </div>
                         ${source.metadata ? `<div class='ndi-source-meta'>${this.escapeHtml(source.metadata)}</div>` : ''}
                     </div>
                     <div class='ndi-source-actions'>
-                        <button class='ndi-action-btn' onclick='ndiModule.copyToClipboard(\"${this.escapeHtml(source.name)}\")' title='Kopieer naam'>
+                        <button class='ndi-action-btn' onclick='ndiModule.copyToClipboard(\"${this.escapeHtml(source.name)}\")' title='${__('ndi_copy_title')}'>
                             📋
                         </button>
-                        <button class='ndi-action-btn' onclick='ndiModule.showSourceDetails(${index})' title='Details'>
+                        <button class='ndi-action-btn' onclick='ndiModule.showSourceDetails(${index})' title='${__('ndi_details_title')}'>
                             ℹ️
                         </button>
                     </div>
@@ -123,9 +123,9 @@ const ndiModule = {
         listEl.innerHTML = `
             <div class='ndi-error'>
                 <div class='ndi-error-icon'>⚠️</div>
-                <div class='ndi-error-text'>Kon geen verbinding maken met de server</div>
-                <div class='ndi-error-hint'>Controleer of de server draait met NDI ondersteuning</div>
-                <button class='ndi-retry-btn' onclick='ndiModule.refreshSources()'>Opnieuw proberen</button>
+                <div class='ndi-error-text'>${__('ndi_conn_error')}</div>
+                <div class='ndi-error-hint'>${__('ndi_conn_hint')}</div>
+                <button class='ndi-retry-btn' onclick='ndiModule.refreshSources()'>${__('ndi_retry')}</button>
             </div>
         `;
     },
@@ -158,7 +158,7 @@ const ndiModule = {
 
     copyToClipboard(text) {
         navigator.clipboard.writeText(text).then(() => {
-            this.showToast(`Gekopieerd: ${text}`);
+            this.showToast(__('ndi_copied') + text);
         }).catch(err => {
             console.error('Copy failed:', err);
         });
@@ -168,14 +168,13 @@ const ndiModule = {
         const source = this.sources[index];
         if (!source) return;
 
-        const details = `
-NDI Source Details
-──────────────────
-Naam: ${source.name}
-IP Adres: ${source.address || 'Onbekend'}
-Poort: ${source.port || 'NDI default'}
-Type: ${source.type || 'Onbekend'}
-${source.metadata ? `Extra: ${source.metadata}` : ''}
+        const details = `${__('ndi_details_header')}
+${'─'.repeat(18)}
+${__('ndi_details_name')}: ${source.name}
+${__('ndi_details_ip')}: ${source.address || __('ndi_unknown')}
+${__('ndi_details_port')}: ${source.port || __('ndi_default_port')}
+${__('ndi_details_type')}: ${source.type || __('ndi_unknown')}
+${source.metadata ? `${__('ndi_details_extra')}: ${source.metadata}` : ''}
         `.trim();
 
         alert(details);

@@ -27,7 +27,7 @@ const agendaModule = {
         const savedImage = localStorage.getItem('ichtus_template');
         if (savedImage) {
             this.img.src = savedImage;
-            if (status) status.innerText = 'Template hersteld uit geheugen.';
+            if (status) status.innerText = __('agenda_template_restored');
         }
 
         // Use DEFAULT values from config (not saved position)
@@ -56,7 +56,7 @@ const agendaModule = {
                     try {
                         localStorage.setItem('ichtus_template', ev.target.result);
                     } catch (err) {
-                        console.warn('Afbeelding te groot voor LocalStorage!');
+                        console.warn(__('agenda_image_too_large'));
                     }
                 };
                 reader.readAsDataURL(e.target.files[0]);
@@ -88,7 +88,7 @@ const agendaModule = {
         appState.agenda.weekOffset += direction;
         const weekLabel = document.getElementById('week-label');
         if (weekLabel) {
-            weekLabel.innerText = appState.agenda.weekOffset === 0 ? 'Deze Week' : `Week ${appState.agenda.weekOffset}`;
+            weekLabel.innerText = appState.agenda.weekOffset === 0 ? __('agenda_this_week') : `${__('agenda_week')} ${appState.agenda.weekOffset}`;
         }
         saveState();
         this.fetchTockify();
@@ -106,7 +106,7 @@ const agendaModule = {
         ];
         const PROXY_TIMEOUT = 6000; // 6s per proxy attempt
         
-        if (status) status.innerText = 'Bezig met ophalen...';
+        if (status) status.innerText = __('agenda_fetching');
         
         try {
             // Debug: check ICAL is loaded
@@ -143,7 +143,7 @@ const agendaModule = {
             const comp = new ICAL.Component(jcalData);
             const vevents = comp.getAllSubcomponents('vevent');
             
-            if (status) status.innerText = `${vevents.length} events gevonden...`;
+            if (status) status.innerText = `${vevents.length} ${__('agenda_events_found')}`;
 
             const now = new Date();
             const limit = new Date(now);
@@ -175,12 +175,12 @@ const agendaModule = {
                         isOverridden: swappedEvents.includes(evtId),
                         date: s,
                         dateStr: (() => {
-                            const dayName = s.toLocaleDateString('nl-NL', { weekday: 'short' }).replace('.', '');
+                            const dayName = s.toLocaleDateString(i18n.getLocale(), { weekday: 'short' }).replace('.', '');
                             const capitalizedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-                            const month = s.toLocaleDateString('nl-NL', { month: 'short' }).replace('.', '');
+                            const month = s.toLocaleDateString(i18n.getLocale(), { month: 'short' }).replace('.', '');
                             return `${capitalizedDay} ${s.getDate()} ${month}`;
                         })(),
-                        timeStr: `${s.toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' })} - ${e.endDate.toJSDate().toLocaleTimeString('nl-NL', { hour:'2-digit', minute:'2-digit' })}`,
+                        timeStr: `${s.toLocaleTimeString(i18n.getLocale(), { hour:'2-digit', minute:'2-digit' })} - ${e.endDate.toJSDate().toLocaleTimeString(i18n.getLocale(), { hour:'2-digit', minute:'2-digit' })}`,
                         summary: e.summary
                     });
                 }
@@ -193,13 +193,13 @@ const agendaModule = {
             console.error('fetchTockify error:', err);
             if (status) {
                 if (err.message.includes('ICAL')) {
-                    status.innerText = 'ICAL library probleem: ' + err.message;
+                    status.innerText = __('agenda_ical_error') + err.message;
                 } else if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('Load failed')) {
-                    status.innerText = 'Netwerk fout — CORS proxy onbereikbaar. Probeer te herladen.';
+                    status.innerText = __('agenda_network_error');
                 } else if (err.message.includes('HTTP')) {
-                    status.innerText = 'Server fout: ' + err.message;
+                    status.innerText = __('agenda_server_error') + err.message;
                 } else {
-                    status.innerText = 'Fout: ' + err.message;
+                    status.innerText = __('agenda_error') + err.message;
                 }
             }
         }
@@ -313,10 +313,10 @@ const agendaModule = {
             });
 
             if (agendaGroup) agendaGroup.style.display = 'flex';
-            if (status) status.innerText = `${activeEvents.length} items zichtbaar.`;
+            if (status) status.innerText = `${activeEvents.length} ${__('agenda_items_visible')}`;
         } else {
             if (agendaGroup) agendaGroup.style.display = 'none';
-            if (status) status.innerText = 'Geen items geselecteerd.';
+            if (status) status.innerText = __('agenda_no_items');
         }
     },
 
