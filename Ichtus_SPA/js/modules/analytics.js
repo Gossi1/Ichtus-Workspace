@@ -234,7 +234,7 @@ const analyticsModule = {
         if (this.isServiceRunning) {
             this.isServiceRunning = false;
             if (btn) {
-                btn.innerText = "Start Tracking";
+                btn.innerText = __('analytics_start_tracking');
                 btn.style.backgroundColor = "";
             }
             if (this.currentItem) {
@@ -251,7 +251,7 @@ const analyticsModule = {
             this.currentItem = null;
             this.sequenceIndex = 0;
             if (btn) {
-                btn.innerText = "End & Complete Session";
+                btn.innerText = __('analytics_end_session');
                 btn.style.backgroundColor = "#ed1c24";
             }
             this.triggerWelkomMacro();
@@ -277,12 +277,12 @@ const analyticsModule = {
 
         const statusEl = document.getElementById('auto-start-status');
         if (statusEl) {
-            statusEl.innerText = `Scheduled for ${timeVal}`;
+            statusEl.innerText = __('analytics_scheduled_prefix') + timeVal;
             statusEl.style.display = 'block';
         }
         const btn = document.getElementById('auto-start-btn');
         if (btn) {
-            btn.innerText = 'Cancel';
+            btn.innerText = __('analytics_cancel');
             btn.style.backgroundColor = '#ed1c24';
             btn.onclick = () => analyticsModule.cancelAutoStart();
         }
@@ -297,7 +297,7 @@ const analyticsModule = {
 
         const btn = document.getElementById('auto-start-btn');
         if (btn) {
-            btn.innerText = 'Set';
+            btn.innerText = __('analytics_set');
             btn.style.backgroundColor = '';
             btn.onclick = () => analyticsModule.scheduleAutoStart();
         }

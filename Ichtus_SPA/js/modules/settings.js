@@ -4,6 +4,7 @@ const settingsModule = {
     
     // Default settings
     defaults: {
+        language: 'nl',
         offlineMode: false,
         ndiAutoDiscovery: true,
         ndiPreviewQuality: 'medium', // low, medium, high
@@ -45,12 +46,40 @@ const settingsModule = {
     
     setSetting(key, value) {
         this.settings[key] = value;
+        // If language changed, update i18n and re-render all views
+        if (key === 'language') {
+            if (typeof i18n !== 'undefined') {
+                i18n.setLang(value);
+            }
+            // Re-render all visible views when language changes
+            this.saveSettings();
+            this.render();
+            if (typeof router !== 'undefined' && router.currentView) {
+                router.navigate(router.currentView);
+            }
+            location.reload(); // Full reload to refresh all strings
+            return;
+        }
         this.saveSettings();
         this.render(); // Re-render to update UI
-        this.showToast('Instelling opgeslagen!');
+        this.showToast(__('toast_saved'));
     },
     
     applySettings() {
+        // Apply i18n language
+        if (typeof i18n !== 'undefined') {
+            const lang = this.getSetting('language');
+            if (lang && i18n.lang !== lang) {
+                i18n.setLang(lang);
+            } else if (lang) {
+                i18n.lang = lang;
+            } else {
+                // Default to Dutch
+                this.settings.language = 'nl';
+                i18n.lang = 'nl';
+            }
+        }
+        
         // Apply clock format globally
         window.ClockFormat = this.getSetting('clockFormat');
         window.DateFormat = this.getSetting('dateFormat');
@@ -115,7 +144,7 @@ const settingsModule = {
         if (config && config.apiKey) {
             configHtml = `
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>Firebase Configuration</h2>
+                    <h2 class='settings-section-title'>${__('settings_firebase')}</h2>
                     <div class='settings-info-grid'>
                         <div class='settings-info-item'>
                             <label>API Key</label>
@@ -127,40 +156,40 @@ const settingsModule = {
                         <div class='settings-info-item'>
                             <label>Auth Domain</label>
                             <div class='settings-info-value'>
-                                <code>${config.authDomain || 'Not set'}</code>
+                                <code>${config.authDomain || __('settings_not_configured_status')}</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
                             <label>Project ID</label>
                             <div class='settings-info-value'>
-                                <code>${config.projectId || 'Not set'}</code>
+                                <code>${config.projectId || __('settings_not_configured_status')}</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
                             <label>Storage Bucket</label>
                             <div class='settings-info-value'>
-                                <code>${config.storageBucket || 'Not set'}</code>
+                                <code>${config.storageBucket || __('settings_not_configured_status')}</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
                             <label>Messaging Sender ID</label>
                             <div class='settings-info-value'>
-                                <code>${config.messagingSenderId || 'Not set'}</code>
+                                <code>${config.messagingSenderId || __('settings_not_configured_status')}</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
                             <label>App ID</label>
                             <div class='settings-info-value'>
-                                <code>${config.appId || 'Not set'}</code>
+                                <code>${config.appId || __('settings_not_configured_status')}</code>
                             </div>
                         </div>
                     </div>
                     <div class='settings-actions'>
                         <button class='btn-settings-action' onclick='settingsModule.editFirebaseConfig()'>
-                            ✏️ Bewerk Firebase Config
+                            ✏️ ${__('settings_edit')}
                         </button>
                         <button class='btn-settings-action btn-settings-danger' onclick='settingsModule.resetFirebaseConfig()'>
-                            🗑️ Reset Firebase Config
+                            🗑️ ${__('settings_reset')}
                         </button>
                     </div>
                 </div>
@@ -168,34 +197,54 @@ const settingsModule = {
         } else {
             configHtml = `
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>Firebase Configuration</h2>
+                    <h2 class='settings-section-title'>${__('settings_firebase')}</h2>
                     <div class='settings-empty'>
-                        <p>Firebase is not configured.</p>
+                        <p>${__('settings_not_configured')}</p>
                         <button class='btn-settings-action' onclick='settingsModule.setupFirebase()'>
-                            ➕ Configure Firebase
+                            ➕ ${__('settings_configure')}
                         </button>
                     </div>
                 </div>
             `;
         }
+        
+        // Determine language selector value
+        const currentLang = this.getSetting('language') || 'nl';
 
         view.innerHTML = `
             <div class='settings-container'>
                 <header class='settings-header'>
-                    <h1>⚙️ Instellingen</h1>
-                    <p class='settings-subtitle'>Bekijk en beheer uw app configuratie</p>
+                    <h1>⚙️ ${__('settings_title')}</h1>
+                    <p class='settings-subtitle'>${__('settings_subtitle')}</p>
                 </header>
+
+                <!-- Language Settings -->
+                <div class='settings-section'>
+                    <h2 class='settings-section-title'>\ud83c\udf10 ${__('settings_language')}</h2>
+                    <div class='settings-control-grid'>
+                        <div class='settings-control-item'>
+                            <div class='settings-control-info'>
+                                <label>${__('settings_language')}</label>
+                                <desc>${__('settings_language_desc')}</desc>
+                            </div>
+                            <select class='settings-select' onchange='settingsModule.setSetting(\"language\", this.value)'>
+                                <option value='nl' ${currentLang === 'nl' ? 'selected' : ''}>${__('settings_dutch')}</option>
+                                <option value='en' ${currentLang === 'en' ? 'selected' : ''}>${__('settings_english')}</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
 
                 ${configHtml}
                 
                 <!-- Network & Sync Settings -->
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>🌐 Netwerk & Sync</h2>
+                    <h2 class='settings-section-title'>🌐 ${__('settings_network')}</h2>
                     <div class='settings-control-grid'>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Offline Modus</label>
-                                <desc>Sta toe dat de app werkt zonder internet verbinding</desc>
+                                <label>${__('settings_offline')}</label>
+                                <desc>${__('settings_offline_desc')}</desc>
                             </div>
                             <label class='toggle-switch'>
                                 <input type='checkbox' 
@@ -206,8 +255,8 @@ const settingsModule = {
                         </div>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Toon Debug Panel</label>
-                                <desc>Toon Firebase status en sync logs</desc>
+                                <label>${__('settings_debug')}</label>
+                                <desc>${__('settings_debug_desc')}</desc>
                             </div>
                             <label class='toggle-switch'>
                                 <input type='checkbox' 
@@ -221,12 +270,12 @@ const settingsModule = {
 
                 <!-- NDI Settings -->
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>📡 NDI Video</h2>
+                    <h2 class='settings-section-title'>📡 ${__('settings_ndi')}</h2>
                     <div class='settings-control-grid'>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Auto-Discovery</label>
-                                <desc>Automatisch zoeken naar NDI bronnen</desc>
+                                <label>${__('settings_ndi_auto')}</label>
+                                <desc>${__('settings_ndi_auto_desc')}</desc>
                             </div>
                             <label class='toggle-switch'>
                                 <input type='checkbox' 
@@ -237,13 +286,13 @@ const settingsModule = {
                         </div>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Preview Kwaliteit</label>
-                                <desc>Beeldkwaliteit voor NDI preview (performance impact)</desc>
+                                <label>${__('settings_ndi_quality')}</label>
+                                <desc>${__('settings_ndi_quality_desc')}</desc>
                             </div>
                             <select class='settings-select' onchange='settingsModule.setSetting(\"ndiPreviewQuality\", this.value)'>
-                                <option value='low' ${this.getSetting('ndiPreviewQuality') === 'low' ? 'selected' : ''}>Laag</option>
-                                <option value='medium' ${this.getSetting('ndiPreviewQuality') === 'medium' ? 'selected' : ''}>Middel</option>
-                                <option value='high' ${this.getSetting('ndiPreviewQuality') === 'high' ? 'selected' : ''}>Hoog</option>
+                                <option value='low' ${this.getSetting('ndiPreviewQuality') === 'low' ? 'selected' : ''}>${__('settings_ndi_low')}</option>
+                                <option value='medium' ${this.getSetting('ndiPreviewQuality') === 'medium' ? 'selected' : ''}>${__('settings_ndi_medium')}</option>
+                                <option value='high' ${this.getSetting('ndiPreviewQuality') === 'high' ? 'selected' : ''}>${__('settings_ndi_high')}</option>
                             </select>
                         </div>
                     </div>
@@ -251,26 +300,26 @@ const settingsModule = {
 
                 <!-- Display Settings -->
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>🕐 Weergave</h2>
+                    <h2 class='settings-section-title'>🕐 ${__('settings_display')}</h2>
                     <div class='settings-control-grid'>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Tijd Formaat</label>
-                                <desc>Hoe tijden worden weergegeven: ${timeFormatPreview}</desc>
+                                <label>${__('settings_clock')}</label>
+                                <desc>${__('settings_clock_desc')}: ${timeFormatPreview}</desc>
                             </div>
                             <select class='settings-select' onchange='settingsModule.setSetting(\"clockFormat\", this.value)'>
-                                <option value='12h' ${this.getSetting('clockFormat') === '12h' ? 'selected' : ''}>12-uur (2:30 PM)</option>
-                                <option value='24h' ${this.getSetting('clockFormat') === '24h' ? 'selected' : ''}>24-uur (14:30)</option>
+                                <option value='12h' ${this.getSetting('clockFormat') === '12h' ? 'selected' : ''}>${__('settings_clock_12h')}</option>
+                                <option value='24h' ${this.getSetting('clockFormat') === '24h' ? 'selected' : ''}>${__('settings_clock_24h')}</option>
                             </select>
                         </div>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Datum Formaat</label>
-                                <desc>Hoe datums worden weergegeven: ${dateFormatPreview}</desc>
+                                <label>${__('settings_date')}</label>
+                                <desc>${__('settings_date_desc')}: ${dateFormatPreview}</desc>
                             </div>
                             <select class='settings-select' onchange='settingsModule.setSetting(\"dateFormat\", this.value)'>
-                                <option value='DD-MM-YYYY' ${this.getSetting('dateFormat') === 'DD-MM-YYYY' ? 'selected' : ''}>DD-MM-YYYY (25-12-2024)</option>
-                                <option value='MM-DD-YYYY' ${this.getSetting('dateFormat') === 'MM-DD-YYYY' ? 'selected' : ''}>MM-DD-YYYY (12-25-2024)</option>
+                                <option value='DD-MM-YYYY' ${this.getSetting('dateFormat') === 'DD-MM-YYYY' ? 'selected' : ''}>${__('settings_date_dmy')}</option>
+                                <option value='MM-DD-YYYY' ${this.getSetting('dateFormat') === 'MM-DD-YYYY' ? 'selected' : ''}>${__('settings_date_mdy')}</option>
                             </select>
                         </div>
                     </div>
@@ -278,24 +327,24 @@ const settingsModule = {
 
                 <!-- Data Management -->
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>💾 Data Beheer</h2>
+                    <h2 class='settings-section-title'>💾 ${__('settings_data')}</h2>
                     <div class='settings-control-grid'>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Firebase Cache Legen</label>
-                                <desc>Verwijder lokaal gecachte Firebase data</desc>
+                                <label>${__('settings_clear_cache')}</label>
+                                <desc>${__('settings_clear_cache_desc')}</desc>
                             </div>
                             <button class='btn-settings-action btn-settings-warning' onclick='settingsModule.clearFirebaseCache()'>
-                                🧹 Cache Legen
+                                🧹 ${__('settings_clear_cache_btn')}
                             </button>
                         </div>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
-                                <label>Alle Lokale Data Wissen</label>
-                                <desc>Reset alle instellingen en lokale data</desc>
+                                <label>${__('settings_clear_all')}</label>
+                                <desc>${__('settings_clear_all_desc')}</desc>
                             </div>
                             <button class='btn-settings-action btn-settings-danger' onclick='settingsModule.clearAllLocalData()'>
-                                🗑️ Alles Wissen
+                                🗑️ ${__('settings_clear_all_btn')}
                             </button>
                         </div>
                     </div>
@@ -303,33 +352,33 @@ const settingsModule = {
 
                 <!-- App Info -->
                 <div class='settings-section'>
-                    <h2 class='settings-section-title'>ℹ️ App Info</h2>
+                    <h2 class='settings-section-title'>ℹ️ ${__('settings_app_info')}</h2>
                     <div class='settings-info-grid'>
                         <div class='settings-info-item'>
-                            <label>App Versie</label>
+                            <label>${__('settings_version')}</label>
                             <div class='settings-info-value'>
                                 <code>1.0.0</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
-                            <label>Firebase Status</label>
+                            <label>${__('settings_firebase_status')}</label>
                             <div class='settings-info-value'>
                                 <span class='status-badge ${config && config.apiKey ? 'status-ok' : 'status-warning'}'>
-                                    ${config && config.apiKey ? '✓ Geconfigureerd' : '✗ Niet geconfigureerd'}
+                                    ${config && config.apiKey ? '✓ ' + __('settings_configured') : '✗ ' + __('settings_not_configured_status')}
                                 </span>
                             </div>
                         </div>
                         <div class='settings-info-item'>
-                            <label>Firebase Config Bron</label>
+                            <label>${__('settings_config_source')}</label>
                             <div class='settings-info-value'>
                                 <code>${this.getConfigSource()}</code>
                             </div>
                         </div>
                         <div class='settings-info-item'>
-                            <label>Offline Modus</label>
+                            <label>${__('settings_offline_status')}</label>
                             <div class='settings-info-value'>
                                 <span class='status-badge ${this.getSetting('offlineMode') ? 'status-ok' : 'status-info'}'>
-                                    ${this.getSetting('offlineMode') ? '✓ Actief' : '✗ Uit'}
+                                    ${this.getSetting('offlineMode') ? '✓ ' + __('settings_active') : '✗ ' + __('settings_inactive')}
                                 </span>
                             </div>
                         </div>
@@ -341,8 +390,8 @@ const settingsModule = {
             <div id='settings-firebase-modal' class='overlay-screen overlay-task-modal hidden'>
                 <div class='task-modal-dialog'>
                     <div class='modal-header'>
-                        <h3 class='task-modal-title'>Firebase Config Bewerken</h3>
-                        <button onclick='settingsModule.closeEditModal()' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='Sluiten'>✖</button>
+                        <h3 class='task-modal-title'>${__('settings_edit_title')}</h3>
+                        <button onclick='settingsModule.closeEditModal()' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='${__('close')}'>✖</button>
                     </div>
                     <form id='firebase-edit-form' onsubmit='settingsModule.saveFirebaseConfig(event)'>
                         <div class='modal-form-content'>
@@ -372,8 +421,8 @@ const settingsModule = {
                             </div>
                         </div>
                         <div class='modal-footer'>
-                            <button type='button' onclick='settingsModule.closeEditModal()' class='btn-secondary'>Annuleren</button>
-                            <button type='submit' class='btn-setlist-primary'>Opslaan</button>
+                            <button type='button' onclick='settingsModule.closeEditModal()' class='btn-secondary'>${__('cancel')}</button>
+                            <button type='submit' class='btn-setlist-primary'>${__('save')}</button>
                         </div>
                     </form>
                 </div>
@@ -460,7 +509,7 @@ const settingsModule = {
         if (typeof FIREBASE_CONFIG !== 'undefined') {
             return 'Global Variable';
         }
-        return 'Niet geconfigureerd';
+        return __('settings_config_source_none');
     },
 
     maskValue(value) {
@@ -470,7 +519,7 @@ const settingsModule = {
 
     copyValue(value) {
         navigator.clipboard.writeText(value).then(() => {
-            this.showToast('Gekopieerd naar klembord!');
+            this.showToast(__('toast_copied'));
         }).catch(err => {
             console.warn('Failed to copy:', err);
         });
@@ -505,12 +554,12 @@ const settingsModule = {
         };
 
         if (!config.apiKey || !config.projectId || !config.appId) {
-            alert('API Key, Project ID en App ID zijn verplicht.');
+            alert(__('settings_required_fields'));
             return;
         }
 
         if (!config.apiKey.startsWith('AIza')) {
-            alert('Ongeldig API Key formaat (moet beginnen met AIza)');
+            alert(__('settings_invalid_api'));
             return;
         }
 
@@ -519,15 +568,15 @@ const settingsModule = {
 
         this.closeEditModal();
         this.render();
-        this.showToast('Firebase configuratie opgeslagen!');
+        this.showToast(__('settings_saved_firebase'));
 
         setTimeout(() => location.reload(), 1000);
     },
 
     resetFirebaseConfig() {
-        if (confirm('Weet u zeker dat u de Firebase configuratie wilt resetten? U moet daarna opnieuw inloggen.')) {
+        if (confirm(__('settings_confirm_reset_firebase'))) {
             localStorage.removeItem('firebaseConfig');
-            this.showToast('Firebase configuratie gereset');
+            this.showToast(__('settings_reset_firebase'));
             setTimeout(() => location.reload(), 1000);
         }
     },
@@ -537,7 +586,7 @@ const settingsModule = {
     },
     
     clearFirebaseCache() {
-        if (confirm('Wilt u de Firebase cache wissen? Dit verwijdert lokaal gecachte data maar behoudt uw instellingen.')) {
+        if (confirm(__('settings_confirm_clear_cache'))) {
             // Clear Firebase related localStorage items except settings
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
@@ -548,16 +597,16 @@ const settingsModule = {
             }
             keysToRemove.forEach(key => localStorage.removeItem(key));
             
-            this.showToast('Firebase cache gewist!');
+            this.showToast(__('settings_cleared_cache'));
             this.render();
         }
     },
     
     clearAllLocalData() {
-        if (confirm('⚠️ WAARSCHUWING: Dit wist ALLE lokale data inclusief instellingen, agenda, en checklists. Dit kan niet ongedaan worden! Wilt u doorgaan?')) {
-            if (confirm('Weet u het zeker? Typ ok in de volgende prompt.')) {
+        if (confirm(__('settings_confirm_clear_all'))) {
+            if (confirm(__('settings_confirm_clear_all2'))) {
                 localStorage.clear();
-                this.showToast('Alle data gewist!');
+                this.showToast(__('settings_cleared_all'));
                 setTimeout(() => location.reload(), 1500);
             }
         }

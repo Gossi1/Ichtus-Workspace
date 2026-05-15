@@ -167,7 +167,11 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         else:
             file_path = ROOT_DIR / self.path.lstrip('/')
         
-        if not file_path.exists():
+        # If path is a directory, serve index.html from it
+        if file_path.is_dir():
+            file_path = file_path / 'index.html'
+        
+        if not file_path.exists() or not file_path.is_file():
             self.send_error(404, 'File not found')
             return
         
