@@ -17,9 +17,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <li data-app="patchbay"><a href="../Patchbay/index.html"><div class="sidebar-icon"><svg class="sidebar-nav-icon"><line x1="4" y1="21" x2="4" y2="14"></line><line x1="4" y1="10" x2="4" y2="3"></line><line x1="12" y1="21" x2="12" y2="12"></line><line x1="12" y1="8" x2="12" y2="3"></line><line x1="20" y1="21" x2="20" y2="16"></line><line x1="20" y1="12" x2="20" y2="3"></line><line x1="1" y1="14" x2="7" y2="14"></line><line x1="9" y1="8" x2="15" y2="8"></line><line x1="17" y1="16" x2="23" y2="16"></line></svg></div><span class="sidebar-text">Patchbay</span></a></li>
             <li data-app="setlists"><a href="../Setlist_maker/index.html"><div class="sidebar-icon"><svg class="sidebar-nav-icon" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></div><span class="sidebar-text">Setlists</span></a></li>
         </ul>
-        <div class="sidebar-footer">
-            <button class="toggle-btn" id="sidebar-toggle"><svg class="toggle-icon sidebar-nav-icon"><polyline points="15 18 9 12 15 6"></polyline></svg></button>
-        </div>
     </nav>`;
 
     sidebarPlaceholder.innerHTML = sidebarHTML;

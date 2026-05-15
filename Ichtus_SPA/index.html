@@ -55,14 +55,7 @@
             <li data-view='checklist'>
                 <a href='#' onclick="router.navigate('checklist'); return false;">
                     <div class='sidebar-icon'>
-                        <svg class='sidebar-nav-icon'>
-                            <line x1='8' y1='6' x2='21' y2='6'></line>
-                            <line x1='8' y1='12' x2='21' y2='12'></line>
-                            <line x1='8' y1='18' x2='21' y2='18'></line>
-                            <line x1='3' y1='6' x2='3.01' y2='6'></line>
-                            <line x1='3' y1='12' x2='3.01' y2='12'></line>
-                            <line x1='3' y1='18' x2='3.01' y2='18'></line>
-                        </svg>
+                        <img src='Icon/Checklist--Streamline-Ultimate.svg' class='sidebar-nav-icon' alt='Checklist'>
                     </div>
                     <span class='sidebar-text' data-i18n='nav_checklist'>Checklist</span>
                 </a>
@@ -111,12 +104,8 @@
             <li data-view='ndi'>
                 <a href='#' onclick="router.navigate('ndi'); return false;">
                     <div class='sidebar-icon'>
-                        <svg class='sidebar-nav-icon'>
-                            <circle cx='12' cy='12' r='3'></circle>
-                            <path d='M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83'></path>
-                        </svg>
+                        <img src='Icon/NDI Logo Master - Light.svg' class='sidebar-nav-icon' alt='NDI'>
                     </div>
-                    <span class='sidebar-text' data-i18n='nav_ndi'>NDI Sources</span>
                 </a>
             </li>
             <li data-view='settings'>
@@ -131,12 +120,7 @@
                 </a>
             </li>
         </ul>
-        <div class='sidebar-footer'>
-            <button class='toggle-btn' id='sidebar-toggle' title='Collapse/Expand Sidebar'>
-                <svg class='toggle-icon sidebar-nav-icon'><polyline points='15 18 9 12 15 6'></polyline></svg>
-            </button>
-            <button class='toggle-btn' id='btn-global-fullscreen' title='Toggle Fullscreen' onclick='toggleFullscreen()'>⛶</button>
-        </div>
+        <!-- sidebar-footer verwijderd — sidebar is permanent compact -->
     </nav>
 
     <!-- Main Content Area -->
