@@ -301,37 +301,36 @@
                         <!-- Detail view rendered here -->
                     </div>
                 </div>
+
+            <!-- Add Item Modal -->
+            <div id='cl-add-item-modal' class='cl-local-modal hidden'>
+                <div class='task-modal-dialog'>
+                    <div class='modal-header'>
+                        <h3 class='task-modal-title'>Nieuw Item</h3>
+                    </div>
+                    <div class='modal-form-content'>
+                        <div class='form-group'>
+                            <label for='cl-add-item-name'>Taak naam</label>
+                            <input type='text' id='cl-add-item-name' class='form-input' placeholder='Bijv. Projector aan' required>
+                        </div>
+                        <div class='form-group'>
+                            <label for='cl-add-item-time'>Deadline tijd</label>
+                            <input type='time' id='cl-add-item-time' class='form-input'>
+                        </div>
+                        <div class='form-group'>
+                            <label for='cl-add-item-team'>Team</label>
+                            <input type='text' id='cl-add-item-team' class='form-input' placeholder='Bijv. Beamer'>
+                        </div>
+                    </div>
+                    <div class='modal-footer'>
+                        <button class='btn-secondary' onclick='checklistModule.closeAddItemModal()'>Annuleren</button>
+                        <button id='cl-add-item-submit' class='btn-setlist-primary' onclick='checklistModule.submitAddItem()'>Toevoegen</button>
+                    </div>
+                </div>
             </div>
 
-
-        <!-- Add Item Modal -->
-        <div id='cl-add-item-modal' class='overlay-screen overlay-task-modal hidden'>
-            <div class='task-modal-dialog'>
-                <div class='modal-header'>
-                    <h3 class='task-modal-title'>Nieuw Item</h3>
-                </div>
-                <div class='modal-form-content'>
-                    <div class='form-group'>
-                        <label for='cl-add-item-name'>Taak naam</label>
-                        <input type='text' id='cl-add-item-name' class='form-input' placeholder='Bijv. Projector aan' required>
-                    </div>
-                    <div class='form-group'>
-                        <label for='cl-add-item-time'>Deadline tijd</label>
-                        <input type='time' id='cl-add-item-time' class='form-input'>
-                    </div>
-                    <div class='form-group'>
-                        <label for='cl-add-item-team'>Team</label>
-                        <input type='text' id='cl-add-item-team' class='form-input' placeholder='Bijv. Beamer'>
-                    </div>
-                </div>
-                <div class='modal-footer'>
-                    <button class='btn-secondary' onclick='checklistModule.closeAddItemModal()'>Annuleren</button>
-                    <button id='cl-add-item-submit' class='btn-setlist-primary' onclick='checklistModule.submitAddItem()'>Toevoegen</button>
-                </div>            </div>
-        </div>
-
-        <!-- Create Checklist Modal -->
-        <div id='cl-create-checklist-modal' class='overlay-screen overlay-task-modal hidden'>
+            <!-- Create Checklist Modal -->
+            <div id='cl-create-checklist-modal' class='overlay-screen overlay-task-modal hidden'>
             <div class='task-modal-dialog'>
                 <div class='modal-header'>
                     <h3 class='task-modal-title'>Nieuwe Checklist</h3>
@@ -463,6 +462,7 @@
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
         </div>
 

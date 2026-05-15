@@ -2718,7 +2718,7 @@ input[type=checkbox] {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 50;
+    z-index: 1000;
 }
 .overlay-screen.hidden { display: none; }
 
@@ -2752,6 +2752,7 @@ body.sidebar-collapsed .overlay-role-selector {
     background-color: var(--bg-main);
     min-height: 0;
     padding: 16px 20px;
+    position: relative;
 }
 .overlay-task-modal { background-color: rgba(0,0,0,0.8); }
 .overlay-alert-modal { background-color: rgba(0,0,0,0.6); }
@@ -4480,3 +4481,20 @@ body.sidebar-collapsed .overlay-role-selector {
     font-family: 'Blockprint', sans-serif;
     letter-spacing: 1px;
 }
+
+/* ===============================
+   Local modal within checklist-main
+   =============================== */
+.cl-local-modal {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 500;
+    background: rgba(0,0,0,0.5);
+}
+.cl-local-modal.hidden { display: none; }

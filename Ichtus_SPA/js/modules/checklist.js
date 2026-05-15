@@ -820,7 +820,12 @@ const checklistModule = {
         const teamStr = item.assignedTo ? '<span class="cl-item-card-team">' + this._escapeHtml(item.assignedTo) + '</span>' : '';
         let timeStr = '';
         if (item.dueBefore != null && item.dueBefore > 0) {
-            timeStr = '<span class="cl-item-card-time">-' + item.dueBefore + 'min</span>';
+            const serviceParts = (appState.checklist.serviceTime || '10:00').split(':');
+            const serviceMins = parseInt(serviceParts[0]) * 60 + parseInt(serviceParts[1]);
+            const itemMins = Math.max(0, serviceMins - item.dueBefore);
+            const hh = String(Math.floor(itemMins / 60)).padStart(2, '0');
+            const mm = String(itemMins % 60).padStart(2, '0');
+            timeStr = '<span class="cl-item-card-time">' + hh + ':' + mm + '</span>';
         }
 
         let html = '<div class="cl-item-card' + (isCompleted ? ' cl-item-card-completed' : '') + '" data-item-id="' + item.id + '">';
@@ -855,18 +860,98 @@ const checklistModule = {
         if (modal) {
             modal.classList.remove('hidden');
             modal.dataset.checklistId = checklistId;
-            document.getElementById('cl-add-item-name')?.focus();
+            delete modal.dataset.editItemId;
+            // Clear fields
+            const nameInput = document.getElementById('cl-add-item-name');
+            const timeInput = document.getElementById('cl-add-item-time');
+            const teamInput = document.getElementById('cl-add-item-team');
+            if (nameInput) nameInput.value = '';
+            if (timeInput) timeInput.value = '';
+            if (teamInput) teamInput.value = '';
+            // Reset submit button text
+            const submitBtn = document.getElementById('cl-add-item-submit');
+            if (submitBtn) submitBtn.textContent = __('add');
+            // Focus and Enter-to-submit
+            if (nameInput) {
+                nameInput.focus();
+                nameInput.onkeydown = (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        document.getElementById('cl-add-item-submit')?.click();
+                    }
+                };
+            }
+        }
+    },
+
+    showEditItemModal(checklistId, itemId) {
+        const checklists = this._getChecklists();
+        const cl = checklists.find(c => c.id === checklistId);
+        if (!cl) return;
+        const item = (cl.items || []).find(i => i.id === itemId);
+        if (!item) return;
+
+        const modal = document.getElementById('cl-add-item-modal');
+        if (!modal) return;
+
+        // Pre-fill fields with current item data
+        const nameInput = document.getElementById('cl-add-item-name');
+        const timeInput = document.getElementById('cl-add-item-time');
+        const teamInput = document.getElementById('cl-add-item-team');
+        const submitBtn = document.getElementById('cl-add-item-submit');
+
+        if (nameInput) nameInput.value = item.name;
+        if (teamInput) teamInput.value = item.assignedTo || '';
+
+        // Convert dueBefore (minutes before service) to HH:MM time input
+        if (timeInput) {
+            if (item.dueBefore > 0) {
+                const serviceParts = (appState.checklist.serviceTime || '10:00').split(':');
+                const serviceMins = parseInt(serviceParts[0]) * 60 + parseInt(serviceParts[1]);
+                const itemMins = Math.max(0, serviceMins - item.dueBefore);
+                const hh = String(Math.floor(itemMins / 60)).padStart(2, '0');
+                const mm = String(itemMins % 60).padStart(2, '0');
+                timeInput.value = hh + ':' + mm;
+            } else {
+                timeInput.value = '';
+            }
+        }
+
+        // Store edit mode info
+        modal.dataset.checklistId = checklistId;
+        modal.dataset.editItemId = itemId;
+
+        // Change button text to 'Save'
+        if (submitBtn) submitBtn.textContent = __('save');
+
+        modal.classList.remove('hidden');
+        // Focus and Enter-to-submit
+        if (nameInput) {
+            nameInput.focus();
+            nameInput.onkeydown = (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('cl-add-item-submit')?.click();
+                }
+            };
         }
     },
 
     closeAddItemModal() {
         const modal = document.getElementById('cl-add-item-modal');
-        if (modal) modal.classList.add('hidden');
+        if (modal) {
+            modal.classList.add('hidden');
+            delete modal.dataset.editItemId;
+            // Reset submit button text
+            const submitBtn = document.getElementById('cl-add-item-submit');
+            if (submitBtn) submitBtn.textContent = __('add');
+        }
     },
 
     submitAddItem() {
         const modal = document.getElementById('cl-add-item-modal');
         const checklistId = modal ? modal.dataset.checklistId : '';
+        const editItemId = modal ? modal.dataset.editItemId : '';
         const nameInput = document.getElementById('cl-add-item-name');
         const timeInput = document.getElementById('cl-add-item-time');
         const teamInput = document.getElementById('cl-add-item-team');
@@ -875,7 +960,12 @@ const checklistModule = {
 
         const dueTime = timeInput ? timeInput.value : '';
         const team = teamInput ? teamInput.value.trim() : '';
-        this.addItem(checklistId, name, dueTime, team);
+
+        if (editItemId) {
+            this.editItem(checklistId, editItemId, name, dueTime, team);
+        } else {
+            this.addItem(checklistId, name, dueTime, team);
+        }
         this.closeAddItemModal();
         if (nameInput) nameInput.value = '';
         if (timeInput) timeInput.value = '';
@@ -937,6 +1027,7 @@ const checklistModule = {
 
         const items = [
             { label: item.completed ? 'Markeer open' : 'Markeer voltooid', icon: item.completed ? '\u274C' : '\u2705', action: () => this.toggleItemCheck(checklistId, itemId) },
+            { label: 'Bewerk', icon: '\u270F\uFE0F', action: () => this.showEditItemModal(checklistId, itemId) },
             { label: 'Verwijder', icon: '\uD83D\uDDD1\uFE0F', action: () => this.deleteItem(checklistId, itemId), danger: true }
         ];
 
@@ -1086,6 +1177,42 @@ const checklistModule = {
         if (!cl || !cl.items) return;
 
         cl.items = cl.items.filter(i => i.id !== itemId);
+        appState.checklist.presets = presets;
+        this._syncChecklistState();
+
+        if (appState.checklist.activeChecklistId === checklistId) {
+            this._renderChecklistDetail(checklistId);
+        } else {
+            this.renderChecklistOverview();
+        }
+    },
+
+    editItem(checklistId, itemId, name, dueTime, team) {
+        const presets = JSON.parse(JSON.stringify(appState.checklist.presets));
+        const current = presets[appState.checklist.currentPreset] || [];
+        const cl = current.find(c => c.id === checklistId);
+        if (!cl || !cl.items) return;
+        const item = cl.items.find(i => i.id === itemId);
+        if (!item) return;
+
+        item.name = name;
+
+        // Parse dueTime (HH:MM) back to minutes before service start
+        if (dueTime) {
+            const parts = dueTime.split(':');
+            if (parts.length === 2) {
+                const itemMins = parseInt(parts[0]) * 60 + parseInt(parts[1]);
+                const serviceParts = (appState.checklist.serviceTime || '10:00').split(':');
+                const serviceMins = parseInt(serviceParts[0]) * 60 + parseInt(serviceParts[1]);
+                item.dueBefore = Math.max(0, serviceMins - itemMins);
+            }
+        } else {
+            item.dueBefore = 0;
+        }
+
+        if (team) item.assignedTo = team;
+        else delete item.assignedTo;
+
         appState.checklist.presets = presets;
         this._syncChecklistState();
 
