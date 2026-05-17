@@ -310,6 +310,18 @@ const i18n = {
             ndi_details_extra: 'Extra',
             ndi_default_port: 'NDI default',
 
+            // ==================== DASHBOARD LAYOUT ====================
+            dashboard_layout_default: 'Default',
+            dashboard_layout_save: 'Opslaan',
+            dashboard_layout_save_prompt: 'Layout opslaan als:',
+            dashboard_layout_rename_prompt: 'Layout hernoemen naar:',
+            dashboard_layout_manage: 'Beheer Layouts',
+            dashboard_layout_no_layouts: 'Nog geen opgeslagen layouts',
+            dashboard_layout_active: '(actief)',
+            dashboard_layout_close: 'Sluiten',
+            dashboard_layout_rename: 'Hernoemen',
+            dashboard_layout_delete: 'Verwijderen',
+
             // ==================== PATCHBAY MODULE ====================
             pb_add_node: 'Add Node Here',
             pb_paste: 'Plakken',
@@ -618,6 +630,18 @@ const i18n = {
             analytics_imported: 'Imported',
             analytics_items_from: 'items from',
             analytics_read_error: 'Failed to read the file.',
+
+            // ==================== DASHBOARD LAYOUT ====================
+            dashboard_layout_default: 'Default',
+            dashboard_layout_save: 'Save',
+            dashboard_layout_save_prompt: 'Save layout as:',
+            dashboard_layout_rename_prompt: 'Rename layout to:',
+            dashboard_layout_manage: 'Manage Layouts',
+            dashboard_layout_no_layouts: 'No saved layouts yet',
+            dashboard_layout_active: '(active)',
+            dashboard_layout_close: 'Close',
+            dashboard_layout_rename: 'Rename',
+            dashboard_layout_delete: 'Delete',
 
             // ==================== PATCHBAY MODULE ====================
             pb_add_node: 'Add Node Here',

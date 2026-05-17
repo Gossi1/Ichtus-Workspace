@@ -705,16 +705,18 @@
         <!-- DASHBOARD VIEW -->
         <div id='view-dashboard' class='app-view hidden'>
             <div class='dashboard-header'>
-                <h1 class='dashboard-title heading-font'>Workspace Dashboard</h1>
-                <p class='dashboard-subtitle'>Drag widgets to rearrange your workspace</p>
+                <button id='dash-add-widget-btn' class='dash-add-widget-btn' onclick="dashboardModule.addWidget()" title='Add widget'>+</button>
+                <select id='layout-selector' class='layout-selector heading-font' onchange="dashboardModule.switchLayout(this.value)">
+                    <option value='__default__' data-i18n='dashboard_layout_default'>Default</option>
+                </select>
+                <div class='dashboard-header-actions'>
+                    <button class='dash-header-btn dash-edit-btn' onclick="dashboardModule.toggleEditMode()" title='Edit'>✎</button>
+                    <button class='dash-header-btn dash-manage-btn' onclick="dashboardModule.manageLayout()" title='Manage layouts'>⚙</button>
+                </div>
             </div>
             <div id='widget-grid' class='widget-grid'>
                 <!-- Quick Links Widget -->
                 <div class='widget-card' draggable='true' data-widget-id='quicklinks'>
-                    <div class='widget-header'>
-                        <h3 class='widget-title'>Quick Links</h3>
-                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
-                    </div>
                     <div class='widget-body'>
                         <div class='quick-links'>
                             <a href='#' class='quick-link' onclick="router.navigate('agenda'); return false;">
@@ -743,10 +745,6 @@
 
                 <!-- Service Timer Widget -->
                 <div class='widget-card' draggable='true' data-widget-id='servicetimer'>
-                    <div class='widget-header'>
-                        <h3 class='widget-title'>Service Timer</h3>
-                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
-                    </div>
                     <div class='widget-body'>
                         <div class='timer-widget'>
                             <div id='dash-timer-display' class='dash-timer-display heading-font'>00:00:00</div>
@@ -759,23 +757,8 @@
                     </div>
                 </div>
 
-                <!-- Notes Widget -->
-                <div class='widget-card wide' draggable='true' data-widget-id='notes'>
-                    <div class='widget-header'>
-                        <h3 class='widget-title'>Quick Notes</h3>
-                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
-                    </div>
-                    <div class='widget-body'>
-                        <textarea id='dash-notes' class='dash-notes' placeholder='Type your notes here...'></textarea>
-                    </div>
-                </div>
-
                 <!-- Status Widget -->
                 <div class='widget-card' draggable='true' data-widget-id='status'>
-                    <div class='widget-header'>
-                        <h3 class='widget-title'>Workspace Status</h3>
-                        <button class='widget-toggle' onclick="dashboardModule.toggleWidget(this)">−</button>
-                    </div>
                     <div class='widget-body'>
                         <div class='status-list'>
                             <div class='status-item'>
