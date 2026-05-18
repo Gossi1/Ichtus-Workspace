@@ -1,4 +1,3 @@
-// Dashboard Module for Ichtus Workspace SPA
 const dashboardModule = {
     initialized: false,
     _lastView: null,
@@ -6,13 +5,21 @@ const dashboardModule = {
     timerStartTime: null,
     timerRunning: false,
     draggedEl: null,
-    // Default widget order (fallback)
     _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter'],
     _editMode: false,
     _widgetInstance: 0,
-    // Grid position data: { [widgetId]: { col: number, row: number, span: number } }
-    _widgetPositions: {},
-    // Row height step used during drag placement (min row ~60px + gap ~12px)
+
+    _resizeHandler: null,
+    // ProPresenter state
+    _proPresenterInterval: null,
+    _proPresenterFastInterval: null,
+    _proPresenterLastIndex: -1,
+    _proPresenterLastPresentationUuid: null,
+    _proPresenterSlideCount: 0,
+
+    // ===============================
+    //  INIT
+    // ===============================
     init() {
         if (this.initialized && this._lastView === 'dashboard') return;
         this.initialized = true;
@@ -20,522 +27,249 @@ const dashboardModule = {
 
         this.setupDragAndDrop();
         this.setupTimer();
-    this.restoreWidgetOrder();
-    this._ensureSavedWidgets();
-    localStorage.removeItem('ichtus_dashboard_collapsed');
+        this._migrateProPresenterSpan();
+        this.restoreWidgetOrder();
+        this._ensureSavedWidgets();
+        localStorage.removeItem('ichtus_dashboard_collapsed');
+        this._updateRowHeight();
         this._restoreWidgetSizes();
         this._restoreWidgetPositions();
         this.initLayoutSelector();
-        // Start ProPresenter polling if widget exists in the DOM
-        if (document.querySelector('.widget-card[data-widget-id="propresenter"]')) {
+        if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
             this._startProPresenterPolling();
         }
 
-        // Re-clamp widget positions on window resize
         this._resizeHandler = () => {
             if (document.getElementById('view-dashboard')?.classList.contains('active')) {
+                this._updateRowHeight();
                 this._restoreWidgetPositions();
             }
         };
         window.addEventListener('resize', this._resizeHandler);
     },
 
+    // ===============================
+    //  GRID SYSTEM (occupancy map)
+    // ===============================
+    COL_COUNT: 36,
+    GAP_PX: 12,
+
+    /**
+     * Calculate grid metrics from the DOM element.
+     * Returns { colWidth, rowHeight, maxRows, totalCols, gap } or null.
+     * Row height = colWidth + gap (square cells).
+     */
+    _getGridMetrics() {
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return null;
+        const rect = grid.getBoundingClientRect();
+        const colWidth = (rect.width - this.GAP_PX * (this.COL_COUNT - 1)) / this.COL_COUNT;
+        const rowHeight = colWidth + this.GAP_PX;
+        const maxRows = Math.max(1, Math.floor(rect.height / rowHeight));
+        return { colWidth, rowHeight, maxRows, totalCols: this.COL_COUNT, gap: this.GAP_PX };
+    },
+
+    /**
+     * Build a 2D boolean occupancy map [row][col] from all widgets currently in the DOM.
+     * Excludes the widget being dragged (this.draggedEl).
+     */
+    _buildOccupancyMap(maxRows, excludeEl) {
+        const map = Array.from({ length: maxRows }, () => new Array(this.COL_COUNT).fill(false));
+        const metrics = this._getGridMetrics();
+        if (!metrics) return map;
+        const { rowHeight } = metrics;
+
+        document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+            if (card === excludeEl) return;
+            const col = parseInt(card.style.gridColumnStart) || 1;
+            const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
+            const row = parseInt(card.style.gridRowStart) || 1;
+            const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+            const rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+
+            for (let r = row - 1; r < Math.min(row - 1 + rowSpan, maxRows); r++) {
+                const rowArr = map[r];
+                if (!rowArr) continue;
+                for (let c = col - 1; c < Math.min(col - 1 + span, this.COL_COUNT); c++) {
+                    rowArr[c] = true;
+                }
+            }
+        });
+        return map;
+    },
+
+    /**
+     * Find the nearest free grid cell for a widget of the given size.
+     * Uses BFS outward from the preferred position.
+     * Returns { col, row } (1-indexed grid coordinates).
+     */
+    _findFreeSpot(colSpan, rowSpan, preferredCol, preferredRow) {
+        const metrics = this._getGridMetrics();
+        if (!metrics) return { col: 1, row: 1 };
+        const { maxRows, totalCols } = metrics;
+        const map = this._buildOccupancyMap(maxRows, this.draggedEl);
+
+        const maxCol = totalCols - colSpan;
+        const maxRow = maxRows - rowSpan;
+        const startCol = Math.min(Math.max(0, preferredCol - 1), maxCol);
+        const startRow = Math.min(Math.max(0, preferredRow - 1), maxRow);
+
+        // BFS outward from preferred position
+        const visited = new Set();
+        const queue = [[startCol, startRow]];
+        visited.add(`${startCol},${startRow}`);
+        let head = 0;
+
+        while (head < queue.length) {
+            const [c, r] = queue[head++];
+            if (this._rectFits(map, c + 1, r + 1, colSpan, rowSpan, metrics)) {
+                return { col: c + 1, row: r + 1 };
+            }
+            for (const [nc, nr] of [[c + 1, r], [c, r + 1], [c - 1, r], [c, r - 1]]) {
+                const key = `${nc},${nr}`;
+                if (!visited.has(key) && nc >= 0 && nc <= maxCol && nr >= 0 && nr <= maxRow) {
+                    visited.add(key);
+                    queue.push([nc, nr]);
+                }
+            }
+        }
+
+        // No free spot within viewport — place below
+        return { col: 1, row: maxRows };
+    },
+
+    /**
+     * Check if a rectangle fits in the occupancy map without overlapping.
+     * @param {boolean[][]} map - Occupancy map
+     * @param {number} col - Start column (1-indexed)
+     * @param {number} row - Start row (1-indexed)
+     * @param {number} colSpan - Column span
+     * @param {number} rowSpan - Row span
+     * @param {object} metrics - Grid metrics { totalCols, maxRows }
+     * @returns {boolean}
+     */
+    _rectFits(map, col, row, colSpan, rowSpan, metrics) {
+        const c = col - 1;
+        const r = row - 1;
+        if (c < 0 || r < 0 || c + colSpan > metrics.totalCols || r + rowSpan > metrics.maxRows) return false;
+        for (let rr = r; rr < r + rowSpan; rr++) {
+            const rowArr = map[rr];
+            if (!rowArr) return false;
+            for (let cc = c; cc < c + colSpan; cc++) {
+                if (rowArr[cc]) return false;
+            }
+        }
+        return true;
+    },
+
+    /**
+     * Convert cursor coordinates to the nearest grid cell (col, row), both 1-indexed.
+     */
+    _cursorToGrid(clientX, clientY) {
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return null;
+        const metrics = this._getGridMetrics();
+        if (!metrics) return null;
+        const rect = grid.getBoundingClientRect();
+        const { colWidth, rowHeight } = metrics;
+        const col = Math.max(1, Math.min(this.COL_COUNT, Math.floor((clientX - rect.left) / (colWidth + this.GAP_PX)) + 1));
+        const row = Math.max(1, Math.floor((clientY - rect.top) / rowHeight) + 1);
+        return { col, row };
+    },
+
+    /**
+     * Set CSS grid properties on a widget card.
+     */
+    _applyWidgetGrid(card, col, row, span) {
+        card.style.gridColumn = `${col} / span ${span}`;
+        card.style.gridRowStart = String(row);
+        card.dataset.widgetSpan = String(span);
+    },
+
+    // ===============================
+    //  DRAG & DROP
+    // ===============================
     setupDragAndDrop() {
         const grid = document.getElementById('widget-grid');
         if (!grid) return;
 
+        // Create / reuse drop indicator
+        let indicator = grid.querySelector('.widget-drop-indicator');
+        if (!indicator) {
+            indicator = document.createElement('div');
+            indicator.className = 'widget-drop-indicator';
+            indicator.style.display = 'none';
+            grid.appendChild(indicator);
+        }
+
         grid.addEventListener('dragstart', (e) => {
-            // Don't start drag if the user is interacting with the resize handle
-            if (e.target.closest('.widget-resize-handle')) return;
+            if (e.target.closest('.widget-resize-handle')) { e.preventDefault(); return; }
             const card = e.target.closest('.widget-card');
             if (!card) return;
             this.draggedEl = card;
             card.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', card.dataset.widgetId);
-        });
-
-        grid.addEventListener('dragend', (e) => {
-            const card = e.target.closest('.widget-card');
-            if (card) card.classList.remove('dragging');
-            this.draggedEl = null;
-            this._saveWidgetPositions();
+            e.dataTransfer.setData('text/plain', card.dataset.widgetId || '');
         });
 
         grid.addEventListener('dragover', (e) => {
             e.preventDefault();
             if (!this.draggedEl) return;
-
-            const pos = this._calculateGridPosition(e.clientX, e.clientY);
+            const pos = this._cursorToGrid(e.clientX, e.clientY);
             if (!pos) return;
+            const metrics = this._getGridMetrics();
+            if (!metrics) return;
+            const { colWidth, rowHeight } = metrics;
 
+            // Calculate the widget's full footprint for the indicator
             const card = this.draggedEl;
             const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
-            const autoCol = this._findAutoPackCol(pos.row, span, pos.col);
-            card.style.gridColumn = `${autoCol} / span ${span}`;
-            card.style.gridRowStart = String(pos.row);
-        });
-    },
+            const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+            const rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
 
-    // Calculate which grid cell (col, row) the cursor is over
-_calculateGridPosition(clientX, clientY) {
-    const grid = document.getElementById('widget-grid');
-    if (!grid) return null;
-    const rect = grid.getBoundingClientRect();
-
-    // Column calculation
-    const COL_COUNT = 36;
-    const gapPx = 12; // 0.75rem ≈ 12px
-    const colWidth = (rect.width - gapPx * (COL_COUNT - 1)) / COL_COUNT;
-    const rawCol = Math.round((clientX - rect.left) / (colWidth + gapPx));
-    const col = Math.max(1, Math.min(COL_COUNT, rawCol));
-
-    // Row calculation — fixed 152px step (140px row + 12px gap)
-    const ROW_STEP = 152;
-    let row = Math.round((clientY - rect.top) / ROW_STEP) || 1;
-    row = Math.max(1, Math.min(this._getMaxVisibleRow(), row));
-
-    return { col, row };
-},
-
-    // Auto-pack: find the first gap on the target row that fits the widget span,
-    // preferring the gap nearest to the cursor column.
-    _findAutoPackCol(targetRow, widgetSpan, cursorCol) {
-        const grid = document.getElementById('widget-grid');
-        if (!grid) return cursorCol;
-        const COL_COUNT = 36;
-
-        // Collect occupied column ranges on this row (exclude the dragged element)
-        const occupied = [];
-        grid.querySelectorAll('.widget-card').forEach(c => {
-            if (c === this.draggedEl) return;
-            const row = parseInt(c.style.gridRowStart);
-            if (row === targetRow) {
-                const col = parseInt(c.style.gridColumnStart) || 1;
-                const span = parseInt(c.dataset.widgetSpan) || this._getDefaultSpan(c.dataset.widgetId);
-                occupied.push({ start: col, end: col + span - 1 });
-            }
+            indicator.style.display = 'block';
+            indicator.style.left = ((pos.col - 1) * (colWidth + this.GAP_PX)) + 'px';
+            indicator.style.top = ((pos.row - 1) * rowHeight) + 'px';
+            indicator.style.width = (span * colWidth + (span - 1) * this.GAP_PX) + 'px';
+            indicator.style.height = (rowSpan * rowHeight - this.GAP_PX) + 'px';
+            indicator.style.borderRadius = '8px';
+            indicator.style.background = 'rgba(244,121,32,0.12)';
+            indicator.style.border = '2px dashed var(--ichtus-orange, #f47920)';
         });
 
-        occupied.sort((a, b) => a.start - b.start);
+        grid.addEventListener('drop', (e) => { e.preventDefault(); });
 
-        // Find gaps between occupied ranges and pick the best one
-        let current = 1;
-        let bestCol = Math.min(cursorCol, COL_COUNT - widgetSpan + 1);
-        let bestDist = Infinity;
-
-        for (const occ of occupied) {
-            const gapStart = current;
-            const gapEnd = occ.start - 1;
-            const gapSize = gapEnd - gapStart + 1;
-
-            if (gapSize >= widgetSpan) {
-                // Widget fits in this gap — try all valid start positions
-                for (let s = gapStart; s <= gapEnd - widgetSpan + 1; s++) {
-                    const mid = s + Math.floor(widgetSpan / 2);
-                    const dist = Math.abs(mid - cursorCol);
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestCol = s;
-                    }
-                }
-            }
-            current = occ.end + 1;
-        }
-
-        // Gap after the last occupied widget
-        if (current <= COL_COUNT) {
-            const gapSize = COL_COUNT - current + 1;
-            if (gapSize >= widgetSpan) {
-                for (let s = current; s <= COL_COUNT - widgetSpan + 1; s++) {
-                    const mid = s + Math.floor(widgetSpan / 2);
-                    const dist = Math.abs(mid - cursorCol);
-                    if (dist < bestDist) {
-                        bestDist = dist;
-                        bestCol = s;
-                    }
-                }
-            }
-        }
-
-        return Math.max(1, Math.min(bestCol, COL_COUNT - widgetSpan + 1));
-    },
-
-    // Return the number of grid rows that fit within the viewport (no scrolling)
-    _getMaxVisibleRow() {
-        const grid = document.getElementById('widget-grid');
-        if (!grid) return 8;
-        const gridTop = grid.getBoundingClientRect().top;
-        const availablePx = window.innerHeight - gridTop - 20;
-        // Fixed row height: 140px row + 12px gap = 152px per row
-        const ROW_STEP = 152;
-        return Math.max(1, Math.floor((availablePx + 12) / ROW_STEP));
-    },
-
-    _saveWidgetPositions() {
-        const grid = document.getElementById('widget-grid');
-        if (!grid) return;
-        const positions = {};
-        const order = [];
-        grid.querySelectorAll('.widget-card').forEach(card => {
-            const id = card.dataset.widgetId;
-            if (!id) return;
-            order.push(id);
-            const col = parseInt(card.style.gridColumnStart) || 1;
-            const row = parseInt(card.style.gridRowStart) || 1;
-            const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id);
-            positions[id] = { col, row, span };
-        });
-        this._widgetPositions = positions;
-        try {
-            localStorage.setItem('ichtus_dashboard_widget_positions', JSON.stringify(positions));
-            localStorage.setItem('ichtus_dashboard_widget_order', JSON.stringify(order));
-        } catch(e) {}
-    },
-
-    _restoreWidgetPositions() {
-        try {
-            const saved = localStorage.getItem('ichtus_dashboard_widget_positions');
-            if (!saved) return;
-            this._widgetPositions = JSON.parse(saved);
-            const grid = document.getElementById('widget-grid');
-            if (!grid) return;
-            const maxRow = this._getMaxVisibleRow();
-            grid.querySelectorAll('.widget-card').forEach(card => {
-                const id = card.dataset.widgetId;
-                if (!id) return;
-                const pos = this._widgetPositions[id];
-                if (pos) {
-                    const span = pos.span || parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id);
-                    const row = Math.min(pos.row, maxRow);
-                    card.style.gridColumn = `${pos.col} / span ${span}`;
-                    card.style.gridRowStart = String(row);
-                }
-            });
-        } catch(e) {}
-    },
-
-    saveWidgetOrder() {
-        // Delegates to _saveWidgetPositions which saves both positions and order
-        this._saveWidgetPositions();
-    },
-
-    restoreWidgetOrder() {
-        try {
-            const saved = localStorage.getItem('ichtus_dashboard_widget_order');
-            if (!saved) return;
-            const order = JSON.parse(saved);
-            const grid = document.getElementById('widget-grid');
-            if (!grid) return;
-            const cards = [...grid.querySelectorAll('.widget-card')];
-            const map = new Map(cards.map(c => [c.dataset.widgetId, c]));
-            order.forEach(id => {
-                const card = map.get(id);
-                if (card) grid.appendChild(card);
-            });
-        } catch(e) {}
-    },
-
-    restoreCollapsed() {
-        try {
-            const collapsed = JSON.parse(localStorage.getItem('ichtus_dashboard_collapsed') || '[]');
-            const grid = document.getElementById('widget-grid');
-            if (!grid) return;
-            collapsed.forEach(id => {
-                const card = grid.querySelector(`[data-widget-id="${id}"]`);
-                if (card) {
-                    const body = card.querySelector('.widget-body');
-                    if (body) body.style.display = 'none';
-                }
-            });
-        } catch(e) {}
-    },
-
-    /**
-     * Ensure any widgets from saved order that are missing from DOM get rendered
-     */
-    _ensureSavedWidgets() {
-        try {
-            const saved = localStorage.getItem('ichtus_dashboard_widget_order');
-            if (!saved) return;
-            const order = JSON.parse(saved);
-            const grid = document.getElementById('widget-grid');
-            if (!grid) return;
-            const existing = [...grid.querySelectorAll('.widget-card')].map(el => el.dataset.widgetId);
-            order.forEach(id => {
-                if (!existing.includes(id)) {
-                    const html = this.getWidgetTemplate(id);
-                    if (html) {
-                        const wrapper = document.createElement('div');
-                        wrapper.innerHTML = html;
-                        const card = wrapper.firstElementChild;
-                        if (card) {
-                            grid.appendChild(card);
-                            // Start polling for propresenter if needed
-                            if (id === 'propresenter' && this._startProPresenterPolling) {
-                                this._startProPresenterPolling();
-                            }
-                        }
-                    }
-                }
-            });
-        } catch(e) {}
-    },
-
-    setupTimer() {
-        const display = document.getElementById('dash-timer-display');
-        const startBtn = document.getElementById('dash-timer-start');
-        const stopBtn = document.getElementById('dash-timer-stop');
-        const resetBtn = document.getElementById('dash-timer-reset');
-        if (!display || !startBtn || !stopBtn || !resetBtn) return;
-
-        startBtn.addEventListener('click', () => {
-            if (this.timerRunning) return;
-            this.timerRunning = true;
-            this.timerStartTime = Date.now() - (this.timerElapsed || 0);
-            startBtn.disabled = true;
-            stopBtn.disabled = false;
-            this.timerInterval = setInterval(() => {
-                const elapsed = Date.now() - this.timerStartTime;
-                display.textContent = this.formatTime(elapsed);
-                this.timerElapsed = elapsed;
-            }, 100);
-        });
-
-        stopBtn.addEventListener('click', () => {
-            if (!this.timerRunning) return;
-            this.timerRunning = false;
-            clearInterval(this.timerInterval);
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        });
-
-        resetBtn.addEventListener('click', () => {
-            this.timerRunning = false;
-            clearInterval(this.timerInterval);
-            this.timerElapsed = 0;
-            display.textContent = '00:00:00';
-            startBtn.disabled = false;
-            stopBtn.disabled = true;
-        });
-    },
-
-    formatTime(ms) {
-        const totalSeconds = Math.floor(ms / 1000);
-        const h = Math.floor(totalSeconds / 3600);
-        const m = Math.floor((totalSeconds % 3600) / 60);
-        const s = totalSeconds % 60;
-        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-    },
-
-
-    /* --------------------------------------------------
-       LAYOUT MANAGEMENT
-       -------------------------------------------------- */
-
-    initLayoutSelector() {
-        const selector = document.getElementById('layout-selector');
-        if (!selector) return;
-        this.populateLayoutSelector();
-    },
-
-    loadLayouts() {
-        try {
-            const saved = localStorage.getItem('ichtus_dashboard_layouts');
-            return saved ? JSON.parse(saved) : [];
-        } catch(e) { return []; }
-    },
-
-    saveLayouts(layouts) {
-        try { localStorage.setItem('ichtus_dashboard_layouts', JSON.stringify(layouts)); } catch(e) {}
-    },
-
-    getActiveLayoutName() {
-        try { return localStorage.getItem('ichtus_dashboard_active_layout') || '__default__'; } catch(e) { return '__default__'; }
-    },
-
-    setActiveLayoutName(name) {
-        try { localStorage.setItem('ichtus_dashboard_active_layout', name); } catch(e) {}
-    },
-
-    populateLayoutSelector() {
-        const selector = document.getElementById('layout-selector');
-        if (!selector) return;
-        const layouts = this.loadLayouts();
-        const activeName = this.getActiveLayoutName();
-        selector.innerHTML = '';
-
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '__default__';
-        defaultOpt.textContent = 'Default';
-        selector.appendChild(defaultOpt);
-
-        layouts.forEach(l => {
-            const opt = document.createElement('option');
-            opt.value = l.name;
-            opt.textContent = l.name;
-            selector.appendChild(opt);
-        });
-
-        selector.value = activeName;
-    },
-
-    getCurrentState() {
-        const grid = document.getElementById('widget-grid');
-        if (!grid) return { order: [], collapsed: [], positions: {} };
-        const order = [...grid.querySelectorAll('.widget-card')].map(el => el.dataset.widgetId);
-        // Build positions from current DOM state
-        const positions = {};
-        grid.querySelectorAll('.widget-card').forEach(card => {
-            const id = card.dataset.widgetId;
-            if (!id) return;
-            const col = parseInt(card.style.gridColumnStart) || 1;
-            const row = parseInt(card.style.gridRowStart) || 1;
-            const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id);
-            positions[id] = { col, row, span };
-        });
-        try {
-            const collapsed = JSON.parse(localStorage.getItem('ichtus_dashboard_collapsed') || '[]');
-            return { order, collapsed, positions };
-        } catch(e) { return { order, collapsed: [], positions }; }
-    },
-
-    applyLayout(layoutName) {
-        const layouts = this.loadLayouts();
-        let order, collapsed, positions;
-
-        if (layoutName === '__default__') {
-            order = this._defaultWidgetIds;
-            collapsed = [];
-            positions = {};
-        } else {
-            const layout = layouts.find(l => l.name === layoutName);
-            if (!layout) return;
-            order = layout.widgetOrder || this._defaultWidgetIds;
-            collapsed = layout.collapsedWidgets || [];
-            positions = layout.widgetPositions || {};
-        }
-
-        const grid = document.getElementById('widget-grid');
-        if (grid) {
-            const cards = [...grid.querySelectorAll('.widget-card')];
-            const map = new Map(cards.map(c => [c.dataset.widgetId, c]));
-            order.forEach(id => {
-                const card = map.get(id);
-                if (card) grid.appendChild(card);
-            });
-
-            // Apply widget positions with viewport clamping
-            const maxRow = this._getMaxVisibleRow();
-            cards.forEach(card => {
-                const id = card.dataset.widgetId;
-                if (!id) return;
-                const pos = positions[id];
-                if (pos) {
-                    const span = pos.span || parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id);
-                    const row = Math.min(pos.row, maxRow);
-                    card.style.gridColumn = `${pos.col} / span ${span}`;
-                    card.style.gridRowStart = String(row);
-                }
-            });
-        }
-
-        try {
-            localStorage.setItem('ichtus_dashboard_widget_order', JSON.stringify(order));
-            localStorage.setItem('ichtus_dashboard_widget_positions', JSON.stringify(positions));
-        } catch(e) {}
-
-        try {
-            localStorage.setItem('ichtus_dashboard_collapsed', JSON.stringify(collapsed));
-        } catch(e) {}
-
-        if (grid) {
-            grid.querySelectorAll('.widget-card').forEach(card => {
-                const body = card.querySelector('.widget-body');
-                const id = card.dataset.widgetId;
-                if (!body) return;
-                if (collapsed.includes(id)) {
-                    body.style.display = 'none';
-                } else {
-                    body.style.display = '';
-                }
-            });
-        }
-
-        this.setActiveLayoutName(layoutName);
-        this.populateLayoutSelector();
-    },
-
-    switchLayout(layoutName) {
-        this.applyLayout(layoutName);
-    },
-
-    toggleEditMode() {
-        this._editMode = !this._editMode;
-        const addBtn = document.getElementById('dash-add-widget-btn');
-        if (addBtn) {
-            addBtn.style.display = this._editMode ? 'flex' : 'none';
-        }
-        // Toggle active state on edit button
-        const editBtn = document.querySelector('.dash-edit-btn');
-        if (editBtn) {
-            editBtn.classList.toggle('active', this._editMode);
-        }
-        // Close picker when exiting edit mode
-        if (!this._editMode) {
-            const picker = document.querySelector('.widget-picker');
-            if (picker) picker.remove();
-        }
-        const grid = document.getElementById('widget-grid');
-        if (!grid) return;
-        // Toggle .edit-mode class on grid for CSS
-        grid.classList.toggle('edit-mode', this._editMode);
-        grid.querySelectorAll('.widget-card').forEach(card => {
-            if (this._editMode) {
-                // Delete button - append directly to card
-                if (!card.querySelector('.widget-delete-btn')) {
-                    const delBtn = document.createElement('button');
-                    delBtn.className = 'widget-delete-btn';
-                    delBtn.textContent = '−';
-                    delBtn.title = 'Remove widget';
-                    delBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        this.deleteWidget(card);
-                    };
-                    card.appendChild(delBtn);
-                }
-                // Resize handle
-                if (!card.querySelector('.widget-resize-handle')) {
-                    this._addResizeHandle(card);
-                }
+        grid.addEventListener('dragend', (e) => {
+            const card = this.draggedEl || e.target.closest('.widget-card');
+            if (card) {
+                card.classList.remove('dragging');
+                const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
+                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                const metrics = this._getGridMetrics();
+                const rowSpan = metrics ? Math.max(1, Math.ceil(minH / metrics.rowHeight)) : 1;
+                const cursorPos = this._cursorToGrid(e.clientX, e.clientY);
+                // Temporarily set draggedEl back so _buildOccupancyMap excludes this card
+                this.draggedEl = card;
+                const free = this._findFreeSpot(span, rowSpan, cursorPos?.col || 1, cursorPos?.row || 1);
+                this.draggedEl = null;
+                this._applyWidgetGrid(card, free.col, free.row, span);
+                this._saveWidgetPositions();
             } else {
-                const delBtn = card.querySelector('.widget-delete-btn');
-                if (delBtn) delBtn.remove();
-                const handle = card.querySelector('.widget-resize-handle');
-                if (handle) handle.remove();
+                this.draggedEl = null;
             }
+            indicator.style.display = 'none';
         });
     },
 
-    _addResizeHandle(el) {
-        const handle = document.createElement('div');
-        handle.className = 'widget-resize-handle';
-        handle.draggable = false;
-        // Prevent native HTML5 drag on parent from firing
-        handle.addEventListener('dragstart', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-        });
-        el.appendChild(handle);
-        this._initResizeHandle(el);
-    },
-
+    // ===============================
+    //  RESIZE
+    // ===============================
     _initResizeHandle(el) {
         const handle = el.querySelector('.widget-resize-handle');
         if (!handle) return;
 
-        const TOTAL_COLS = 36;
-        const HEIGHT_STEP = 40; // snap height to increments of 40px
+        const TOTAL_COLS = this.COL_COUNT;
+        const HEIGHT_STEP = 40;
         const MIN_HEIGHT = 80;
 
         const onPointerDown = (e) => {
@@ -547,34 +281,64 @@ _calculateGridPosition(clientX, clientY) {
             const grid = document.getElementById('widget-grid');
             if (!grid) return;
 
-            // Column calculations
-            const colCount = TOTAL_COLS;
             const gridWidth = grid.getBoundingClientRect().width;
-            const gapPx = 24;
-            const colWidth = (gridWidth - gapPx * (colCount - 1)) / colCount;
+            const gapPx = this.GAP_PX * 2; // 24px gap for resize calculation consistency
+            const colWidth = (gridWidth - gapPx * (TOTAL_COLS - 1)) / TOTAL_COLS;
 
-            // Current dimensions
             const currentWidth = el.getBoundingClientRect().width;
             const currentHeight = el.getBoundingClientRect().height;
+            // Preserve the initial grid column start so onMove doesn't reset it to 'auto' (col 1)
+            const initCol = parseInt(el.style.gridColumnStart) || 1;
 
-            // Prevent text selection while dragging
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'nwse-resize';
 
             const onMove = (moveE) => {
-                // Horizontal → column span
                 const dx = moveE.clientX - startX;
                 const targetWidth = currentWidth + dx;
                 let newSpan = Math.max(1, Math.round(targetWidth / (colWidth + gapPx)));
-                newSpan = Math.min(newSpan, colCount);
-                el.style.gridColumn = `span ${newSpan}`;
-                el.dataset.widgetSpan = String(newSpan);
+                newSpan = Math.min(newSpan, TOTAL_COLS);
 
-                // Vertical → min-height
                 const dy = moveE.clientY - startY;
                 const targetHeight = currentHeight + dy;
-                const snappedHeight = Math.max(MIN_HEIGHT, Math.round(targetHeight / HEIGHT_STEP) * HEIGHT_STEP);
-                el.style.minHeight = snappedHeight + 'px';
+                let snappedHeight = Math.max(MIN_HEIGHT, Math.round(targetHeight / HEIGHT_STEP) * HEIGHT_STEP);
+
+                // Occupancy check — clamp span/height to avoid overlapping neighbors
+                // Only run the expensive check when the widget is actually growing.
+                // Use dx/dy to detect direction without DOM reads (avoids layout thrashing).
+                const isGrowingWider = dx > 0;
+                const isGrowingTaller = dy > 0;
+
+                if (isGrowingWider || isGrowingTaller) {
+                    const metrics = this._getGridMetrics();
+                    if (metrics) {
+                        const map = this._buildOccupancyMap(metrics.maxRows, el);
+                        const startCol = parseInt(el.style.gridColumnStart) || 1;
+                        const startRow = parseInt(el.style.gridRowStart) || 1;
+                        // Clamp span (only if growing wider)
+                        if (isGrowingWider) {
+                            const oldSpan = parseInt(el.dataset.widgetSpan) || 1;
+                            let proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics.rowHeight));
+                            while (newSpan > oldSpan && !this._rectFits(map, startCol, startRow, newSpan, proposedRowSpan, metrics)) {
+                                newSpan--;
+                            }
+                        }
+                        // Clamp height (only if growing taller)
+                        if (isGrowingTaller) {
+                            const oldHeight = parseInt(el.dataset.widgetHeight) || parseInt(el.style.height) || MIN_HEIGHT;
+                            while (snappedHeight > oldHeight) {
+                                const proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics.rowHeight));
+                                if (this._rectFits(map, startCol, startRow, newSpan, proposedRowSpan, metrics)) break;
+                                snappedHeight -= HEIGHT_STEP;
+                            }
+                        }
+                    }
+                }
+
+                el.style.gridColumn = `${initCol} / span ${newSpan}`;
+                el.dataset.widgetSpan = String(newSpan);
+                el.style.height = snappedHeight + 'px';
+                el.style.minHeight = '';
                 el.dataset.widgetHeight = String(snappedHeight);
             };
 
@@ -599,44 +363,15 @@ _calculateGridPosition(clientX, clientY) {
         const sizes = {};
         grid.querySelectorAll('.widget-card').forEach(card => {
             const id = card.dataset.widgetId;
-            if (id) {
-                const span = parseInt(card.dataset.widgetSpan);
-                const height = parseInt(card.dataset.widgetHeight);
-                const saved = {};
-                if (span && span > 0 && span !== this._getDefaultSpan(id)) {
-                    saved.span = span;
-                }
-                if (height && height > 0 && height !== this._getDefaultHeight(id)) {
-                    saved.height = height;
-                }
-                if (Object.keys(saved).length > 0) {
-                    sizes[id] = saved;
-                }
-            }
+            if (!id) return;
+            const span = parseInt(card.dataset.widgetSpan);
+            const height = parseInt(card.dataset.widgetHeight);
+            const saved = {};
+            if (span && span > 0 && span !== this._getDefaultSpan(id)) saved.span = span;
+            if (height && height > 0 && height !== this._getDefaultHeight(id)) saved.height = height;
+            if (Object.keys(saved).length > 0) sizes[id] = saved;
         });
-        try {
-            localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(sizes));
-        } catch(e) {}
-    },
-
-    _getDefaultSpan(widgetId) {
-        const defaults = {
-            quicklinks: 12,
-            servicetimer: 18,
-            status: 18,
-            propresenter: 18
-        };
-        return defaults[widgetId] || 6;
-    },
-
-    _getDefaultHeight(widgetId) {
-        const defaults = {
-            quicklinks: 120,
-            servicetimer: 140,
-            status: 120,
-            propresenter: 320
-        };
-        return defaults[widgetId] || 140;
+        try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(sizes)); } catch (e) {}
     },
 
     _restoreWidgetSizes() {
@@ -647,8 +382,6 @@ _calculateGridPosition(clientX, clientY) {
             grid.querySelectorAll('.widget-card').forEach(card => {
                 const id = card.dataset.widgetId;
                 if (!id) return;
-
-                // Backward-compatible: old format stored just a number (span only)
                 const data = saved[id];
                 let span, height;
                 if (typeof data === 'object' && data !== null) {
@@ -661,628 +394,954 @@ _calculateGridPosition(clientX, clientY) {
                     span = this._getDefaultSpan(id);
                     height = 0;
                 }
-
                 card.style.gridColumn = `span ${span}`;
                 card.dataset.widgetSpan = String(span);
-
                 if (height > 0) {
-                    card.style.minHeight = height + 'px';
+                    card.style.height = height + 'px';
+                    card.style.minHeight = '';
                     card.dataset.widgetHeight = String(height);
                 } else {
-                    // Apply default minimum height for consistent initial sizing
                     const defaultH = this._getDefaultHeight(id);
-                    card.style.minHeight = defaultH + 'px';
+                    card.style.height = defaultH + 'px';
+                    card.style.minHeight = '';
                     card.dataset.widgetHeight = String(defaultH);
                 }
+                const m = this._getGridMetrics();
+                if (m) {
+                    const row = parseInt(card.style.gridRowStart) || 1;
+                    const rowsAvail = m.maxRows - row + 1;
+                    const maxH = rowsAvail * m.rowHeight - m.gap;
+                    const curH = parseInt(card.style.height) || 0;
+                    if (maxH > 0 && curH > maxH) {
+                        const clamped = Math.max(120, maxH);
+                        card.style.height = clamped + 'px';
+                        card.style.minHeight = '';
+                        card.dataset.widgetHeight = String(clamped);
+                    }
+                }
             });
+        } catch (e) {}
+    },
+
+    _getDefaultSpan(widgetId) {
+        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24 };
+        return defaults[widgetId] || 6;
+    },
+
+    _getDefaultHeight(widgetId) {
+        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320 };
+        return defaults[widgetId] || 140;
+    },
+
+    // Upgrade old propresenter span by clearing saved sizes (now 24)
+    _migrateProPresenterSpan() {
+        // Only run once to upgrade old propresenter span (was 18, now 24)
+        try {
+            if (localStorage.getItem('ichtus_pp_span_migrated')) return;
+            ['ichtus_dashboard_widget_sizes', 'ichtus_dashboard_widget_positions'].forEach(key => {
+                const saved = JSON.parse(localStorage.getItem(key) || '{}');
+                if (saved.propresenter) {
+                    delete saved.propresenter;
+                    localStorage.setItem(key, JSON.stringify(saved));
+                }
+            });
+            localStorage.setItem('ichtus_pp_span_migrated', '1');
         } catch(e) {}
     },
 
-    deleteWidget(card) {
-        this.showConfirmModal(
-            'Remove this widget?',
-            () => {
-                const wasProPresenter = card.dataset.widgetId === 'propresenter';
-                card.remove();
-                this.setupDragAndDrop();
-                this.saveWidgetOrder();
-                // Stop ProPresenter polling if no more propresenter widgets exist
-                if (wasProPresenter && !document.querySelector('.widget-card[data-widget-id="propresenter"]')) {
-                    this._stopProPresenterPolling();
+    // ===============================
+    //  SAVE / RESTORE POSITIONS
+    // ===============================
+    _saveWidgetPositions() {
+        try {
+            const order = [];
+            const positions = {};
+            document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                if (!id) return;
+                order.push(id);
+                positions[id] = {
+                    col: parseInt(card.style.gridColumnStart) || 1,
+                    row: parseInt(card.style.gridRowStart) || 1,
+                    span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id)
+                };
+            });
+            localStorage.setItem('ichtus_dashboard_widget_order', JSON.stringify(order));
+            localStorage.setItem('ichtus_dashboard_widget_positions', JSON.stringify(positions));
+
+        } catch (e) {}
+    },
+
+    saveWidgetOrder() { this._saveWidgetPositions(); },
+
+    restoreWidgetOrder() {
+        try {
+            const order = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_order'));
+            if (!Array.isArray(order)) return;
+            const grid = document.getElementById('widget-grid');
+            if (!grid) return;
+            order.forEach(id => {
+                const card = grid.querySelector(`[data-widget-id="${id}"]`);
+                if (card) grid.appendChild(card);
+            });
+        } catch (e) {}
+    },
+
+    _restoreWidgetPositions() {
+        try {
+            const positions = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}');
+            const metrics = this._getGridMetrics();
+            const maxRow = metrics ? metrics.maxRows : 20;
+            const grid = document.getElementById('widget-grid');
+            if (!grid) return;
+            let fallbackCol = 1;
+            let fallbackRow = 1;
+            grid.querySelectorAll('.widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                const pos = positions[id];
+                if (pos) {
+                    const row = Math.min(pos.row, maxRow);
+                    card.style.gridColumn = `${pos.col || 1} / span ${pos.span || this._getDefaultSpan(id)}`;
+                    card.style.gridRowStart = String(row);
+                    card.dataset.widgetSpan = String(pos.span || this._getDefaultSpan(id));
+                } else {
+                    // No saved position — assign a default so _buildOccupancyMap sees explicit gridColumnStart
+                    const span = this._getDefaultSpan(id);
+                    if (fallbackCol + span > this.COL_COUNT + 1) {
+                        fallbackCol = 1;
+                        fallbackRow++;
+                    }
+                    card.style.gridColumn = `${fallbackCol} / span ${span}`;
+                    card.style.gridRowStart = String(Math.min(fallbackRow, maxRow));
+                    card.dataset.widgetSpan = String(span);
+                    fallbackCol += span;
                 }
+            });
+        } catch (e) {}
+    },
+
+    restoreCollapsed() {
+        // No longer used — collapsed state is removed in init()
+    },
+
+    _ensureSavedWidgets() {
+        try {
+            const saved = localStorage.getItem('ichtus_dashboard_widget_order');
+            if (!saved) return;
+            const order = JSON.parse(saved);
+            const grid = document.getElementById('widget-grid');
+            if (!grid) return;
+            const existing = [...grid.querySelectorAll('.widget-card')].map(el => el.dataset.widgetId);
+            order.forEach(id => {
+                if (!existing.includes(id)) {
+                    const html = this.getWidgetTemplate(id);
+                    if (html) {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = html;
+                        const card = wrapper.firstElementChild;
+                        if (card) {
+                            grid.appendChild(card);
+                            if (id === 'propresenter' || id === 'propresenter-playlist') this._startProPresenterPolling();
+                        }
+                    }
+                }
+            });
+        } catch (e) {}
+    },
+
+    // ===============================
+    //  ROW HEIGHT HELPERS
+    // ===============================
+    _getRowStep() {
+        const metrics = this._getGridMetrics();
+        return metrics ? metrics.rowHeight : 152;
+    },
+
+    _updateRowHeight() {
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return;
+        const metrics = this._getGridMetrics();
+        if (!metrics) return;
+        grid.style.gridAutoRows = metrics.colWidth + 'px';
+    },
+
+    _getMaxVisibleRow() {
+        const metrics = this._getGridMetrics();
+        return metrics ? metrics.maxRows : 10;
+    },
+
+    // ===============================
+    //  TIMER
+    // ===============================
+    setupTimer() {
+        const startBtn = document.getElementById('dash-timer-start');
+        const stopBtn = document.getElementById('dash-timer-stop');
+        const resetBtn = document.getElementById('dash-timer-reset');
+
+        if (startBtn) {
+            startBtn.addEventListener('click', () => {
+                this.timerRunning = true;
+                this.timerStartTime = Date.now();
+                startBtn.disabled = true;
+                stopBtn.disabled = false;
+                this.timerInterval = setInterval(() => {
+                    const elapsed = Date.now() - this.timerStartTime;
+                    const display = document.getElementById('dash-timer-display');
+                    if (display) display.textContent = this.formatTime(elapsed);
+                }, 100);
+            });
+        }
+        if (stopBtn) {
+            stopBtn.addEventListener('click', () => {
+                this.timerRunning = false;
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+                stopBtn.disabled = true;
+                startBtn.disabled = false;
+            });
+        }
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                this.timerRunning = false;
+                clearInterval(this.timerInterval);
+                this.timerInterval = null;
+                this.timerStartTime = null;
+                startBtn.disabled = false;
+                stopBtn.disabled = true;
+                const display = document.getElementById('dash-timer-display');
+                if (display) display.textContent = '00:00:00';
+            });
+        }
+    },
+
+    formatTime(ms) {
+        const s = Math.floor(ms / 1000);
+        const h = Math.floor(s / 3600);
+        const m = Math.floor((s % 3600) / 60);
+        const sec = s % 60;
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    },
+
+    // ===============================
+    //  LAYOUT MANAGEMENT
+    // ===============================
+    initLayoutSelector() {
+        this.populateLayoutSelector();
+    },
+
+    loadLayouts() {
+        try { return JSON.parse(localStorage.getItem('ichtus_dashboard_layouts') || '{}'); } catch (e) { return {}; }
+    },
+
+    saveLayouts(layouts) {
+        try { localStorage.setItem('ichtus_dashboard_layouts', JSON.stringify(layouts)); } catch (e) {}
+    },
+
+    getActiveLayoutName() {
+        return localStorage.getItem('ichtus_active_layout') || '__default__';
+    },
+
+    setActiveLayoutName(name) {
+        localStorage.setItem('ichtus_active_layout', name);
+    },
+
+    populateLayoutSelector() {
+        const sel = document.getElementById('layout-selector');
+        if (!sel) return;
+        sel.innerHTML = '';
+        const defaultOpt = document.createElement('option');
+        defaultOpt.value = '__default__';
+        defaultOpt.textContent = i18n.t('dashboard_layout_default') || 'Default';
+        sel.appendChild(defaultOpt);
+        const layouts = this.loadLayouts();
+        const activeName = this.getActiveLayoutName();
+        Object.keys(layouts).forEach(name => {
+            const opt = document.createElement('option');
+            opt.value = name;
+            opt.textContent = name + (name === activeName ? ' ' + (i18n.t('dashboard_layout_active') || '(active)') : '');
+            sel.appendChild(opt);
+        });
+        sel.value = activeName;
+    },
+
+    getCurrentState() {
+        const order = [];
+        const positions = {};
+        document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+            const id = card.dataset.widgetId;
+            if (!id) return;
+            order.push(id);
+            positions[id] = {
+                col: parseInt(card.style.gridColumnStart) || 1,
+                row: parseInt(card.style.gridRowStart) || 1,
+                span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id),
+                height: parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(id)
+            };
+        });
+        const sizes = {};
+        try { const s = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}'); Object.assign(sizes, s); } catch (e) {}
+        return { order, positions, sizes };
+    },
+
+    applyLayout(layoutName) {
+        const layouts = this.loadLayouts();
+        const state = layoutName === '__default__' ? null : layouts[layoutName];
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return;
+
+        if (state && state.order) {
+            state.order.forEach(id => {
+                const card = grid.querySelector(`[data-widget-id="${id}"]`);
+                if (card) grid.appendChild(card);
+                else {
+                    const html = this.getWidgetTemplate(id);
+                    if (html) {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = html;
+                        const newCard = wrapper.firstElementChild;
+                        if (newCard) grid.appendChild(newCard);
+                    }
+                }
+            });
+        }
+
+        if (state && state.positions) {
+            const metrics = this._getGridMetrics();
+            const maxRow = metrics ? metrics.maxRows : 20;
+            grid.querySelectorAll('.widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                const pos = state.positions[id];
+                if (pos) {
+                    const row = Math.min(pos.row, maxRow);
+                    card.style.gridColumn = `${pos.col || 1} / span ${pos.span || this._getDefaultSpan(id)}`;
+                    card.style.gridRowStart = String(row);
+                    card.dataset.widgetSpan = String(pos.span || this._getDefaultSpan(id));
+                    if (pos.height) {
+                        card.style.height = pos.height + 'px';
+                        card.style.minHeight = '';
+                        card.dataset.widgetHeight = String(pos.height);
+                    }
+                }
+            });
+        }
+
+        if (state && state.sizes) {
+            try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(state.sizes)); } catch (e) {}
+            this._restoreWidgetSizes();
+        }
+
+        this._saveWidgetPositions();
+        this.setActiveLayoutName(layoutName);
+        this.populateLayoutSelector();
+        document.querySelectorAll('#widget-grid .widget-body').forEach(b => { b.style.display = ''; });
+    },
+
+    switchLayout(layoutName) { this.applyLayout(layoutName); },
+
+    // ===============================
+    //  EDIT MODE
+    // ===============================
+    toggleEditMode() {
+        this._editMode = !this._editMode;
+        const grid = document.getElementById('widget-grid');
+        const addBtn = document.getElementById('dash-add-widget-btn');
+        const editBtn = document.querySelector('.dash-edit-btn');
+
+        if (grid) grid.classList.toggle('edit-mode', this._editMode);
+        if (addBtn) addBtn.style.display = this._editMode ? 'block' : 'none';
+        if (editBtn) editBtn.classList.toggle('active', this._editMode);
+
+        document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+            // Remove old handles
+            card.querySelectorAll('.widget-delete-btn, .widget-resize-handle').forEach(el => el.remove());
+            if (this._editMode) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'widget-delete-btn';
+                delBtn.innerHTML = '×';
+                delBtn.title = 'Delete widget';
+                delBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteWidget(card);
+                });
+                const header = card.querySelector('.widget-header');
+                if (header) header.appendChild(delBtn);
+                else card.appendChild(delBtn);
+
+                const resizeHandle = document.createElement('div');
+                resizeHandle.className = 'widget-resize-handle';
+                card.appendChild(resizeHandle);
+                this._initResizeHandle(card);
             }
-        );
+        });
+    },
+
+    // ===============================
+    //  WIDGET MANAGEMENT
+    // ===============================
+    deleteWidget(card) {
+        this.showConfirmModal('Remove this widget?', () => {
+            const wasProPresenter = card.dataset.widgetId === 'propresenter' || card.dataset.widgetId === 'propresenter-playlist';
+            card.remove();
+            this.setupDragAndDrop();
+            this.saveWidgetOrder();
+            if (wasProPresenter && !document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
+                this._stopProPresenterPolling();
+            }
+        });
     },
 
     showConfirmModal(message, onConfirm) {
-        // Remove any existing confirm modal
         document.querySelectorAll('.dash-confirm-backdrop, .dash-confirm-modal').forEach(el => el.remove());
-
         const backdrop = document.createElement('div');
         backdrop.className = 'dash-confirm-backdrop';
-
         const modal = document.createElement('div');
         modal.className = 'dash-confirm-modal';
-
         const msgEl = document.createElement('p');
         msgEl.textContent = message;
-
         const btnRow = document.createElement('div');
         btnRow.className = 'dash-confirm-buttons';
-
-        const close = () => {
-            backdrop.remove();
-            modal.remove();
-            document.removeEventListener('keydown', onKey);
-        };
-
         const cancelBtn = document.createElement('button');
         cancelBtn.className = 'dash-confirm-cancel';
         cancelBtn.textContent = 'Cancel';
-        cancelBtn.onclick = close;
-
-        const confirmBtn = document.createElement('button');
-        confirmBtn.className = 'dash-confirm-ok';
-        confirmBtn.textContent = 'Remove';
-        confirmBtn.onclick = () => {
-            close();
-            onConfirm();
-        };
-
+        cancelBtn.addEventListener('click', () => { backdrop.remove(); modal.remove(); });
+        const okBtn = document.createElement('button');
+        okBtn.className = 'dash-confirm-ok';
+        okBtn.textContent = 'Remove';
+        okBtn.addEventListener('click', () => { backdrop.remove(); modal.remove(); onConfirm(); });
         btnRow.appendChild(cancelBtn);
-        btnRow.appendChild(confirmBtn);
+        btnRow.appendChild(okBtn);
         modal.appendChild(msgEl);
         modal.appendChild(btnRow);
         document.body.appendChild(backdrop);
         document.body.appendChild(modal);
-
-        // Close on backdrop click
-        backdrop.onclick = close;
-
-        // Close on Escape key
-        const onKey = (e) => { if (e.key === 'Escape') close(); };
-        document.addEventListener('keydown', onKey);
-
-        // Auto-focus Cancel button (safer default)
-        cancelBtn.focus();
+        backdrop.addEventListener('click', () => { backdrop.remove(); modal.remove(); });
     },
 
     addWidget() {
-        const existing = document.querySelector('.widget-picker');
-        if (existing) {
-            existing.remove();
-            return;
-        }
-        const btn = document.getElementById('dash-add-widget-btn');
-        const picker = document.createElement('div');
+        let picker = document.getElementById('widget-picker');
+        if (picker) { picker.remove(); return; }
+
+        const addBtn = document.getElementById('dash-add-widget-btn');
+        const grid = document.getElementById('widget-grid');
+        if (!addBtn || !grid) return;
+
+        picker = document.createElement('div');
+        picker.id = 'widget-picker';
         picker.className = 'widget-picker';
-        const widgets = [
-            { id: 'quicklinks', icon: '\ud83d\udcc5', name: 'Quick Links' },
-            { id: 'servicetimer', icon: '\u23f1\ufe0f', name: 'Service Timer' },
-            { id: 'status', icon: '\ud83d\udcca', name: 'Workspace Status' },
-            { id: 'propresenter', icon: '\ud83d\udcfd\ufe0f', name: 'ProPresenter Slides' }
+
+        const items = [
+            { id: 'quicklinks', icon: '🔗', label: 'Quick Links' },
+            { id: 'servicetimer', icon: '⏱', label: 'Service Timer' },
+            { id: 'status', icon: '📊', label: 'Workspace Status' },
+            { id: 'propresenter', icon: '🖥', label: 'ProPresenter Presentation' },
+            { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' }
         ];
-        widgets.forEach(w => {
-            const item = document.createElement('button');
-            item.className = 'widget-picker-item';
-            item.innerHTML = '<span class="widget-picker-icon">' + w.icon + '</span><span>' + w.name + '</span>';
-            item.onclick = (e) => { e.stopPropagation(); this.insertWidget(w.id); };
-            picker.appendChild(item);
+
+        items.forEach(item => {
+            const btn = document.createElement('button');
+            btn.className = 'widget-picker-item';
+            btn.innerHTML = `<span class="widget-picker-icon">${item.icon}</span> ${item.label}`;
+            btn.addEventListener('click', () => {
+                picker.remove();
+                this.insertWidget(item.id);
+            });
+            picker.appendChild(btn);
         });
+
+        const btnRect = addBtn.getBoundingClientRect();
+        picker.style.position = 'fixed';
+        picker.style.top = (btnRect.bottom + 4) + 'px';
+        picker.style.left = btnRect.left + 'px';
         document.body.appendChild(picker);
-        requestAnimationFrame(() => {
-            const rect = btn.getBoundingClientRect();
-            picker.style.left = Math.max(8, rect.left) + 'px';
-            picker.style.top = (rect.bottom + 4) + 'px';
-        });
-        setTimeout(() => {
-            const closeHandler = (e) => {
-                if (!picker.contains(e.target) && e.target !== btn) {
-                    picker.remove();
-                    document.removeEventListener('click', closeHandler);
-                }
-            };
-            document.addEventListener('click', closeHandler);
-        }, 0);
-    },
 
-    /* --------------------------------------------------
-       PROPRESENTER SLIDES POLLING
-       -------------------------------------------------- */
-
-    _proPresenterInterval: null,
-    _proPresenterFastInterval: null,
-    _proPresenterLastIndex: -1,
-
-    _getProPresenterBaseUrl() {
-        const saved = localStorage.getItem('setlistProIp') || '100.113.22.22:51253';
-        const parts = saved.split(':');
-        const ip = parts[0] || '100.113.22.22';
-        const port = parts[1] || '51253';
-        return `http://${ip}:${port}/v1`;
-    },
-
-    // Shared helper: parse slide index from ProPresenter API response
-    _parseSlideIndex(responseText) {
-        const text = responseText.trim();
-        if (text.startsWith('{')) {
-            try {
-                const json = JSON.parse(text);
-                return json.index ?? json.slide_index ?? json.currentIndex ?? json.currentSlideIndex ?? json.presentation_index?.index ?? 0;
-            } catch (e) {
-                return 0;
+        const closePicker = (e) => {
+            if (!picker.contains(e.target) && e.target !== addBtn) {
+                picker.remove();
+                document.removeEventListener('click', closePicker);
             }
-        }
-        return parseInt(text) || 0;
-    },
-
-    async _fetchProPresenterSlides(widgetEl) {
-        const container = widgetEl.querySelector('.pp-slides-container');
-        const statusDot = widgetEl.querySelector('.pp-status-dot');
-        const presName = widgetEl.querySelector('.pp-pres-name');
-        const slideCount = widgetEl.querySelector('.pp-slide-count');
-
-        if (!container) return;
-
-        const baseUrl = this._getProPresenterBaseUrl();
-
-        try {
-            // Fetch active presentation
-            const presResp = await fetch(`${baseUrl}/presentation/active`, {
-                signal: AbortSignal.timeout(3000)
-            });
-            if (!presResp.ok) throw new Error(`HTTP ${presResp.status}`);
-            const presData = await presResp.json();
-
-            // Fetch current slide index
-            const idxResp = await fetch(`${baseUrl}/presentation/slide_index`, {
-                signal: AbortSignal.timeout(3000)
-            });
-            let currentIdx = 0;
-            if (idxResp.ok) {
-                currentIdx = this._parseSlideIndex(await idxResp.text());
-            }
-
-            // Also try to get slide index from presentation data as fallback
-            const presCurrentIdx = presData.currentSlideIndex ?? presData.currentIndex ?? presData.slide_index ?? -1;
-            if (presCurrentIdx >= 0 && currentIdx === 0) {
-                currentIdx = presCurrentIdx;
-            }
-
-            // Mark online
-            if (statusDot) {
-                statusDot.className = 'pp-status-dot online';
-            }
-
-            // ProPresenter wraps the data in a 'presentation' key
-            const presentation = presData.presentation || presData;
-            const uuid = (presentation.id && presentation.id.uuid) || '';
-            const groups = presentation.groups || [];
-
-            // Flatten all slides from all groups into a flat array
-            const slides = [];
-            for (const group of groups) {
-                if (group.slides && group.slides.length) {
-                    for (const slide of group.slides) {
-                        slides.push({
-                            text: slide.text || '',
-                            label: slide.label || group.name || '',
-                            groupName: group.name || '',
-                            groupColor: group.color || null
-                        });
-                    }
-                }
-            }
-
-            if (presName) presName.textContent = presData.name || '';
-            // Clamp currentIdx to valid range
-            const clampedIdx = slides.length > 0 ? Math.max(0, Math.min(currentIdx, slides.length - 1)) : 0;
-            if (slideCount) slideCount.textContent = slides.length > 0 ? `${clampedIdx + 1} / ${slides.length}` : '-- / --';
-
-            // Render slides with clamped index
-            this._renderSlides(container, baseUrl, uuid, slides, clampedIdx);
-            // Sync fast poll tracker so it knows the current index
-            this._proPresenterLastIndex = clampedIdx;
-
-        } catch (err) {
-            if (err.name === 'AbortError' || err.name === 'TimeoutError') return;
-            // Show offline state
-            if (statusDot) statusDot.className = 'pp-status-dot offline';
-            if (presName) presName.textContent = 'ProPresenter offline';
-            if (slideCount) slideCount.textContent = '-- / --';
-            // Only show offline message if container is empty/loading
-            if (!container.querySelector('.pp-slide-item') && !container.querySelector('.pp-offline')) {
-                container.innerHTML = '<div class="pp-offline"><span class="pp-offline-icon">📽️</span>ProPresenter niet bereikbaar<br><small>Controleer IP/poort in Setlist instellingen</small></div>';
-            }
-        }
-    },
-
-    _renderSlides(container, baseUrl, uuid, slides, currentIdx) {
-        let html = '';
-        for (let i = 0; i < slides.length; i++) {
-            const slide = slides[i];
-            const thumbUrl = uuid ? `${baseUrl}/presentation/${uuid}/thumbnail/${i}` : '';
-            const active = i === currentIdx ? ' active' : '';
-            html += `<div class="pp-slide-item${active}" data-index="${i}" style="border-radius:8px;overflow:hidden;cursor:pointer;margin-bottom:4px">` +
-                `<img class="pp-slide-thumb" src="${thumbUrl}" alt="Slide ${i+1}" loading="lazy" style="border-radius:6px;display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:#222" onerror="this.classList.add('error'); this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 60 34%22%3E%3Crect fill=%22%2523333%22 width=%2260%22 height=%2234%22/%3E%3Ctext x=%2230%22 y=%2222%22 text-anchor=%22middle%22 fill=%22%2523666%22 font-size=%2212%22%3E${i+1}%3C/text%3E%3C/svg%3E'" onload="this.classList.remove('loading')">` +
-            '</div>';
-        }
-        container.innerHTML = html || '<div class="pp-loading">Geen slides gevonden — open een presentatie in ProPresenter</div>';
-
-        // Scroll active slide into view
-        const activeEl = container.querySelector('.pp-slide-item.active');
-        if (activeEl) {
-            activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }
-
-        // Click to trigger slide
-        container.querySelectorAll('.pp-slide-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                const index = item.dataset.index;
-                if (index !== undefined && uuid) {
-                    fetch(`${baseUrl}/presentation/${uuid}/${index}/trigger`, {
-                        method: 'GET',
-                        signal: AbortSignal.timeout(3000)
-                    }).catch(() => {});
-                }
-            });
-        });
-    },
-
-    // Fast index-only poll: only fetches the slide index and toggles the active class on existing slides
-    async _pollProPresenterIndex(widgetEl) {
-        const container = widgetEl.querySelector('.pp-slides-container');
-        const slideCount = widgetEl.querySelector('.pp-slide-count');
-        if (!container) return;
-
-        // Only poll if slides are already rendered
-        const slides = container.querySelectorAll('.pp-slide-item');
-        if (slides.length === 0) return;
-
-        const baseUrl = this._getProPresenterBaseUrl();
-
-        try {
-            const idxResp = await fetch(`${baseUrl}/presentation/slide_index`, {
-                signal: AbortSignal.timeout(1000)
-            });
-            if (!idxResp.ok) return;
-
-            const currentIdx = this._parseSlideIndex(await idxResp.text());
-
-            // Only update if index changed
-            if (currentIdx !== this._proPresenterLastIndex && currentIdx >= 0 && currentIdx < slides.length) {
-                this._proPresenterLastIndex = currentIdx;
-
-                // Toggle active class on existing DOM elements — instant, no re-render
-                slides.forEach((el, i) => {
-                    el.classList.toggle('active', i === currentIdx);
-                });
-
-                // Update slide count
-                if (slideCount) {
-                    slideCount.textContent = `${currentIdx + 1} / ${slides.length}`;
-                }
-
-                // Scroll active slide into view
-                slides[currentIdx].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-            }
-        } catch (e) {
-            // Silently fail — full poll will handle errors
-        }
-    },
-
-    _updateAllProPresenterWidgets() {
-        const widgets = document.querySelectorAll('.widget-card[data-widget-id="propresenter"]');
-        widgets.forEach(el => this._fetchProPresenterSlides(el));
-    },
-
-    _updateAllProPresenterIndexes() {
-        const widgets = document.querySelectorAll('.widget-card[data-widget-id="propresenter"]');
-        widgets.forEach(el => this._pollProPresenterIndex(el));
-    },
-
-    _startProPresenterPolling() {
-        if (this._proPresenterInterval) return; // Already polling
-        // Do an immediate first fetch
-        this._updateAllProPresenterWidgets();
-        // Full data refresh every 15 seconds (catches presentation changes)
-        this._proPresenterInterval = setInterval(() => {
-            this._updateAllProPresenterWidgets();
-        }, 15000);
-        // Fast index-only poll every 500ms for instant slide switching
-        this._proPresenterFastInterval = setInterval(() => {
-            this._updateAllProPresenterIndexes();
-        }, 500);
-    },
-
-    _stopProPresenterPolling() {
-        if (this._proPresenterInterval) {
-            clearInterval(this._proPresenterInterval);
-            this._proPresenterInterval = null;
-        }
-        if (this._proPresenterFastInterval) {
-            clearInterval(this._proPresenterFastInterval);
-            this._proPresenterFastInterval = null;
-        }
-    },
-
-    getWidgetTemplate(widgetId) {
-        const templates = {
-            quicklinks: '<div class="widget-card" draggable="true" data-widget-id="quicklinks">' +
-                '<div class="widget-body">' +
-                    '<div class="quick-links">' +
-                        '<a href="#" class="quick-link" onclick="router.navigate(\'agenda\'); return false;">' +
-                            '<span class="quick-icon">\ud83d\udcc5</span><span>Agenda</span>' +
-                        '</a>' +
-                        '<a href="#" class="quick-link" onclick="router.navigate(\'checklist\'); return false;">' +
-                            '<span class="quick-icon">\u2705</span><span>Checklist</span>' +
-                        '</a>' +
-                        '<a href="#" class="quick-link" onclick="router.navigate(\'patchbay\'); return false;">' +
-                            '<span class="quick-icon">\ud83d\udd0c</span><span>Patchbay</span>' +
-                        '</a>' +
-                        '<a href="#" class="quick-link" onclick="router.navigate(\'analytics\'); return false;">' +
-                            '<span class="quick-icon">\ud83d\udcca</span><span>Analytics</span>' +
-                        '</a>' +
-                        '<a href="#" class="quick-link" onclick="router.navigate(\'setlist\'); return false;">' +
-                            '<span class="quick-icon">\ud83c\udfb5</span><span>Setlist</span>' +
-                        '</a>' +
-                    '</div>' +
-                '</div>' +
-            '</div>',
-            servicetimer: '<div class="widget-card" draggable="true" data-widget-id="servicetimer">' +
-                '<div class="widget-body">' +
-                    '<div class="timer-widget">' +
-                        '<div id="dash-timer-display" class="dash-timer-display heading-font">00:00:00</div>' +
-                        '<div class="timer-controls">' +
-                            '<button id="dash-timer-start" class="timer-btn timer-start">Start</button>' +
-                            '<button id="dash-timer-stop" class="timer-btn timer-stop" disabled>Stop</button>' +
-                            '<button id="dash-timer-reset" class="timer-btn timer-reset">Reset</button>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>',
-
-            status: '<div class="widget-card" draggable="true" data-widget-id="status">' +
-                '<div class="widget-body">' +
-                    '<div class="status-list">' +
-                        '<div class="status-item"><span class="status-dot online"></span><span>Agenda Module</span></div>' +
-                        '<div class="status-item"><span class="status-dot online"></span><span>Checklist Module</span></div>' +
-                        '<div class="status-item"><span class="status-dot online"></span><span>Patchbay Module</span></div>' +
-                        '<div class="status-item"><span class="status-dot online"></span><span>Analytics Module</span></div>' +
-                        '<div class="status-item"><span class="status-dot online"></span><span>Setlist Module</span></div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>',
-
-            propresenter: '<div class="widget-card widget-propresenter" draggable="true" data-widget-id="propresenter">' +
-                '<div class="widget-body">' +
-                        '<div class="pp-slides-container">' +
-                            '<div class="pp-loading">Connecting to ProPresenter...</div>' +
-                        '</div>' +
-                    '</div>' +
-                '</div>' +
-            '</div>'
         };
-        return templates[widgetId];
+        setTimeout(() => document.addEventListener('click', closePicker), 0);
     },
 
+    // ===============================
+    //  WIDGET TEMPLATES
+    // ===============================
+    getWidgetTemplate(widgetId) {
+        switch (widgetId) {
+            case 'quicklinks':
+                return `<div class="widget-card" draggable="true" data-widget-id="quicklinks">
+                    <div class="widget-header"><h3 class="widget-title">Quick Links</h3></div>
+                    <div class="widget-body">
+                        <div class="quick-links">
+                            <a href="#" onclick="router.navigate('agenda')">📅 Agenda</a>
+                            <a href="#" onclick="router.navigate('checklist')">✅ Checklist</a>
+                            <a href="#" onclick="router.navigate('patchbay')">🔌 Patchbay</a>
+                            <a href="#" onclick="router.navigate('setlist')">🎵 Setlist</a>
+                            <a href="#" onclick="router.navigate('ndi')">📡 NDI</a>
+                            <a href="#" onclick="router.navigate('settings')">⚙ Settings</a>
+                        </div>
+                    </div>
+                </div>`;
+            case 'servicetimer':
+                return `<div class="widget-card" draggable="true" data-widget-id="servicetimer">
+                    <div class="widget-header"><h3 class="widget-title">Service Timer</h3></div>
+                    <div class="widget-body">
+                        <div class="timer-widget">
+                            <div id="dash-timer-display" class="dash-timer-display">00:00:00</div>
+                            <div class="timer-controls">
+                                <button id="dash-timer-start" class="btn">Start</button>
+                                <button id="dash-timer-stop" class="btn" disabled>Stop</button>
+                                <button id="dash-timer-reset" class="btn">Reset</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            case 'status':
+                return `<div class="widget-card" draggable="true" data-widget-id="status">
+                    <div class="widget-header"><h3 class="widget-title">Workspace Status</h3></div>
+                    <div class="widget-body">
+                        <div class="status-list">
+                            <div class="status-item"><span class="status-label">ProPresenter:</span><span class="status-value" id="status-propresenter">-</span></div>
+                            <div class="status-item"><span class="status-label">NDI:</span><span class="status-value" id="status-ndi">-</span></div>
+                            <div class="status-item"><span class="status-label">Firebase:</span><span class="status-value" id="status-firebase">-</span></div>
+                        </div>
+                    </div>
+                </div>`;
+            case 'propresenter':
+                return `<div class="widget-card" draggable="true" data-widget-id="propresenter">
+                    <div class="widget-header"><h3 class="widget-title"></h3><button class="pp-layout-toggle" onclick="dashboardModule._toggleSlidesLayout(this)" title="Toggle slides layout">⊞</button></div>
+                    <div class="widget-body widget-propresenter" id="propresenter-slides-container">
+                        <div class="pp-loading">Loading slides…</div>
+                    </div>
+                </div>`;
+            case 'propresenter-playlist':
+                return `<div class="widget-card" draggable="true" data-widget-id="propresenter-playlist">
+                    <div class="widget-header"><h3 class="widget-title"></h3><button class="pp-layout-toggle" onclick="dashboardModule._toggleSlidesLayout(this)" title="Toggle slides layout">⊞</button></div>
+                    <div class="widget-body widget-propresenter" id="propresenter-slides-container">
+                        <div class="pp-loading">Loading slides…</div>
+                    </div>
+                </div>`;
+            default:
+                return null;
+        }
+    },
+
+    /**
+     * Find the first available row for a new widget (simple top-down scan).
+     */
     _getNewWidgetPosition(widgetId) {
-        // Find the lowest occupied row, then place below (within viewport)
-        const grid = document.getElementById('widget-grid');
-        const maxVisibleRow = this._getMaxVisibleRow();
-        let maxOccupiedRow = 0;
-        if (grid) {
-            grid.querySelectorAll('.widget-card').forEach(card => {
-                if (card.dataset.widgetId === widgetId) return;
-                const row = parseInt(card.style.gridRowStart) || 1;
-                maxOccupiedRow = Math.max(maxOccupiedRow, row);
-            });
-        }
-        const row = Math.min(maxVisibleRow, maxOccupiedRow + 1);    // Auto-pack horizontally: find the leftmost available gap on the target row
-    const autoCol = this._findAutoPackCol(row, this._getDefaultSpan(widgetId), 1);
-    return { col: autoCol, row };
-},
-
-    insertWidget(widgetId) {
-        const grid = document.getElementById('widget-grid');
-        // Don't add if a widget with this data-widget-id already exists
-        if (grid.querySelector(`[data-widget-id="${widgetId}"]`)) {
-            const picker = document.querySelector('.widget-picker');
-            if (picker) picker.remove();
-            return;
-        }
-
-        // Check if there's room for another widget in the viewport
-        const maxVisibleRow = this._getMaxVisibleRow();
-        let maxOccupiedRow = 0;
-        let totalWidgets = 0;
-        grid.querySelectorAll('.widget-card').forEach(card => {
-            const row = parseInt(card.style.gridRowStart) || 1;
-            maxOccupiedRow = Math.max(maxOccupiedRow, row);
-            totalWidgets++;
-        });
-        // If no more rows are visible, don't add
-        if (maxOccupiedRow >= maxVisibleRow && totalWidgets > 0) {
-            const msg = document.querySelector('.widget-picker-msg');
-            if (!msg) {
-                const picker = document.querySelector('.widget-picker');
-                if (picker) {
-                    const el = document.createElement('div');
-                    el.className = 'widget-picker-msg';
-                    el.textContent = 'Dashboard is full — remove a widget first';
-                    el.style.cssText = 'padding:0.5rem 0.75rem;color:var(--ichtus-red,#e74c3c);font-size:0.8rem;border-top:1px solid var(--border-light,#333);';
-                    picker.appendChild(el);
-                    setTimeout(() => el.remove(), 2000);
-                }
-            }
-            return;
-        }
-
-        const html = this.getWidgetTemplate(widgetId);
-        if (!html) return;
-        const temp = document.createElement('div');
-        temp.innerHTML = html;
-        const el = temp.firstElementChild;
-        
-        // Position the new widget below all existing widgets
-        const pos = this._getNewWidgetPosition(widgetId);
         const span = this._getDefaultSpan(widgetId);
-        el.style.gridColumn = `${pos.col} / span ${span}`;
-        el.style.gridRowStart = String(pos.row);
-        el.dataset.widgetSpan = String(span);
-        
-        grid.appendChild(el);
-        if (widgetId === 'servicetimer') {
-            this.setupTimer();
-        }
-        if (widgetId === 'propresenter') {
-            this._startProPresenterPolling();
-        }
-        this.setupDragAndDrop();
-        const picker = document.querySelector('.widget-picker');
-        if (picker) picker.remove();
-        this._saveWidgetPositions();
-        // If edit mode is active, add delete button and resize handle
-        if (this._editMode) {
-            // Delete button - append directly to card element
-            if (!el.querySelector('.widget-delete-btn')) {
-                const delBtn = document.createElement('button');
-                delBtn.className = 'widget-delete-btn';
-                delBtn.textContent = '−';
-                delBtn.title = 'Remove widget';
-                delBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.deleteWidget(el);
-                };
-                el.appendChild(delBtn);
-            }
-            if (!el.querySelector('.widget-resize-handle')) {
-                this._addResizeHandle(el);
-            }
-        }
+        const height = this._getDefaultHeight(widgetId);
+        const metrics = this._getGridMetrics();
+        const rowSpan = metrics ? Math.max(1, Math.ceil(height / metrics.rowHeight)) : 1;
+        return this._findFreeSpot(span, rowSpan, 1, 1);
     },
 
-    saveCurrentLayout() {
-        const layouts = this.loadLayouts();
-        const activeName = this.getActiveLayoutName();
+    /**
+     * Add a widget to the dashboard via the + button.
+     */
+    insertWidget(widgetId) {
+        const template = this.getWidgetTemplate(widgetId);
+        if (!template) return;
 
-        // If a saved layout is active, update it directly
-        if (activeName !== '__default__') {
-            const existing = layouts.find(l => l.name === activeName);
-            if (existing) {
-                const state = this.getCurrentState();
-                existing.widgetOrder = state.order;
-                existing.collapsedWidgets = state.collapsed;
-                existing.widgetPositions = state.positions;
-                this.saveLayouts(layouts);
-                return;
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return;
+
+        // Check capacity
+        const metrics = this._getGridMetrics();
+        if (metrics) {
+            const allRows = [];
+            grid.querySelectorAll('.widget-card').forEach(card => {
+                const startRow = parseInt(card.style.gridRowStart) || 1;
+                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                const thisSpan = Math.max(1, Math.ceil(minH / metrics.rowHeight));
+                allRows.push(startRow + thisSpan - 1);
+            });
+            const maxOccupiedRow = allRows.length > 0 ? Math.max(...allRows) : 0;
+            if (maxOccupiedRow >= metrics.maxRows) {
+                // Grid is full — still add but warn
+                console.warn('Dashboard grid is full. Widget may overflow.');
             }
         }
 
-        // Ask for a name
+        const wrapper = document.createElement('div');
+        wrapper.innerHTML = template;
+        const card = wrapper.firstElementChild;
+        if (!card) return;
+
+        const span = this._getDefaultSpan(widgetId);
+        const pos = this._getNewWidgetPosition(widgetId);
+        this._applyWidgetGrid(card, pos.col, pos.row, span);
+
+        let defaultH = this._getDefaultHeight(widgetId);
+        const m = this._getGridMetrics();
+        if (m) {
+            const rowsAvail = m.maxRows - pos.row + 1;
+            const maxH = rowsAvail * metrics.rowHeight - metrics.gap;
+            if (maxH > 0 && defaultH > maxH) defaultH = Math.max(120, maxH);
+        }
+        card.style.height = defaultH + 'px';
+        card.style.minHeight = '';
+        card.dataset.widgetHeight = String(defaultH);
+
+        grid.appendChild(card);
+
+        // Initialize widget-specific functionality
+        if (widgetId === 'servicetimer') this.setupTimer();
+        if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') this._startProPresenterPolling();
+
+        // Add edit-mode controls if edit mode is active
+        if (this._editMode) {
+            const delBtn = document.createElement('button');
+            delBtn.className = 'widget-delete-btn';
+            delBtn.innerHTML = '×';
+            delBtn.title = 'Delete widget';
+            delBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteWidget(card); });
+            const header = card.querySelector('.widget-header');
+            if (header) header.appendChild(delBtn);
+
+            const resizeHandle = document.createElement('div');
+            resizeHandle.className = 'widget-resize-handle';
+            card.appendChild(resizeHandle);
+            this._initResizeHandle(card);
+        }
+
+        this.setupDragAndDrop();
+        this.saveWidgetOrder();
+    },
+
+    // ===============================
+    //  LAYOUT SAVE / DELETE / RENAME
+    // ===============================
+    saveCurrentLayout() {
+        const activeName = this.getActiveLayoutName();
+        if (activeName !== '__default__') {
+            const layouts = this.loadLayouts();
+            layouts[activeName] = this.getCurrentState();
+            this.saveLayouts(layouts);
+            this.populateLayoutSelector();
+            return;
+        }
         const name = prompt(i18n.t('dashboard_layout_save_prompt') || 'Save layout as:');
         if (!name || !name.trim()) return;
-        const trimmed = name.trim();
-
-        // Check if name exists
-        const existing = layouts.find(l => l.name === trimmed);
-        if (existing) {
-            const state = this.getCurrentState();
-            existing.widgetOrder = state.order;
-            existing.collapsedWidgets = state.collapsed;
-            existing.widgetPositions = state.positions;
-        } else {
-            const state = this.getCurrentState();
-            layouts.push({
-                name: trimmed,
-                widgetOrder: state.order,
-                collapsedWidgets: state.collapsed,
-                widgetPositions: state.positions
-            });
-        }
-
+        const layouts = this.loadLayouts();
+        layouts[name.trim()] = this.getCurrentState();
         this.saveLayouts(layouts);
-        this.setActiveLayoutName(trimmed);
+        this.setActiveLayoutName(name.trim());
         this.populateLayoutSelector();
     },
 
     deleteLayout(name) {
-        let layouts = this.loadLayouts();
-        layouts = layouts.filter(l => l.name !== name);
+        const layouts = this.loadLayouts();
+        delete layouts[name];
         this.saveLayouts(layouts);
-
-        // If deleted the active layout, switch to default
         if (this.getActiveLayoutName() === name) {
             this.setActiveLayoutName('__default__');
             this.applyLayout('__default__');
-        } else {
-            this.populateLayoutSelector();
-        }
-    },
-
-    renameLayout(oldName, newName) {
-        if (!newName || !newName.trim()) return;
-        const trimmed = newName.trim();
-        const layouts = this.loadLayouts();
-        const layout = layouts.find(l => l.name === oldName);
-        if (!layout) return;
-
-        // Check if new name already exists (different from old name)
-        if (trimmed !== oldName && layouts.some(l => l.name === trimmed)) return;
-
-        layout.name = trimmed;
-        this.saveLayouts(layouts);
-
-        if (this.getActiveLayoutName() === oldName) {
-            this.setActiveLayoutName(trimmed);
         }
         this.populateLayoutSelector();
     },
 
-    manageLayout() {
+    renameLayout(oldName, newName) {
+        if (!newName || !newName.trim()) return false;
+        const trimmed = newName.trim();
         const layouts = this.loadLayouts();
-        const activeName = this.getActiveLayoutName();
+        if (layouts[trimmed] && trimmed !== oldName) return false;
+        layouts[trimmed] = layouts[oldName];
+        delete layouts[oldName];
+        this.saveLayouts(layouts);
+        if (this.getActiveLayoutName() === oldName) this.setActiveLayoutName(trimmed);
+        this.populateLayoutSelector();
+        return true;
+    },
 
-        // Remove any existing modal
-        const existing = document.querySelector('.layout-manage-modal');
-        if (existing) existing.remove();
+    manageLayout() {
+        let modal = document.querySelector('.layout-manage-modal');
+        if (modal) { modal.remove(); return; }
 
-        const modal = document.createElement('div');
+        modal = document.createElement('div');
         modal.className = 'layout-manage-modal';
-        modal.innerHTML = `
-            <div class='layout-manage-content'>
-                <h3>${i18n.t('dashboard_layout_manage')}</h3>
-                <ul class='layout-manage-list'>
-                    ${layouts.length === 0 ? `<li style='text-align:center;color:#888;padding:1rem;'>${i18n.t('dashboard_layout_no_layouts')}</li>` : layouts.map(l => `
-                        <li class='layout-manage-item'>
-                            <span class='layout-name'>${l.name}${l.name === activeName ? ` <span style="color:var(--ichtus-orange);font-size:0.75rem;">${i18n.t('dashboard_layout_active')}</span>` : ''}</span>
-                            <div class='layout-actions'>
-                                <button class='rename-btn' onclick="dashboardModule.renameLayoutPrompt('${l.name.replace(/'/g, "\\'")}')" title='${i18n.t('dashboard_layout_rename')}'>✏</button>
-                                <button class='delete-btn' onclick="dashboardModule.deleteLayout('${l.name.replace(/'/g, "\\'")}')" title='${i18n.t('dashboard_layout_delete')}'>🗑</button>
-                            </div>
-                        </li>
-                    `).join('')}
-                </ul>
-                <button class='layout-manage-close' onclick="this.closest('.layout-manage-modal').remove()">${i18n.t('dashboard_layout_close')}</button>
-            </div>
-        `;
+        const content = document.createElement('div');
+        content.className = 'layout-manage-content';
+
+        const title = document.createElement('h3');
+        title.textContent = i18n.t('dashboard_layout_manage') || 'Manage Layouts';
+        content.appendChild(title);
+
+        const layouts = this.loadLayouts();
+        const list = document.createElement('ul');
+        list.className = 'layout-manage-list';
+
+        if (Object.keys(layouts).length === 0) {
+            const empty = document.createElement('li');
+            empty.textContent = i18n.t('dashboard_layout_no_layouts') || 'No saved layouts yet';
+            empty.style.color = 'var(--text-secondary)';
+            empty.style.padding = '1rem';
+            list.appendChild(empty);
+        } else {
+            Object.keys(layouts).forEach(name => {
+                const item = document.createElement('li');
+                item.className = 'layout-manage-item';
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'layout-name';
+                nameSpan.textContent = name;
+                const actions = document.createElement('div');
+                actions.className = 'layout-actions';
+                const renameBtn = document.createElement('button');
+                renameBtn.className = 'rename-btn';
+                renameBtn.textContent = '✎';
+                renameBtn.title = i18n.t('dashboard_layout_rename') || 'Rename';
+                renameBtn.addEventListener('click', () => {
+                    const newName = prompt(i18n.t('dashboard_layout_rename_prompt') || 'Rename layout to:', name);
+                    if (newName && this.renameLayout(name, newName)) {
+                        modal.remove();
+                        this.manageLayout();
+                    }
+                });
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '×';
+                deleteBtn.title = i18n.t('dashboard_layout_delete') || 'Delete';
+                deleteBtn.addEventListener('click', () => {
+                    if (confirm(`Delete layout "${name}"?`)) {
+                        this.deleteLayout(name);
+                        modal.remove();
+                        this.manageLayout();
+                    }
+                });
+                actions.appendChild(renameBtn);
+                actions.appendChild(deleteBtn);
+                item.appendChild(nameSpan);
+                item.appendChild(actions);
+                list.appendChild(item);
+            });
+        }
+        content.appendChild(list);
+
+        const closeBtn = document.createElement('button');
+        closeBtn.className = 'layout-manage-close';
+        closeBtn.textContent = i18n.t('dashboard_layout_close') || 'Close';
+        closeBtn.addEventListener('click', () => modal.remove());
+        content.appendChild(closeBtn);
+        modal.appendChild(content);
         document.body.appendChild(modal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    },
 
-        // Close on backdrop click
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) modal.remove();
+    // ===============================
+    //  PROPRESENTER POLLING
+    // ===============================
+    _getProPresenterBaseUrl() {
+        let ip = localStorage.getItem('setlistProIp') || '127.0.0.1';
+        let port = localStorage.getItem('setlistProPort') || '50001';
+        // setlist.js stores IP+port combined like "100.113.22.22:51253".
+        // If the IP contains a colon, split it.
+        if (ip.includes(':')) {
+            const parts = ip.split(':');
+            ip = parts[0];
+            port = parts[1] || port;
+        }
+        const url = `http://${ip}:${port}`;
+        console.log('[PP-DEBUG] baseUrl:', url, '(ip:', ip, 'port:', port, ')');
+        return url;
+    },
+
+    _fetchProPresenterSlides(widgetEl) {
+        const baseUrl = this._getProPresenterBaseUrl();
+        // Fetch slides + current slide index in parallel
+        Promise.all([
+            fetch(`${baseUrl}/v1/presentation/active`, { headers: { 'Accept': 'application/json' } })
+                .then(r => r.text()),
+            fetch(`${baseUrl}/v1/presentation/slide_index`, { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .catch(() => ({ presentation_index: { index: 0 } }))
+        ])
+            .then(([text, slideIndexData]) => {
+                const currentIdx = slideIndexData?.presentation_index?.index ?? 0;
+                const presentationName = slideIndexData?.presentation_index?.presentation_id?.name || '';
+                let data;
+                try {
+                    data = JSON.parse(text);
+                } catch (e) {
+                    // XML fallback
+                    const slideMatches = text.match(/<RVDisplaySlide[^>]*>/gi);
+                    const slideCount = slideMatches ? slideMatches.length : 0;
+                    this._proPresenterLastIndex = currentIdx;
+                    this._proPresenterLastPresentationUuid = null;
+                    this._proPresenterSlideCount = slideCount;
+                    const slides = Array.from({ length: slideCount }, (_, i) => ({
+                        label: `Slide ${i + 1}`,
+                        index: i
+                    }));
+                    this._renderSlides(widgetEl, slides, currentIdx, null, '');
+                    return;
+                }
+                const presentation = data?.presentation || data;
+                const slides = presentation?.groups
+                    ? presentation.groups.flatMap(g => g.slides || [])
+                    : (presentation?.slides || []);
+                const uuid = presentation?.id?.uuid || null;
+                this._proPresenterLastIndex = currentIdx;
+                this._proPresenterLastPresentationUuid = slideIndexData?.presentation_index?.presentation_id?.uuid || null;
+                this._proPresenterSlideCount = slides.length;
+                this._renderSlides(widgetEl, slides, currentIdx, uuid, '');
+                // Update title: playlist name, or fallback to presentation name
+                fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(playlistData => {
+                        const playlistName = playlistData?.presentation?.playlist?.name;
+                        const titleEl = widgetEl.querySelector('.widget-title');
+                        if (titleEl) {
+                            if (playlistName) {
+                                titleEl.textContent = `Playlist: ${playlistName}`;
+                            } else if (presentationName) {
+                                titleEl.textContent = `Presentation: ${presentationName}`;
+                            }
+                        }
+                    })
+                    .catch(() => {});
+            })
+            .catch(err => {
+                const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${err.message}</div></div>`;
+            });
+    },
+
+    _renderSlides(widgetEl, slides, currentIdx, uuid, playlistName) {
+        const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+        if (!slides.length) {
+            container.innerHTML = `<div class="pp-loading">No slides found</div>`;
+            return;
+        }
+        // Update widget title with playlist name
+        const titleEl = widgetEl.querySelector('.widget-title');
+        if (titleEl && playlistName) {
+            titleEl.textContent = `Playlist "${playlistName}"`;
+        }
+        const baseUrl = this._getProPresenterBaseUrl();
+        console.log('[PP-DEBUG] _renderSlides: slides.length=', slides.length, 'currentIdx=', currentIdx, 'uuid=', uuid);
+        // Build thumbnail URL. PP7 uses /v1/presentation/{uuid}/thumbnail/{idx}
+        const getThumbUrl = (slide, idx) => {
+            let url = slide?.thumb_url || slide?.thumbnail || slide?.image_url;
+            if (!url && slide?.image) {
+                if (slide.image.startsWith('data:')) return slide.image;
+                if (slide.image.startsWith('http://') || slide.image.startsWith('https://')) return slide.image;
+                if (slide.image.startsWith('/')) return baseUrl + slide.image;
+                return 'data:image/jpeg;base64,' + slide.image;
+            }
+            if (!url && uuid) {
+                url = `${baseUrl}/v1/presentation/${uuid}/thumbnail/${idx}`;
+            }
+            if (!url) {
+                url = `${baseUrl}/v1/presentation/active/thumbnail/${idx}`;
+            }
+            return url;
+        };
+        let html = '';
+        slides.forEach((slide, idx) => {
+            const activeClass = idx === currentIdx ? ' active' : '';
+            const thumbUrl = getThumbUrl(slide, idx);
+            html += `<div class="pp-slide-item${activeClass}" data-slide-index="${idx}" onclick="dashboardModule._triggerSlide(${idx})">
+                <img class="pp-slide-thumb" src="${thumbUrl}" alt="Slide ${idx + 1}" loading="lazy" onerror="this.style.visibility='hidden'" />
+            </div>`;
         });
+        container.innerHTML = html;
+        // Apply saved slides layout preference (list or grid)
+        try {
+            const layoutPref = localStorage.getItem('ichtus_pp_slides_layout');
+            const btn = widgetEl.querySelector('.pp-layout-toggle');
+            if (layoutPref === 'grid') {
+                container.classList.add('pp-grid-layout');
+                if (btn) btn.textContent = '☰';
+            } else {
+                container.classList.remove('pp-grid-layout');
+                if (btn) btn.textContent = '⊞';
+            }
+        } catch(e) {}
+        // Update slide badge
+        const badge = widgetEl.querySelector('#propresenter-slide-badge');
+        if (badge) badge.textContent = `${(currentIdx ?? 0) + 1}/${slides.length}`;
+        // Scroll active slide into view
+        const activeEl = container.querySelector('.pp-slide-item.active');
+        if (activeEl) activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     },
 
-    renameLayoutPrompt(oldName) {
-        const newName = prompt(i18n.t('dashboard_layout_rename_prompt') || 'Rename layout:', oldName);
-        if (!newName || !newName.trim() || newName.trim() === oldName) return;
-        this.renameLayout(oldName, newName.trim());
-        // Refresh the manage modal
-        this.manageLayout();
+    _triggerSlide(index) {
+        const baseUrl = this._getProPresenterBaseUrl();
+        // Visual feedback: briefly highlight the clicked thumbnail
+        document.querySelectorAll('.pp-slide-item[data-slide-index="' + index + '"]').forEach(el => {
+            el.classList.remove('pp-triggered');
+            void el.offsetWidth; // force reflow to restart animation on rapid clicks
+            el.classList.add('pp-triggered');
+            setTimeout(() => el.classList.remove('pp-triggered'), 350);
+        });
+        fetch(`${baseUrl}/v1/presentation/active/${index}/trigger`, {
+            method: 'GET',
+            headers: { 'Accept': 'application/json' }
+        }).catch(() => {});
     },
 
-    syncState(updates) {
-        // TODO: implement cross-module state sync (e.g. push timer state, notes, etc.)
-    }
+    _pollProPresenterIndex(widgetEl) {
+        const baseUrl = this._getProPresenterBaseUrl();
+        fetch(`${baseUrl}/v1/presentation/slide_index`, {
+            headers: { 'Accept': 'application/json' }
+        })
+            .then(res => res.json())
+            .then(data => {
+                const idx = data?.presentation_index?.index ?? 0;
+                const uuid = data?.presentation_index?.presentation_id?.uuid || null;
+                // Detect presentation change (new song in playlist)
+                const presentationChanged = uuid && uuid !== this._proPresenterLastPresentationUuid;
+                if (presentationChanged) {
+                    this._proPresenterLastPresentationUuid = uuid;
+                    // Full refresh: re-fetch slides and title
+                    this._fetchProPresenterSlides(widgetEl);
+                    return;
+                }
+                if (idx !== this._proPresenterLastIndex) {
+                    this._proPresenterLastIndex = idx;
+                    const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+                    container.querySelectorAll('.pp-slide-item').forEach(el => {
+                        el.classList.toggle('active', parseInt(el.dataset.slideIndex) === idx);
+                    });
+                    const slidesTotal = container.querySelectorAll('.pp-slide-item').length;
+                    const badge = widgetEl.querySelector('#propresenter-slide-badge');
+                    if (badge && slidesTotal) badge.textContent = `${idx + 1}/${slidesTotal}`;
+                    const activeEl = container.querySelector('.pp-slide-item.active');
+                    if (activeEl) activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                }
+            })
+            .catch(() => {});
+    },
+
+    _updateAllProPresenterWidgets() {
+        document.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(el => this._fetchProPresenterSlides(el));
+    },
+
+    _updateAllProPresenterIndexes() {
+        document.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(el => this._pollProPresenterIndex(el));
+    },
+
+    _startProPresenterPolling() {
+        this._stopProPresenterPolling();
+        this._updateAllProPresenterWidgets();
+        this._proPresenterInterval = setInterval(() => this._updateAllProPresenterWidgets(), 15000);
+        this._proPresenterFastInterval = setInterval(() => this._updateAllProPresenterIndexes(), 500);
+    },
+
+    _stopProPresenterPolling() {
+        if (this._proPresenterInterval) { clearInterval(this._proPresenterInterval); this._proPresenterInterval = null; }
+        if (this._proPresenterFastInterval) { clearInterval(this._proPresenterFastInterval); this._proPresenterFastInterval = null; }
+    },
+
+    _toggleSlidesLayout(btn) {
+        const widgetEl = btn.closest('.widget-card');
+        const container = widgetEl.querySelector('.widget-propresenter');
+        if (!container) return;
+        const isGrid = container.classList.toggle('pp-grid-layout');
+        btn.textContent = isGrid ? '☰' : '⊞';
+        try { localStorage.setItem('ichtus_pp_slides_layout', isGrid ? 'grid' : 'list'); } catch(e) {}
+    },
+
+    syncState() {}
 };

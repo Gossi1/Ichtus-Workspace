@@ -178,8 +178,8 @@ _(Large section — all endpoints included)_
 - **GET /v1/playlist/active/announcement/{index}/{cue_index}/trigger** — Triggers a specific cue.  
 - **GET /v1/playlist/active/presentation/focus** — Focuses the active presentation playlist.  
 - **GET /v1/playlist/active/presentation/trigger** — Triggers the first presentation item.  
-- **GET /v1/playlist/active/presentation/{index}/thumbnail/{cue_index}** — Returns a cue thumbnail.  
-- **GET /v1/playlist/active/presentation/{index}/timeline** — Returns timeline state.  
+- **GET {cue_index}** — Returns a cue thumbnail.  
+- **GET /v1/playlist/active//v1/playlist/active/presentation/{index}/thumbnail/presentation/{index}/timeline** — Returns timeline state.  
 - **GET /v1/playlist/active/presentation/{index}/timeline/{operation}** — Performs a timeline operation.  
 - **GET /v1/playlist/active/presentation/{index}/trigger** — Triggers a presentation item.  
 - **GET /v1/playlist/active/presentation/{index}/{cue_index}/trigger** — Triggers a specific cue.  
@@ -244,12 +244,6 @@ _(Large section — all endpoints included)_
 - **GET /v1/presentation/{uuid}/timeline/{operation}** — Performs a timeline operation.  
 - **GET /v1/presentation/{uuid}/trigger** — Triggers the presentation.  
 - **GET /v1/presentation/{uuid}/{index}/trigger** — Triggers a cue.
-
----
-
-Absolutely Shamir — picking up **right at Props** and continuing in the same **Style A** (compact developer‑friendly Markdown, one‑sentence description per endpoint).
-
-Here you go.
 
 ---
 
