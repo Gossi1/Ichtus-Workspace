@@ -37,45 +37,72 @@ UPDATE_CONFIG = {
 }
 
 # Try to import zeroconf for mDNS discovery
-ZEROCONF_AVAILABLE = False
-try:
-    from zeroconf import ServiceListener, ServiceBrowser, Zeroconf
-    ZEROCONF_AVAILABLE = True
-except ImportError:
-    print('  ⚠️  zeroconf not installed - NDI discovery will use fallback method', flush=True)
-    print('     Install with: pip install zeroconf', flush=True)
-
-# Only define NDIListener class if zeroconf is available
-if ZEROCONF_AVAILABLE:
-    class NDIListener(ServiceListener):
-        def __init__(self):
-            self.sources = []
-            self.lock = threading.Lock()
-        
-        def add_service(self, zc, type_, name):
-            info = zc.get_service_info(type_, name)
-            if info:
-                with self.lock:
-                    addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
-                    port = info.port
-                    source_name = name.replace('._ndi._tcp.local.', '').replace('._ndi._tcp.', '')
-                    self.sources.append({
-                        'name': source_name,
-                        'address': addresses[0] if addresses else 'unknown',
-                        'port': port,
-                        'type': 'NDI Source',
-                        'metadata': f'Port: {port}'
-                    })
-        
-        def remove_service(self, zc, type_, name):
+# Lazy zeroconf import — imported only on demand to avoid startup hangs on Windows
+_zeroconf_available = None
+def _import_zeroconf():
+    """Import zeroconf lazily with a short timeout. Returns (available, ServiceListener-compatible class)."""
+    global _zeroconf_available
+    if _zeroconf_available is not None:
+        return _zeroconf_available
+    
+    import importlib
+    import threading as _thr
+    
+    result = {'available': False, 'NDIListener': None}
+    
+    def _do_import():
+        try:
+            import zeroconf as _zc
+            class NDIListener(_zc.ServiceListener):
+                def __init__(self):
+                    self.sources = []
+                    self.lock = _thr.Lock()
+                
+                def add_service(self, zc, type_, name):
+                    info = zc.get_service_info(type_, name)
+                    if info:
+                        with self.lock:
+                            addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
+                            port = info.port
+                            source_name = name.replace('._ndi._tcp.local.', '').replace('._ndi._tcp.', '')
+                            self.sources.append({
+                                'name': source_name,
+                                'address': addresses[0] if addresses else 'unknown',
+                                'port': port,
+                                'type': 'NDI Source',
+                                'metadata': f'Port: {port}'
+                            })
+                
+                def remove_service(self, zc, type_, name):
+                    pass
+                
+                def update_service(self, zc, type_, name):
+                    pass
+                
+                def get_sources(self):
+                    with self.lock:
+                        return list(self.sources)
+            result['available'] = True
+            result['NDIListener'] = NDIListener
+        except ImportError:
             pass
-        
-        def update_service(self, zc, type_, name):
-            pass
-        
-        def get_sources(self):
-            with self.lock:
-                return list(self.sources)
+    
+    t = _thr.Thread(target=_do_import, daemon=True)
+    t.start()
+    t.join(timeout=5)
+    
+    if t.is_alive():
+        print('  ⚠️  zeroconf import timed out (network enumeration hang) - NDI discovery will use fallback', flush=True)
+        _zeroconf_available = (False, None)
+    else:
+        if result['available']:
+            _zeroconf_available = (True, result['NDIListener'])
+        else:
+            print('  ⚠️  zeroconf not installed - NDI discovery will use fallback method', flush=True)
+            print('     Install with: pip install zeroconf', flush=True)
+            _zeroconf_available = (False, None)
+    
+    return _zeroconf_available
 
 
 def load_firebase_config():
@@ -270,19 +297,21 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
     def discover_ndi_sources(self):
         sources = []
         
-        if ZEROCONF_AVAILABLE:
+        available, ListenerClass = _import_zeroconf()
+        if available and ListenerClass:
             try:
-                listener = NDIListener()
-                zeroconf = Zeroconf()
+                import zeroconf as _zc
+                listener = ListenerClass()
+                zc = _zc.Zeroconf()
                 
                 # Search for NDI services
-                browser = ServiceBrowser(zeroconf, '_ndi._tcp.local.', listener)
+                browser = _zc.ServiceBrowser(zc, '_ndi._tcp.local.', listener)
                 
                 # Wait for discoveries (max 3 seconds)
                 import time
                 time.sleep(3)
                 
-                zeroconf.close()
+                zc.close()
                 sources = listener.get_sources()
                 
             except Exception as e:
