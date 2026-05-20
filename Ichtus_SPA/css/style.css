@@ -2576,26 +2576,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     overflow: hidden;
 }
 
-/* Edit mode: show grid lines for placement reference */
-.widget-grid.edit-mode {
-    background-image:
-        /* Vertical column lines */
-        repeating-linear-gradient(
-            90deg,
-            transparent,
-            transparent calc((100% - 35 * 0.75rem) / 36),
-            rgba(255, 255, 255, 0.12) calc((100% - 35 * 0.75rem) / 36),
-            rgba(255, 255, 255, 0.12) calc((100% - 35 * 0.75rem) / 36 + 0.75rem)
-        ),
-        /* Horizontal row lines — same rhythm as JS rowHeight = colWidth + gap */
-        repeating-linear-gradient(
-            0deg,
-            transparent,
-            transparent calc((100% - 35 * 0.75rem) / 36),
-            rgba(255, 255, 255, 0.12) calc((100% - 35 * 0.75rem) / 36),
-            rgba(255, 255, 255, 0.12) calc((100% - 35 * 0.75rem) / 36 + 0.75rem)
-        );
-}.dash-add-widget-btn {
+.dash-add-widget-btn {
     display: none;
     position: relative;
     flex-shrink: 0;
@@ -2866,41 +2847,6 @@ input:checked + .slider::before { transform: translateX(20px); }
 
 /* Slide number badge (ProPresenter widget header) */
 
-/* 2×2 grid layout for ProPresenter slides */
-.widget-propresenter.pp-grid-layout {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    align-items: start;
-}
-
-.widget-propresenter.pp-grid-layout .pp-slide-item {
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-.widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-thumb {
-    width: 100%;
-    height: auto;
-    aspect-ratio: 16 / 9;
-    object-fit: cover;
-}
-
-.pp-slide-thumb {
-    border-radius: 8px;
-}
-
-/* List layout: thumbnails also get rounded corners */
-.widget-propresenter .pp-slide-item .pp-slide-thumb {
-    border-radius: 8px;
-}
-
-/* Active slide: simple border highlight */
-.widget-propresenter .pp-slide-item.active {
-    box-shadow: 0 0 0 2px var(--ichtus-orange);
-    border-radius: 8px;
-}
-
 .pp-slide-badge {
     font-family: 'Blockprint', sans-serif;
     font-size: 0.85rem;
@@ -2919,6 +2865,268 @@ input:checked + .slider::before { transform: translateX(20px); }
     flex: 1;
     overflow-y: auto;
     max-height: calc(100vh - 12rem);
+}
+
+/* ===============================
+   ProPresenter Playlist Widget
+   =============================== */
+
+/* Playlist slide header (section divider in thumbnail playlist view) */
+.pl-slide-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    margin: 0.75rem 0 0.25rem 0;
+    border-left: 4px solid;
+    border-radius: 0 8px 8px 0;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    font-weight: 800;
+}
+
+/* Presentation name header */
+.pl-presentation-header {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    margin: 0.5rem 0 0.25rem 0;
+    border-left: 3px solid var(--ichtus-orange, #f47920);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    color: var(--ichtus-orange, #f47920);
+    font-weight: 700;
+    background: rgba(244, 121, 32, 0.08);
+}
+
+.pl-presentation-header.active {
+    border-left-width: 6px;
+    background: rgba(244, 121, 32, 0.15);
+    color: #fff;
+}
+
+/* In grid layout, presentation headers span full width */
+.widget-propresenter.pp-grid-layout .pl-presentation-header {
+    grid-column: 1 / -1;
+}
+
+/* First header shouldn't have extra top margin */
+.pl-slide-header:first-child {
+    margin-top: 0;
+}
+
+/* Grid layout: 2-column grid */
+.widget-propresenter.pp-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+}
+
+/* In grid layout, slide headers span full width */
+.widget-propresenter.pp-grid-layout .pl-slide-header {
+    grid-column: 1 / -1;
+}
+
+.widget-propresenter.pp-grid-layout .pp-slide-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.pl-header-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Slide label shown below thumbnails in playlist */
+.pp-slide-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #aaa);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* In grid layout, slide label text */
+.widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-label {
+    font-size: 0.7rem;
+}
+
+/* Slide text preview alongside thumbnail in playlist widget */
+.pp-slide-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #ccc);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-family: inherit;
+    pointer-events: none;
+}
+
+/* Single-per-row layout (default): full-width slides, stacked vertically */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item {
+    flex-direction: column !important;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    image-rendering: auto;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    object-fit: cover;
+}
+
+/* Active slide highlight in single layout */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item.active {
+    background: rgba(244, 121, 32, 0.12);
+    border-radius: 8px;
+}
+
+/* Grid layout override: stack vertically, full-width thumb with text below */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item {
+    flex-direction: column !important;
+    gap: 0.4rem;
+    padding: 0.25rem;
+    align-items: center;
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    image-rendering: auto;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item.active {
+    background: rgba(244, 121, 32, 0.12);
+    border-radius: 8px;
+}
+
+/* Hide label on Presentation widget slides, SHOW on Playlist widget */
+.widget-card[data-widget-id="propresenter"] .pp-slide-label,
+.widget-card[data-widget-id="propresenter"] .pl-slide-header,
+.widget-card[data-widget-id="propresenter"] .pl-presentation-header {
+    display: none;
+}
+
+/* Playlist widget: verberg slide labels (alleen thumbnails tonen) */
+.widget-card[data-widget-id="propresenter-playlist"] .pp-slide-label {
+    display: none;
+}
+
+
+
+/* Refresh button in playlist widget header */
+.pp-refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: color 0.15s, transform 0.2s;
+}
+
+.pp-refresh-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    transform: rotate(90deg);
+}
+
+.pp-refresh-btn:active {
+    transform: rotate(180deg);
+}
+
+/* Auto-scroll toggle button in playlist widget header */
+.pp-autoscroll-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: color 0.15s, transform 0.2s;
+}
+
+.pp-autoscroll-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    transform: scale(1.15);
+}
+
+.pp-autoscroll-btn.active {
+    color: var(--ichtus-orange, #f47920);
+    text-shadow: 0 0 8px rgba(244, 121, 32, 0.5);
+    animation: pp-autoscroll-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pp-autoscroll-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* ===============================
+   Active slide indicator (ON AIR)
+   =============================== */
+
+/* Active slide: orange glow + border op de thumbnail zelf */
+.widget-propresenter .pp-slide-item.active {
+    position: relative;
+    z-index: 2;
+}
+
+.widget-propresenter .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+    border-radius: 8px;
+}
+
+/* Active header: more prominent */
+.pl-slide-header.active {
+    border-left-width: 6px !important;
+    background: rgba(244, 121, 32, 0.12) !important;
+    border-left-color: var(--ichtus-orange) !important;
+    color: var(--ichtus-orange) !important;
 }
 
 /* Dashboard: widget bodies should not scroll individually */

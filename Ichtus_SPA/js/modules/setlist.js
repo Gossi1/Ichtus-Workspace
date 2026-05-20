@@ -108,12 +108,22 @@ const setlistModule = {
             // Load templates
             this.SERVICE_TEMPLATES = JSON.parse(localStorage.getItem('setlistTemplates')) || JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES));
 
-            // Load saved ProPresenter IP from localStorage
-            const savedProIp = localStorage.getItem('setlistProIp');
-            if (savedProIp) {
-                const parts = savedProIp.split(':');
-                this.CONFIG.PRO_IP = parts[0] || this.CONFIG.PRO_IP;
-                this.CONFIG.PRO_PORT = parts[1] || this.CONFIG.PRO_PORT;
+            // Load saved ProPresenter IP — priority:
+            // 1. Centrale settings (Settings app) — alleen als expliciet opgeslagen
+            // 2. Legacy setlistProIp (Setlist pagina) — voor bestaande gebruikers
+            // 3. Hardcoded defaults (CONFIG)
+            if (typeof settingsModule !== 'undefined' && settingsModule.settings && settingsModule.settings.proPresenterIp) {
+                this.CONFIG.PRO_IP = settingsModule.settings.proPresenterIp;
+                if (settingsModule.settings.proPresenterPort) {
+                    this.CONFIG.PRO_PORT = settingsModule.settings.proPresenterPort;
+                }
+            } else {
+                const savedProIp = localStorage.getItem('setlistProIp');
+                if (savedProIp) {
+                    const parts = savedProIp.split(':');
+                    this.CONFIG.PRO_IP = parts[0] || this.CONFIG.PRO_IP;
+                    this.CONFIG.PRO_PORT = parts[1] || this.CONFIG.PRO_PORT;
+                }
             }
 
             // Render template dropdown
