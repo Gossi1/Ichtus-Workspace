@@ -10,7 +10,9 @@ const settingsModule = {
         ndiPreviewQuality: 'medium', // low, medium, high
         clockFormat: '24h', // 12h or 24h
         dateFormat: 'DD-MM-YYYY', // DD-MM-YYYY or MM-DD-YYYY
-        showDebugPanel: false
+        showDebugPanel: false,
+        proPresenterIp: '127.0.0.1',
+        proPresenterPort: '50001'
     },
     
     // Current settings (loaded from localStorage)
@@ -59,6 +61,12 @@ const settingsModule = {
             }
             location.reload(); // Full reload to refresh all strings
             return;
+        }
+        // Keep legacy setlistProIp in sync for backward compatibility
+        if (key === 'proPresenterIp' || key === 'proPresenterPort') {
+            const ip = key === 'proPresenterIp' ? value : this.getSetting('proPresenterIp');
+            const port = key === 'proPresenterPort' ? value : this.getSetting('proPresenterPort');
+            localStorage.setItem('setlistProIp', `${ip}:${port}`);
         }
         this.saveSettings();
         this.render(); // Re-render to update UI
@@ -241,6 +249,25 @@ const settingsModule = {
                 <div class='settings-section'>
                     <h2 class='settings-section-title'>🌐 ${__('settings_network')}</h2>
                     <div class='settings-control-grid'>
+                        <div class='settings-control-item'>
+                            <div class='settings-control-info'>
+                                <label>${__('settings_pro_ip')}</label>
+                                <desc>${__('settings_pro_ip_desc')}</desc>
+                            </div>
+                            <div style='display:flex;gap:0.5rem;align-items:center;flex-shrink:0;'>
+                                <input type='text' class='settings-input-text' 
+                                    value='${this.getSetting('proPresenterIp')}' 
+                                    placeholder='127.0.0.1'
+                                    onchange='settingsModule.setSetting(\"proPresenterIp\", this.value.trim())'
+                                    style='width:130px;'>
+                                <span style='color:var(--text-secondary);'>:</span>
+                                <input type='text' class='settings-input-text' 
+                                    value='${this.getSetting('proPresenterPort')}' 
+                                    placeholder='50001'
+                                    onchange='settingsModule.setSetting(\"proPresenterPort\", this.value.trim())'
+                                    style='width:80px;'>
+                            </div>
+                        </div>
                         <div class='settings-control-item'>
                             <div class='settings-control-info'>
                                 <label>${__('settings_offline')}</label>

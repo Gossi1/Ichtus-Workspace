@@ -15,7 +15,14 @@ const dashboardModule = {
     _proPresenterFastInterval: null,
     _proPresenterLastIndex: -1,
     _proPresenterLastPresentationUuid: null,
-    _proPresenterSlideCount: 0,
+    _proPresenterLastSlideCount: 0,
+
+    // ProPresenter Playlist slide tracking
+    _proPresenterPlaylistSlideCheckInterval: null,
+    _proPresenterPlaylistLastUuid: null,
+    _proPresenterPlaylistCheckInterval: null,
+    _playlistAutoScroll: true,
+    _hasPlaylistData: false,
 
     // ===============================
     //  INIT
@@ -28,6 +35,7 @@ const dashboardModule = {
         this.setupDragAndDrop();
         this.setupTimer();
         this._migrateProPresenterSpan();
+        this._migratePlaylistCache();
         this.restoreWidgetOrder();
         this._ensureSavedWidgets();
         localStorage.removeItem('ichtus_dashboard_collapsed');
@@ -37,7 +45,11 @@ const dashboardModule = {
         this.initLayoutSelector();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
             this._startProPresenterPolling();
-        }
+        }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
+                this._loadProPresenterPlaylist();
+                this._startPlaylistChangeDetection();
+                this._startPlaylistSlideTracking();
+            }
 
         this._resizeHandler = () => {
             if (document.getElementById('view-dashboard')?.classList.contains('active')) {
@@ -449,6 +461,15 @@ const dashboardModule = {
         } catch(e) {}
     },
 
+    // Clear old playlist cache that still contains pp-slide-text HTML
+    _migratePlaylistCache() {
+        try {
+            if (localStorage.getItem('ichtus_pp_cache_notext')) return;
+            localStorage.removeItem('ichtus_pp_playlist_cache');
+            localStorage.setItem('ichtus_pp_cache_notext', '1');
+        } catch(e) {}
+    },
+
     // ===============================
     //  SAVE / RESTORE POSITIONS
     // ===============================
@@ -542,6 +563,11 @@ const dashboardModule = {
                         if (card) {
                             grid.appendChild(card);
                             if (id === 'propresenter' || id === 'propresenter-playlist') this._startProPresenterPolling();
+                            if (id === 'propresenter-playlist') {
+                                this._loadProPresenterPlaylist();
+                                this._startPlaylistChangeDetection();
+                                this._startPlaylistSlideTracking();
+                            }
                         }
                     }
                 }
@@ -784,8 +810,12 @@ const dashboardModule = {
             card.remove();
             this.setupDragAndDrop();
             this.saveWidgetOrder();
-            if (wasProPresenter && !document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
+            if (!document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
                 this._stopProPresenterPolling();
+            }
+            if (!document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
+                this._stopPlaylistChangeDetection();
+                this._stopPlaylistSlideTracking();
             }
         });
     },
@@ -915,10 +945,12 @@ const dashboardModule = {
                     </div>
                 </div>`;
             case 'propresenter-playlist':
+                const autoscrollPref = (() => { try { return localStorage.getItem('ichtus_pp_autoscroll'); } catch(e) { return null; } })();
+                const autoscrollActive = autoscrollPref === null || autoscrollPref === '1';
                 return `<div class="widget-card" draggable="true" data-widget-id="propresenter-playlist">
-                    <div class="widget-header"><h3 class="widget-title"></h3><button class="pp-layout-toggle" onclick="dashboardModule._toggleSlidesLayout(this)" title="Toggle slides layout">⊞</button></div>
-                    <div class="widget-body widget-propresenter" id="propresenter-slides-container">
-                        <div class="pp-loading">Loading slides…</div>
+                    <div class="widget-header"><h3 class="widget-title"></h3><button class="pp-layout-toggle" onclick="dashboardModule._togglePlaylistLayout(this)" title="Toggle layout">⊞</button><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylist(this)" title="Refresh playlist">↻</button><button class="pp-autoscroll-btn${autoscrollActive ? ' active' : ''}" onclick="dashboardModule._toggleAutoScroll(this)" title="${autoscrollActive ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit'}">◎</button></div>
+                    <div class="widget-body widget-propresenter" id="propresenter-playlist-container">
+                        <div class="pp-loading">Loading playlist…</div>
                     </div>
                 </div>`;
             default:
@@ -989,6 +1021,11 @@ const dashboardModule = {
         // Initialize widget-specific functionality
         if (widgetId === 'servicetimer') this.setupTimer();
         if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') this._startProPresenterPolling();
+        if (widgetId === 'propresenter-playlist') {
+            this._loadProPresenterPlaylist();
+            this._startPlaylistChangeDetection();
+            this._startPlaylistSlideTracking();
+        }
 
         // Add edit-mode controls if edit mode is active
         if (this._editMode) {
@@ -1132,14 +1169,22 @@ const dashboardModule = {
     //  PROPRESENTER POLLING
     // ===============================
     _getProPresenterBaseUrl() {
-        let ip = localStorage.getItem('setlistProIp') || '127.0.0.1';
-        let port = localStorage.getItem('setlistProPort') || '50001';
-        // setlist.js stores IP+port combined like "100.113.22.22:51253".
-        // If the IP contains a colon, split it.
-        if (ip.includes(':')) {
-            const parts = ip.split(':');
-            ip = parts[0];
-            port = parts[1] || port;
+        let ip = '127.0.0.1', port = '50001';
+        // Priority 1: centrale settings (alleen als expliciet opgeslagen door gebruiker)
+        if (typeof settingsModule !== 'undefined' && settingsModule.settings && settingsModule.settings.proPresenterIp) {
+            ip = settingsModule.settings.proPresenterIp;
+            port = settingsModule.settings.proPresenterPort || port;
+        } else {
+            // Priority 2: legacy setlistProIp (voor gebruikers die IP in Setlist pagina hebben ingesteld)
+            const combined = localStorage.getItem('setlistProIp');
+            if (combined && combined.includes(':')) {
+                const parts = combined.split(':');
+                ip = parts[0];
+                port = parts[1];
+            } else if (combined) {
+                ip = combined;
+                port = localStorage.getItem('setlistProPort') || port;
+            }
         }
         const url = `http://${ip}:${port}`;
         console.log('[PP-DEBUG] baseUrl:', url, '(ip:', ip, 'port:', port, ')');
@@ -1189,7 +1234,7 @@ const dashboardModule = {
                 fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
                     .then(r => r.json())
                     .then(playlistData => {
-                        const playlistName = playlistData?.presentation?.playlist?.name;
+                        const playlistName = playlistData?.presentation?.playlist?.name || playlistData?.announcements?.playlist?.name;
                         const titleEl = widgetEl.querySelector('.widget-title');
                         if (titleEl) {
                             if (playlistName) {
@@ -1315,11 +1360,11 @@ const dashboardModule = {
     },
 
     _updateAllProPresenterWidgets() {
-        document.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(el => this._fetchProPresenterSlides(el));
+        document.querySelectorAll('.widget-card[data-widget-id="propresenter"]').forEach(el => this._fetchProPresenterSlides(el));
     },
 
     _updateAllProPresenterIndexes() {
-        document.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(el => this._pollProPresenterIndex(el));
+        document.querySelectorAll('.widget-card[data-widget-id="propresenter"]').forEach(el => this._pollProPresenterIndex(el));
     },
 
     _startProPresenterPolling() {
@@ -1341,6 +1386,519 @@ const dashboardModule = {
         const isGrid = container.classList.toggle('pp-grid-layout');
         btn.textContent = isGrid ? '☰' : '⊞';
         try { localStorage.setItem('ichtus_pp_slides_layout', isGrid ? 'grid' : 'list'); } catch(e) {}
+    },
+
+    // ===============================
+    //  PROPRESENTER PLAYLIST WIDGET
+    //  Shows all slides from all presentations in the active playlist.
+    //  Loads once when dashboard opens; auto-refreshes when playlist changes.
+    // ===============================
+
+    /** Lightweight 2s poll: only checks if ANY active playlist UUID changed. */
+    _startPlaylistChangeDetection() {
+        this._stopPlaylistChangeDetection();
+        // NIET resetten: _proPresenterPlaylistLastUuid kan al gezet zijn door cache restore
+        const baseUrl = this._getProPresenterBaseUrl();
+        this._proPresenterPlaylistCheckInterval = setInterval(() => {
+            fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(data => {
+                    const presUuid = data?.presentation?.playlist?.uuid || null;
+                    const annUuid = data?.announcements?.playlist?.uuid || null;
+                    const combinedKey = `${presUuid ?? ''}|${annUuid ?? ''}`;
+                    console.log('[PP-PL-DEBUG] change detection: presUuid=', presUuid, 'annUuid=', annUuid, 'lastUuid=', this._proPresenterPlaylistLastUuid, 'combinedKey=', combinedKey);
+                    // Skip if BOTH playlists are empty (e.g. after slide trigger)
+                    if (!presUuid && !annUuid) {
+                        console.log('[PP-PL-DEBUG] change detection: both playlists empty — skipping');
+                        return;
+                    }
+                    if (combinedKey === this._proPresenterPlaylistLastUuid) {
+                        console.log('[PP-PL-DEBUG] change detection: UUID unchanged — skipping');
+                        return;
+                    }
+                    // Reload als: (a) we al een eerdere UUID hadden, OF (b) we nog nooit playlist data hebben geladen
+                    const changed = this._proPresenterPlaylistLastUuid !== null || !this._hasPlaylistData;
+                    console.log('[PP-PL-DEBUG] change detection: UUID changed, reloading. changed=', changed, 'hasPlaylistData=', this._hasPlaylistData);
+                    this._proPresenterPlaylistLastUuid = combinedKey;
+                    if (changed) this._loadProPresenterPlaylist();
+                })
+                .catch(err => console.log('[PP-PL-DEBUG] change detection error:', err?.message));
+        }, 2000);
+    },
+
+    _stopPlaylistChangeDetection() {
+        if (this._proPresenterPlaylistCheckInterval) {
+            clearInterval(this._proPresenterPlaylistCheckInterval);
+            this._proPresenterPlaylistCheckInterval = null;
+        }
+    },
+
+    /**
+     * Lightweight 1s poll: updates the active slide indicator in playlist widgets
+     * without re-fetching all presentations. Uses /v1/presentation/slide_index
+     * to find which presentation + slide is currently on air.
+     */
+    _startPlaylistSlideTracking() {
+        this._stopPlaylistSlideTracking();
+        const baseUrl = this._getProPresenterBaseUrl();
+        this._proPresenterPlaylistSlideCheckInterval = setInterval(() => {
+            fetch(`${baseUrl}/v1/presentation/slide_index`, {
+                headers: { 'Accept': 'application/json' }
+            })
+                .then(r => r.json())
+                .then(data => {
+                    const activePresUuid = data?.presentation_index?.presentation_id?.uuid || null;
+                    const activeSlideIdx = data?.presentation_index?.index ?? 0;
+
+                    // Update active slide in all playlist widgets
+                    document.querySelectorAll('.widget-card[data-widget-id="propresenter-playlist"]').forEach(widget => {
+                        const container = widget.querySelector('#propresenter-playlist-container');
+                        if (!container) return;
+
+                        // Remove active from all slides
+                        container.querySelectorAll('.pp-slide-item.active').forEach(el => el.classList.remove('active'));
+
+                        // Find and mark active slide
+                        if (activePresUuid) {
+                            const activeEl = container.querySelector(`.pp-slide-item[data-pl-uuid="${activePresUuid}"][data-pl-slide-index="${activeSlideIdx}"]`);
+                            if (activeEl) {
+                                activeEl.classList.add('active');
+                                // Auto-scroll alleen als de toggle aan staat
+                                if (this._playlistAutoScroll) {
+                                    const rect = activeEl.getBoundingClientRect();
+                                    const containerRect = container.getBoundingClientRect();
+                                    if (rect.bottom > containerRect.bottom || rect.top < containerRect.top) {
+                                        activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                    }
+                                }
+                            }
+                        }
+                    });
+                })
+                .catch(() => {});
+        }, 1000);
+    },
+
+    _stopPlaylistSlideTracking() {
+        if (this._proPresenterPlaylistSlideCheckInterval) {
+            clearInterval(this._proPresenterPlaylistSlideCheckInterval);
+            this._proPresenterPlaylistSlideCheckInterval = null;
+        }
+    },
+
+    _loadProPresenterPlaylist() {
+        document.querySelectorAll('.widget-card[data-widget-id="propresenter-playlist"]').forEach(el => {
+            this._fetchProPresenterPlaylist(el);
+            // Herstel auto-scroll voorkeur
+            try {
+                const pref = localStorage.getItem('ichtus_pp_autoscroll');
+                if (pref !== null) {
+                    this._playlistAutoScroll = pref === '1';
+                    const btn = el.querySelector('.pp-autoscroll-btn');
+                    if (btn) {
+                        btn.classList.toggle('active', this._playlistAutoScroll);
+                        btn.title = this._playlistAutoScroll ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit';
+                    }
+                }
+            } catch(e) {}
+        });
+    },
+
+    _refreshPlaylist(btn) {
+        const widgetEl = btn.closest('.widget-card');
+        if (widgetEl) this._fetchProPresenterPlaylist(widgetEl);
+    },
+
+    _fetchProPresenterPlaylist(widgetEl) {
+        this._hasPlaylistData = false; // reset bij elke fetch, pas true na succesvolle render
+        const baseUrl = this._getProPresenterBaseUrl();
+        const container = widgetEl.querySelector('#propresenter-playlist-container') || widgetEl.querySelector('.widget-body') || widgetEl;                console.log('[PP-PL] fetchProPresenterPlaylist start, baseUrl:', baseUrl);
+        console.log('[PP-PL-DEBUG] _hasPlaylistData:', this._hasPlaylistData, '_proPresenterPlaylistLastUuid:', this._proPresenterPlaylistLastUuid);
+
+        // Step 1: Get active playlist info (both presentation AND announcements branches)
+        fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(activeData => {
+                console.log('[PP-PL] /playlist/active response:', JSON.stringify(activeData).substring(0, 600));
+
+                const pres = activeData?.presentation;
+                const ann = activeData?.announcements;
+
+                // Collect ALL active playlists (both branches)
+                const playlists = [];
+                const currentItemIds = [];
+
+                if (pres?.playlist?.uuid) {
+                    playlists.push({ uuid: pres.playlist.uuid, name: pres.playlist.name || '', branch: 'presentation' });
+                    if (pres?.item?.uuid) currentItemIds.push(pres.item.uuid);
+                }
+                if (ann?.playlist?.uuid) {
+                    // Don't add duplicate if it's the same playlist as presentation
+                    if (!playlists.find(p => p.uuid === ann.playlist.uuid)) {
+                        playlists.push({ uuid: ann.playlist.uuid, name: ann.playlist.name || '', branch: 'announcements' });
+                    }
+                    if (ann?.item?.uuid && !currentItemIds.includes(ann.item.uuid)) {
+                        currentItemIds.push(ann.item.uuid);
+                    }
+                }                    console.log('[PP-PL] playlists found:', playlists.length, playlists.map(p => p.name));
+                const titleEl = widgetEl.querySelector('.widget-title');
+
+                if (!playlists.length) {
+                    // Hebben we eerder al slides geladen? Zo ja, behoud de huidige inhoud.
+                    if (this._hasPlaylistData) {
+                        console.log('[PP-PL] no active playlist but has cached data — keeping current slides');
+                        console.log('[PP-PL-DEBUG] keeping current slides, title is:', widgetEl.querySelector('.widget-title')?.textContent);
+                        return;
+                    }
+                    // Bij een F5 refresh is _hasPlaylistData false, maar kunnen we nog herstellen uit localStorage cache
+                    const cached = localStorage.getItem('ichtus_pp_playlist_cache');
+                    console.log('[PP-PL-DEBUG] cache found:', !!cached);
+                    if (cached) {
+                        console.log('[PP-PL] restoring from localStorage cache');
+                        try {
+                            const cacheData = JSON.parse(cached);
+                            if (cacheData.html) {
+                                container.innerHTML = cacheData.html;
+                                this._hasPlaylistData = true;
+                                // Herstel ook de UUID's zodat change detection blijft werken
+                                if (cacheData.uuid && !this._proPresenterPlaylistLastUuid) {
+                                    this._proPresenterPlaylistLastUuid = cacheData.uuid;
+                                }
+                                // Herstel de widget titel (playlist naam) — uit cache
+                                console.log('[PP-PL-DEBUG] cache title to restore:', cacheData.title);
+                                if (cacheData.title) {
+                                    const titleEl = widgetEl.querySelector('.widget-title');
+                                    if (titleEl) {
+                                        titleEl.textContent = cacheData.title;
+                                        console.log('[PP-PL-DEBUG] title restored from cache to:', cacheData.title);
+                                    }
+                                } else {
+                                    console.log('[PP-PL-DEBUG] cache has no title field — title will be empty');
+                                }
+                                // Herstel layout voorkeur (grid/single)
+                                try {
+                                    const layoutPref = localStorage.getItem('ichtus_pp_playlist_layout');
+                                    if (layoutPref === 'grid') {
+                                        container.classList.add('pp-grid-layout');
+                                    } else {
+                                        container.classList.remove('pp-grid-layout');
+                                    }
+                                } catch (e) {}
+                                return;
+                            }
+                        } catch(e) {
+                            // Oude formaat (plain HTML), probeer alsnog
+                            container.innerHTML = cached;
+                            this._hasPlaylistData = true;
+                            return;
+                        }
+                    }
+                    // Geen cache en geen data — pas nu de titel leegmaken
+                    if (titleEl) {
+                        titleEl.textContent = '';
+                        console.log('[PP-PL-DEBUG] title cleared: no cache and no playlists');
+                    }
+                    container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">📋</div><div>No active playlist</div></div>`;
+                    return;
+                }
+
+                // We hebben playlists — nu pas de titel instellen (NA de early-return en cache checks)
+                const titleNames = playlists.map(p => p.name).filter(Boolean);
+                const uniqueNames = [...new Set(titleNames)];
+                if (titleEl) {
+                    const newTitle = `Playlist: ${uniqueNames.join(', ')}`;
+                    titleEl.textContent = newTitle;
+                    console.log('[PP-PL-DEBUG] title set from API to:', `"${newTitle}"`);
+                }
+
+                // Step 2: Fetch all unique playlists + slide index in parallel
+                const playlistFetches = playlists.map(p =>
+                    fetch(`${baseUrl}/v1/playlist/${p.uuid}`, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(data => ({ branch: p.branch, data }))
+                        .catch(err => { console.log('[PP-PL] playlist fetch error for', p.uuid, ':', err?.message); return null; })
+                );
+
+                Promise.all([
+                    Promise.all(playlistFetches),
+                    fetch(`${baseUrl}/v1/presentation/slide_index`, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .catch(() => ({ presentation_index: { index: 0 } }))
+                ])
+                    .then(([playlistResults, slideIndexData]) => {
+                        const currentSlideIdx = slideIndexData?.presentation_index?.index ?? 0;
+
+                        // Combine items from all playlists (presentation first, then announcements)
+                        let combinedItems = [];
+                        let alreadySeenUuids = new Set();
+
+                        // Sort playlists: presentation first, then announcements
+                        const sortedResults = [];
+                        const presResult = playlistResults.find(r => r && r.branch === 'presentation');
+                        const annResult = playlistResults.find(r => r && r.branch === 'announcements');
+                        if (presResult) sortedResults.push(presResult);
+                        if (annResult) sortedResults.push(annResult);
+
+                        sortedResults.forEach(result => {
+                            if (!result?.data?.items) return;
+                            result.data.items.forEach(item => {
+                                const itemUuid = item?.id?.uuid;
+                                if (itemUuid && alreadySeenUuids.has(itemUuid)) return;
+                                if (itemUuid) alreadySeenUuids.add(itemUuid);
+                                combinedItems.push(item);
+                            });
+                        });
+
+                        console.log('[PP-PL] combined items:', combinedItems.length);
+
+                        if (!combinedItems.length) {
+                            container.innerHTML = `<div class="pp-loading">No items in playlist</div>`;
+                            return;
+                        }
+
+                        // Step 3: Fetch all presentations' slides in parallel
+                        const presentationItems = combinedItems.filter(item => item.type === 'presentation' && item.presentation_info?.presentation_uuid);
+                        console.log('[PP-PL] presentations to fetch:', presentationItems.length, 'out of', combinedItems.length, 'items');
+
+                        const presentationPromises = presentationItems.map(item => {
+                            const uuid = item.presentation_info.presentation_uuid;
+                            console.log('[PP-PL] fetching presentation:', uuid, item.id?.name);
+                            return fetch(`${baseUrl}/v1/presentation/${uuid}`, { headers: { 'Accept': 'application/json' } })
+                                .then(r => { console.log('[PP-PL] presentation', uuid, 'status:', r.status); return r.json(); })
+                                .then(data => {
+                                    const slides = data?.presentation?.groups?.flatMap(g => g.slides || []) || [];
+                                    console.log('[PP-PL] presentation', uuid, 'slides:', slides.length);
+                                    return { uuid, item, slides };
+                                })
+                                .catch(err => { console.log('[PP-PL] presentation fetch error for', uuid, ':', err?.message); return { uuid, item, slides: [] }; });
+                        });
+
+                        Promise.all(presentationPromises)
+                            .then(presentationResults => {
+                                console.log('[PP-PL] All presentations fetched, results:', presentationResults.length);
+                                console.log('[PP-PL-DEBUG] current title before cache save:', widgetEl.querySelector('.widget-title')?.textContent);
+
+                                // Build flat list of ALL slides from ALL playlists
+                                const allSlides = [];
+                                let foundActive = false;
+
+                                combinedItems.forEach(item => {
+                                    if (item.type === 'header') {
+                                        const color = item.header_color
+                                            ? `rgba(${Math.round(item.header_color.red * 255)}, ${Math.round(item.header_color.green * 255)}, ${Math.round(item.header_color.blue * 255)}, 0.3)`
+                                            : 'rgba(255,255,255,0.05)';
+                                        allSlides.push({
+                                            type: 'header',
+                                            name: item.id?.name || '',
+                                            color,
+                                            isActive: currentItemIds.includes(item.id?.uuid)
+                                        });
+                                    } else if (item.type === 'presentation') {
+                                        const result = presentationResults.find(r => r.uuid === item.presentation_info?.presentation_uuid);
+                                        const slides = result?.slides || [];
+                                        const isActiveItem = currentItemIds.includes(item.id?.uuid);
+
+                                        // Voeg presentation naam header toe boven de slides
+                                        if (slides.length > 0) {
+                                            allSlides.push({
+                                                type: 'presentation-header',
+                                                name: item.id?.name || '',
+                                                isActive: isActiveItem
+                                            });
+                                        }
+
+                                        slides.forEach((slide, slideIdx) => {
+                                            const isActive = isActiveItem && slideIdx === currentSlideIdx;
+                                            if (isActive) foundActive = true;
+                                            // Bepaal de beste thumbnail URL: gebruik eerst slide.image (base64/hoge kwaliteit),
+                                            // dan slide.thumb_url/thumbnail/image_url, dan pas de thumbnail API endpoint
+                                            let bestUrl = null;
+                                            if (slide?.image && slide.image.startsWith('data:')) {
+                                                bestUrl = slide.image;
+                                            } else if (slide?.image && (slide.image.startsWith('http://') || slide.image.startsWith('https://'))) {
+                                                bestUrl = slide.image;
+                                            } else if (slide?.image && slide.image.startsWith('/')) {
+                                                bestUrl = baseUrl + slide.image;
+                                            } else if (slide?.image) {
+                                                bestUrl = 'data:image/jpeg;base64,' + slide.image;
+                                            } else if (slide?.thumb_url) {
+                                                bestUrl = slide.thumb_url;
+                                            } else if (slide?.thumbnail) {
+                                                bestUrl = slide.thumbnail;
+                                            } else if (slide?.image_url) {
+                                                bestUrl = slide.image_url;
+                                            }
+                                            allSlides.push({
+                                                type: 'slide',
+                                                uuid: item.presentation_info.presentation_uuid,
+                                                itemIndex: item.id?.index ?? 0,
+                                                slideIndex: slideIdx,
+                                                label: slide.label || item.id?.name || '',
+                                                isActive,
+                                                thumbUrl: bestUrl
+                                            });
+                                        });
+                                    }
+                                });
+
+                                console.log('[PP-PL] allSlides built, count:', allSlides.length, 'foundActive:', foundActive);
+
+                                console.log('[PP-PL] calling _renderPlaylistSlides...');
+                                this._renderPlaylistSlides(container, allSlides, baseUrl);
+                                this._hasPlaylistData = true;
+                                console.log('[PP-PL] _renderPlaylistSlides done');
+
+                                // Zet _proPresenterPlaylistLastUuid met de actuele UUID's, zodat change detection blijft werken
+                                // Ook na eerste load (voordat de change detection poll de UUID heeft kunnen zetten)
+                                const activeCombinedKey = playlists.map(p => p.uuid).join('|');
+                                if (activeCombinedKey) {
+                                    this._proPresenterPlaylistLastUuid = activeCombinedKey;
+                                }
+
+                                // Cache de gerenderde HTML + UUID's + titel in localStorage voor herstel na F5
+                                try {
+                                    const titleEl = widgetEl.querySelector('.widget-title');
+                                    const cachedTitle = titleEl ? titleEl.textContent : '';
+                                    console.log('[PP-PL-DEBUG] saving cache with title:', `"${cachedTitle}"`);
+                                    const cacheData = JSON.stringify({
+                                        html: container.innerHTML,
+                                        uuid: this._proPresenterPlaylistLastUuid || '',
+                                        title: cachedTitle
+                                    });
+                                    localStorage.setItem('ichtus_pp_playlist_cache', cacheData);
+
+                                } catch(e) {}
+
+                                // Apply saved layout preference (single-per-row or 2×2 grid)
+                                try {
+                                    const layoutPref = localStorage.getItem('ichtus_pp_playlist_layout');
+                                    const btn = widgetEl.querySelector('.pp-layout-toggle');
+                                    if (layoutPref === 'grid') {
+                                        container.classList.add('pp-grid-layout');
+                                        if (btn) btn.textContent = '☰';
+                                    } else {
+                                        container.classList.remove('pp-grid-layout');
+                                        if (btn) btn.textContent = '⊞';
+                                    }
+                                } catch (e) {}
+                            })
+                            .catch(() => {
+                                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>Failed to load presentations</div></div>`;
+                            });
+                    })
+                    .catch(() => {
+                        container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>Failed to load playlist items</div></div>`;
+                    });
+            })
+            .catch(err => {
+                console.log('[PP-PL-DEBUG] API error:', err.message);
+                // Probeer eerst cache te herstellen voordat we offline tonen
+                const cached = localStorage.getItem('ichtus_pp_playlist_cache');
+                if (cached) {
+                    try {
+                        const cacheData = JSON.parse(cached);
+                        if (cacheData.html) {
+                            container.innerHTML = cacheData.html;
+                            this._hasPlaylistData = true;
+                            if (cacheData.uuid && !this._proPresenterPlaylistLastUuid) {
+                                this._proPresenterPlaylistLastUuid = cacheData.uuid;
+                            }
+                            console.log('[PP-PL-DEBUG] error handler: restoring title from cache:', cacheData.title);
+                            if (cacheData.title) {
+                                const titleEl = widgetEl.querySelector('.widget-title');
+                                if (titleEl) titleEl.textContent = cacheData.title;
+                            }
+                            return;
+                        }
+                    } catch(e) {
+                        // Oude formaat, probeer gewoon titel te herstellen
+                    }
+                }
+                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${err.message}</div></div>`;
+            });
+    },
+
+    _renderPlaylistSlides(container, allSlides, baseUrl) {
+        if (!allSlides.length) {
+            container.innerHTML = `<div class="pp-loading">No slides in playlist</div>`;
+            return;
+        }
+
+        let html = '';
+        allSlides.forEach((item, idx) => {
+            if (item.type === 'header') {
+                html += `<div class="pl-slide-header" style="border-left: 4px solid ${item.color}; background: ${item.color.replace('0.3', '0.08')};">
+                    <span class="pl-header-label">${item.name}</span>
+                </div>`;
+            } else if (item.type === 'presentation-header') {
+                html += `<div class="pl-presentation-header${item.isActive ? ' active' : ''}">
+                    <span class="pl-header-label">${item.name}</span>
+                </div>`;
+            } else {
+                const activeClass = item.isActive ? ' active' : '';
+                let thumbUrl = item.thumbUrl || `${baseUrl}/v1/presentation/${item.uuid}/thumbnail/${item.slideIndex}`;
+                const labelAttr = (item.label || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                html += `<div class="pp-slide-item${activeClass}" 
+                            data-pl-uuid="${item.uuid}" 
+                            data-pl-item-index="${item.itemIndex}" 
+                            data-pl-slide-index="${item.slideIndex}"
+                            onclick="dashboardModule._triggerPlaylistSlide('${item.uuid}', ${item.slideIndex}, this)">
+                    <img class="pp-slide-thumb" src="${thumbUrl}" alt="${labelAttr}" loading="lazy" onerror="this.style.visibility='hidden'" />
+                </div>`;
+            }
+        });
+        container.innerHTML = html;
+
+        // Scroll active slide into view — alleen als auto-scroll aan staat
+        if (this._playlistAutoScroll) {
+            const activeEl = container.querySelector('.pp-slide-item.active');
+            if (activeEl) activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+        }
+    },
+
+    _triggerPlaylistSlide(uuid, slideIndex, el) {
+        const baseUrl = this._getProPresenterBaseUrl();
+        console.log('[PP-PL-DEBUG] _triggerPlaylistSlide: uuid=', uuid, 'slideIndex=', slideIndex);
+
+        // Visual feedback on the clicked element
+        if (el) {
+            el.classList.remove('pp-triggered');
+            void el.offsetWidth;
+            el.classList.add('pp-triggered');
+            setTimeout(() => el.classList.remove('pp-triggered'), 350);
+        }
+
+        // Stap 1: Focus de presentation (maakt het de actieve presentation)
+        console.log('[PP-PL-DEBUG] Step 1: focusing presentation', uuid);
+        fetch(`${baseUrl}/v1/presentation/${uuid}/trigger`, { method: 'GET' })
+            .then(resp => {
+                console.log('[PP-PL-DEBUG] Step 1 response status:', resp.status);
+                // Stap 2: Wacht kort zodat ProPresenter de focus kan verwerken,
+                // daarna trigger de specifieke slide in de actieve presentation
+                setTimeout(() => {
+                    console.log('[PP-PL-DEBUG] Step 2: triggering slide', slideIndex, 'in active presentation');
+                    fetch(`${baseUrl}/v1/presentation/active/${slideIndex}/trigger`, { method: 'GET' })
+                        .then(r => console.log('[PP-PL-DEBUG] Step 2 response status:', r.status))
+                        .catch(err => console.log('[PP-PL-DEBUG] Step 2 error:', err.message));
+                }, 150);
+            })
+            .catch(err => console.log('[PP-PL-DEBUG] Step 1 error:', err.message));
+    },
+
+    _toggleAutoScroll(btn) {
+        this._playlistAutoScroll = !this._playlistAutoScroll;
+        btn.classList.toggle('active', this._playlistAutoScroll);
+        btn.title = this._playlistAutoScroll ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit';
+        try { localStorage.setItem('ichtus_pp_autoscroll', this._playlistAutoScroll ? '1' : '0'); } catch(e) {}
+    },
+
+    _togglePlaylistLayout(btn) {
+        const widgetEl = btn.closest('.widget-card');
+        const container = widgetEl.querySelector('.widget-propresenter');
+        if (!container) return;
+        const isGrid = container.classList.toggle('pp-grid-layout');
+        btn.textContent = isGrid ? '☰' : '⊞';
+        try { localStorage.setItem('ichtus_pp_playlist_layout', isGrid ? 'grid' : 'single'); } catch(e) {}
     },
 
     syncState() {}
