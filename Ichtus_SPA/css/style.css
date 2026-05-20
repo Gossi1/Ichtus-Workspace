@@ -2982,6 +2982,7 @@ input:checked + .slider::before { transform: translateX(20px); }
 
 /* Single-per-row layout (default): full-width slides, stacked vertically */
 .widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item {
+    position: relative;
     flex-direction: column !important;
     align-items: center;
     padding: 0.25rem 0;
@@ -3055,7 +3056,40 @@ input:checked + .slider::before { transform: translateX(20px); }
     display: none;
 }
 
+/* Groepsbadge — overlay in de linkerbovenhoek van de thumbnail */
+.pp-group-badge {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    z-index: 2;
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: rgba(244, 121, 32, 0.85);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    line-height: 1.3;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    max-width: calc(100% - 0.8rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
 
+
+
+/* Grid layout: badge iets kleiner */
+.widget-propresenter.pp-grid-layout .pp-group-badge {
+    font-size: 0.6rem;
+    top: 0.3rem;
+    left: 0.3rem;
+    padding: 0.15rem 0.4rem;
+}
 
 /* Refresh button in playlist widget header */
 .pp-refresh-btn {

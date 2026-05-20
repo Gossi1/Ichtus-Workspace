@@ -1558,7 +1558,7 @@ const dashboardModule = {
                         try {
                             const cacheData = JSON.parse(cached);
                             if (cacheData.html) {
-                                container.innerHTML = cacheData.html;
+                                container.innerHTML = cacheData.html.replace(/<div class="pp-group-badge">\s*Group\s*<\/div>\s*/gi, '');
                                 this._hasPlaylistData = true;
                                 // Herstel ook de UUID's zodat change detection blijft werken
                                 if (cacheData.uuid && !this._proPresenterPlaylistLastUuid) {
@@ -1666,11 +1666,13 @@ const dashboardModule = {
                             return fetch(`${baseUrl}/v1/presentation/${uuid}`, { headers: { 'Accept': 'application/json' } })
                                 .then(r => { console.log('[PP-PL] presentation', uuid, 'status:', r.status); return r.json(); })
                                 .then(data => {
-                                    const slides = data?.presentation?.groups?.flatMap(g => g.slides || []) || [];
-                                    console.log('[PP-PL] presentation', uuid, 'slides:', slides.length);
-                                    return { uuid, item, slides };
+                                    const groups = data?.presentation?.groups || [];
+                                    const slides = groups.flatMap(g => g.slides || []);
+                                    console.log('[PP-PL] presentation', uuid, 'slides:', slides.length, 'groups:', groups.length);
+                                    console.log('[PP-PL-DEBUG] groups raw:', JSON.stringify(groups.map(g => ({ name: g.name, slideCount: (g.slides || []).length }))));
+                                    return { uuid, item, slides, groups };
                                 })
-                                .catch(err => { console.log('[PP-PL] presentation fetch error for', uuid, ':', err?.message); return { uuid, item, slides: [] }; });
+                                .catch(err => { console.log('[PP-PL] presentation fetch error for', uuid, ':', err?.message); return { uuid, item, slides: [], groups: [] }; });
                         });
 
                         Promise.all(presentationPromises)
@@ -1707,11 +1709,24 @@ const dashboardModule = {
                                             });
                                         }
 
+                                        // Bouw een lookup voor groepsnamen per slide index
+                                        const resultGroups = result?.groups || [];
+                                        console.log('[PP-PL-DEBUG] resultGroups for', item.id?.name, ':', resultGroups.length, 'groups');
+                                        let globalSlideIdx = 0;
+                                        const groupFirstSlides = new Set(); // set van global slide indices die de eerste in hun groep zijn
+                                        resultGroups.forEach(g => {
+                                            const groupSlides = g.slides || [];
+                                            if (groupSlides.length > 0) {
+                                                groupFirstSlides.add(globalSlideIdx);
+                                                console.log('[PP-PL-DEBUG] group:', g.name, 'firstSlideIdx:', globalSlideIdx, 'count:', groupSlides.length);
+                                                globalSlideIdx += groupSlides.length;
+                                            }
+                                        });
+
                                         slides.forEach((slide, slideIdx) => {
                                             const isActive = isActiveItem && slideIdx === currentSlideIdx;
                                             if (isActive) foundActive = true;
-                                            // Bepaal de beste thumbnail URL: gebruik eerst slide.image (base64/hoge kwaliteit),
-                                            // dan slide.thumb_url/thumbnail/image_url, dan pas de thumbnail API endpoint
+                                            // Bepaal de beste thumbnail URL
                                             let bestUrl = null;
                                             if (slide?.image && slide.image.startsWith('data:')) {
                                                 bestUrl = slide.image;
@@ -1728,6 +1743,26 @@ const dashboardModule = {
                                             } else if (slide?.image_url) {
                                                 bestUrl = slide.image_url;
                                             }
+                                            // Vind groepsnaam — alleen voor de eerste slide van elke groep
+                                            let groupName = null;
+                                            if (groupFirstSlides.has(slideIdx)) {
+                                                // Zoek welke groep bij deze slideIdx hoort
+                                                let cursor = 0;
+                                                for (const g of resultGroups) {
+                                                    const gSlides = g.slides || [];
+                                                    if (cursor === slideIdx && gSlides.length > 0) {
+                                                        const rawName = g.name || '';
+                                                        // Skip default 'Group' name — geen badge tonen
+                                                        groupName = (rawName.toLowerCase() === 'group') ? null : rawName;
+                                                        break;
+                                                    }
+                                                    cursor += gSlides.length;
+                                                }
+                                                console.log('[PP-PL-DEBUG] group badge for slide', slideIdx, ':', groupName, '(first slide of group)');
+                                            } else {
+                                                console.log('[PP-PL-DEBUG] no group badge for slide', slideIdx, '(not first in group, groupFirstSlides has:', [...groupFirstSlides].join(','), ')');
+                                            }
+                                            if (groupName) console.log('[PP-PL-DEBUG] push slide', slideIdx, 'with groupName:', groupName);
                                             allSlides.push({
                                                 type: 'slide',
                                                 uuid: item.presentation_info.presentation_uuid,
@@ -1735,7 +1770,8 @@ const dashboardModule = {
                                                 slideIndex: slideIdx,
                                                 label: slide.label || item.id?.name || '',
                                                 isActive,
-                                                thumbUrl: bestUrl
+                                                thumbUrl: bestUrl,
+                                                groupName
                                             });
                                         });
                                     }
@@ -1798,7 +1834,7 @@ const dashboardModule = {
                     try {
                         const cacheData = JSON.parse(cached);
                         if (cacheData.html) {
-                            container.innerHTML = cacheData.html;
+                            container.innerHTML = cacheData.html.replace(/<div class="pp-group-badge">\s*Group\s*<\/div>\s*/gi, '');
                             this._hasPlaylistData = true;
                             if (cacheData.uuid && !this._proPresenterPlaylistLastUuid) {
                                 this._proPresenterPlaylistLastUuid = cacheData.uuid;
@@ -1838,11 +1874,14 @@ const dashboardModule = {
                 const activeClass = item.isActive ? ' active' : '';
                 let thumbUrl = item.thumbUrl || `${baseUrl}/v1/presentation/${item.uuid}/thumbnail/${item.slideIndex}`;
                 const labelAttr = (item.label || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+                const groupBadge = item.groupName ? `<div class="pp-group-badge">${item.groupName.replace(/'/g, "&#39;").replace(/"/g, "&quot;")}</div>` : '';
+                if (item.groupName) console.log('[PP-PL-DEBUG] rendering group badge:', item.groupName, 'for slide', item.slideIndex);
                 html += `<div class="pp-slide-item${activeClass}" 
                             data-pl-uuid="${item.uuid}" 
                             data-pl-item-index="${item.itemIndex}" 
                             data-pl-slide-index="${item.slideIndex}"
                             onclick="dashboardModule._triggerPlaylistSlide('${item.uuid}', ${item.slideIndex}, this)">
+                    ${groupBadge}
                     <img class="pp-slide-thumb" src="${thumbUrl}" alt="${labelAttr}" loading="lazy" onerror="this.style.visibility='hidden'" />
                 </div>`;
             }
