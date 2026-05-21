@@ -1187,7 +1187,6 @@ const dashboardModule = {
             }
         }
         const url = `http://${ip}:${port}`;
-        console.log('[PP-DEBUG] baseUrl:', url, '(ip:', ip, 'port:', port, ')');
         return url;
     },
 
@@ -1264,7 +1263,6 @@ const dashboardModule = {
             titleEl.textContent = `Playlist "${playlistName}"`;
         }
         const baseUrl = this._getProPresenterBaseUrl();
-        console.log('[PP-DEBUG] _renderSlides: slides.length=', slides.length, 'currentIdx=', currentIdx, 'uuid=', uuid);
         // Build thumbnail URL. PP7 uses /v1/presentation/{uuid}/thumbnail/{idx}
         const getThumbUrl = (slide, idx) => {
             let url = slide?.thumb_url || slide?.thumbnail || slide?.image_url;
@@ -1406,23 +1404,19 @@ const dashboardModule = {
                     const presUuid = data?.presentation?.playlist?.uuid || null;
                     const annUuid = data?.announcements?.playlist?.uuid || null;
                     const combinedKey = `${presUuid ?? ''}|${annUuid ?? ''}`;
-                    console.log('[PP-PL-DEBUG] change detection: presUuid=', presUuid, 'annUuid=', annUuid, 'lastUuid=', this._proPresenterPlaylistLastUuid, 'combinedKey=', combinedKey);
                     // Skip if BOTH playlists are empty (e.g. after slide trigger)
                     if (!presUuid && !annUuid) {
-                        console.log('[PP-PL-DEBUG] change detection: both playlists empty — skipping');
                         return;
                     }
                     if (combinedKey === this._proPresenterPlaylistLastUuid) {
-                        console.log('[PP-PL-DEBUG] change detection: UUID unchanged — skipping');
                         return;
                     }
                     // Reload als: (a) we al een eerdere UUID hadden, OF (b) we nog nooit playlist data hebben geladen
                     const changed = this._proPresenterPlaylistLastUuid !== null || !this._hasPlaylistData;
-                    console.log('[PP-PL-DEBUG] change detection: UUID changed, reloading. changed=', changed, 'hasPlaylistData=', this._hasPlaylistData);
                     this._proPresenterPlaylistLastUuid = combinedKey;
                     if (changed) this._loadProPresenterPlaylist();
                 })
-                .catch(err => console.log('[PP-PL-DEBUG] change detection error:', err?.message));
+                .catch(() => {});
         }, 2000);
     },
 
@@ -1512,14 +1506,12 @@ const dashboardModule = {
     _fetchProPresenterPlaylist(widgetEl) {
         this._hasPlaylistData = false; // reset bij elke fetch, pas true na succesvolle render
         const baseUrl = this._getProPresenterBaseUrl();
-        const container = widgetEl.querySelector('#propresenter-playlist-container') || widgetEl.querySelector('.widget-body') || widgetEl;                console.log('[PP-PL] fetchProPresenterPlaylist start, baseUrl:', baseUrl);
-        console.log('[PP-PL-DEBUG] _hasPlaylistData:', this._hasPlaylistData, '_proPresenterPlaylistLastUuid:', this._proPresenterPlaylistLastUuid);
+        const container = widgetEl.querySelector('#propresenter-playlist-container') || widgetEl.querySelector('.widget-body') || widgetEl;
 
         // Step 1: Get active playlist info (both presentation AND announcements branches)
         fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
             .then(activeData => {
-                console.log('[PP-PL] /playlist/active response:', JSON.stringify(activeData).substring(0, 600));
 
                 const pres = activeData?.presentation;
                 const ann = activeData?.announcements;
@@ -1540,21 +1532,17 @@ const dashboardModule = {
                     if (ann?.item?.uuid && !currentItemIds.includes(ann.item.uuid)) {
                         currentItemIds.push(ann.item.uuid);
                     }
-                }                    console.log('[PP-PL] playlists found:', playlists.length, playlists.map(p => p.name));
+                }
                 const titleEl = widgetEl.querySelector('.widget-title');
 
                 if (!playlists.length) {
                     // Hebben we eerder al slides geladen? Zo ja, behoud de huidige inhoud.
                     if (this._hasPlaylistData) {
-                        console.log('[PP-PL] no active playlist but has cached data — keeping current slides');
-                        console.log('[PP-PL-DEBUG] keeping current slides, title is:', widgetEl.querySelector('.widget-title')?.textContent);
                         return;
                     }
                     // Bij een F5 refresh is _hasPlaylistData false, maar kunnen we nog herstellen uit localStorage cache
                     const cached = localStorage.getItem('ichtus_pp_playlist_cache');
-                    console.log('[PP-PL-DEBUG] cache found:', !!cached);
                     if (cached) {
-                        console.log('[PP-PL] restoring from localStorage cache');
                         try {
                             const cacheData = JSON.parse(cached);
                             if (cacheData.html) {
@@ -1565,15 +1553,12 @@ const dashboardModule = {
                                     this._proPresenterPlaylistLastUuid = cacheData.uuid;
                                 }
                                 // Herstel de widget titel (playlist naam) — uit cache
-                                console.log('[PP-PL-DEBUG] cache title to restore:', cacheData.title);
                                 if (cacheData.title) {
                                     const titleEl = widgetEl.querySelector('.widget-title');
                                     if (titleEl) {
                                         titleEl.textContent = cacheData.title;
-                                        console.log('[PP-PL-DEBUG] title restored from cache to:', cacheData.title);
                                     }
                                 } else {
-                                    console.log('[PP-PL-DEBUG] cache has no title field — title will be empty');
                                 }
                                 // Herstel layout voorkeur (grid/single)
                                 try {
@@ -1596,7 +1581,6 @@ const dashboardModule = {
                     // Geen cache en geen data — pas nu de titel leegmaken
                     if (titleEl) {
                         titleEl.textContent = '';
-                        console.log('[PP-PL-DEBUG] title cleared: no cache and no playlists');
                     }
                     container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">📋</div><div>No active playlist</div></div>`;
                     return;
@@ -1608,7 +1592,6 @@ const dashboardModule = {
                 if (titleEl) {
                     const newTitle = `Playlist: ${uniqueNames.join(', ')}`;
                     titleEl.textContent = newTitle;
-                    console.log('[PP-PL-DEBUG] title set from API to:', `"${newTitle}"`);
                 }
 
                 // Step 2: Fetch all unique playlists + slide index in parallel
@@ -1616,7 +1599,7 @@ const dashboardModule = {
                     fetch(`${baseUrl}/v1/playlist/${p.uuid}`, { headers: { 'Accept': 'application/json' } })
                         .then(r => r.json())
                         .then(data => ({ branch: p.branch, data }))
-                        .catch(err => { console.log('[PP-PL] playlist fetch error for', p.uuid, ':', err?.message); return null; })
+                        .catch(() => null)
                 );
 
                 Promise.all([
@@ -1649,7 +1632,6 @@ const dashboardModule = {
                             });
                         });
 
-                        console.log('[PP-PL] combined items:', combinedItems.length);
 
                         if (!combinedItems.length) {
                             container.innerHTML = `<div class="pp-loading">No items in playlist</div>`;
@@ -1658,27 +1640,21 @@ const dashboardModule = {
 
                         // Step 3: Fetch all presentations' slides in parallel
                         const presentationItems = combinedItems.filter(item => item.type === 'presentation' && item.presentation_info?.presentation_uuid);
-                        console.log('[PP-PL] presentations to fetch:', presentationItems.length, 'out of', combinedItems.length, 'items');
 
                         const presentationPromises = presentationItems.map(item => {
                             const uuid = item.presentation_info.presentation_uuid;
-                            console.log('[PP-PL] fetching presentation:', uuid, item.id?.name);
                             return fetch(`${baseUrl}/v1/presentation/${uuid}`, { headers: { 'Accept': 'application/json' } })
-                                .then(r => { console.log('[PP-PL] presentation', uuid, 'status:', r.status); return r.json(); })
+                                .then(r => r.json())
                                 .then(data => {
                                     const groups = data?.presentation?.groups || [];
                                     const slides = groups.flatMap(g => g.slides || []);
-                                    console.log('[PP-PL] presentation', uuid, 'slides:', slides.length, 'groups:', groups.length);
-                                    console.log('[PP-PL-DEBUG] groups raw:', JSON.stringify(groups.map(g => ({ name: g.name, slideCount: (g.slides || []).length }))));
                                     return { uuid, item, slides, groups };
                                 })
-                                .catch(err => { console.log('[PP-PL] presentation fetch error for', uuid, ':', err?.message); return { uuid, item, slides: [], groups: [] }; });
+                                .catch(() => ({ uuid, item, slides: [], groups: [] }));
                         });
 
                         Promise.all(presentationPromises)
                             .then(presentationResults => {
-                                console.log('[PP-PL] All presentations fetched, results:', presentationResults.length);
-                                console.log('[PP-PL-DEBUG] current title before cache save:', widgetEl.querySelector('.widget-title')?.textContent);
 
                                 // Build flat list of ALL slides from ALL playlists
                                 const allSlides = [];
@@ -1711,14 +1687,12 @@ const dashboardModule = {
 
                                         // Bouw een lookup voor groepsnamen per slide index
                                         const resultGroups = result?.groups || [];
-                                        console.log('[PP-PL-DEBUG] resultGroups for', item.id?.name, ':', resultGroups.length, 'groups');
                                         let globalSlideIdx = 0;
                                         const groupFirstSlides = new Set(); // set van global slide indices die de eerste in hun groep zijn
                                         resultGroups.forEach(g => {
                                             const groupSlides = g.slides || [];
                                             if (groupSlides.length > 0) {
                                                 groupFirstSlides.add(globalSlideIdx);
-                                                console.log('[PP-PL-DEBUG] group:', g.name, 'firstSlideIdx:', globalSlideIdx, 'count:', groupSlides.length);
                                                 globalSlideIdx += groupSlides.length;
                                             }
                                         });
@@ -1758,12 +1732,9 @@ const dashboardModule = {
                                                     }
                                                     cursor += gSlides.length;
                                                 }
-                                                console.log('[PP-PL-DEBUG] group badge for slide', slideIdx, ':', groupName, '(first slide of group)');
                                             } else {
-                                                console.log('[PP-PL-DEBUG] no group badge for slide', slideIdx, '(not first in group, groupFirstSlides has:', [...groupFirstSlides].join(','), ')');
                                             }
-                                            if (groupName) console.log('[PP-PL-DEBUG] push slide', slideIdx, 'with groupName:', groupName);
-                                            allSlides.push({
+                                                            allSlides.push({
                                                 type: 'slide',
                                                 uuid: item.presentation_info.presentation_uuid,
                                                 itemIndex: item.id?.index ?? 0,
@@ -1777,12 +1748,9 @@ const dashboardModule = {
                                     }
                                 });
 
-                                console.log('[PP-PL] allSlides built, count:', allSlides.length, 'foundActive:', foundActive);
 
-                                console.log('[PP-PL] calling _renderPlaylistSlides...');
                                 this._renderPlaylistSlides(container, allSlides, baseUrl);
                                 this._hasPlaylistData = true;
-                                console.log('[PP-PL] _renderPlaylistSlides done');
 
                                 // Zet _proPresenterPlaylistLastUuid met de actuele UUID's, zodat change detection blijft werken
                                 // Ook na eerste load (voordat de change detection poll de UUID heeft kunnen zetten)
@@ -1795,7 +1763,6 @@ const dashboardModule = {
                                 try {
                                     const titleEl = widgetEl.querySelector('.widget-title');
                                     const cachedTitle = titleEl ? titleEl.textContent : '';
-                                    console.log('[PP-PL-DEBUG] saving cache with title:', `"${cachedTitle}"`);
                                     const cacheData = JSON.stringify({
                                         html: container.innerHTML,
                                         uuid: this._proPresenterPlaylistLastUuid || '',
@@ -1827,7 +1794,6 @@ const dashboardModule = {
                     });
             })
             .catch(err => {
-                console.log('[PP-PL-DEBUG] API error:', err.message);
                 // Probeer eerst cache te herstellen voordat we offline tonen
                 const cached = localStorage.getItem('ichtus_pp_playlist_cache');
                 if (cached) {
@@ -1839,7 +1805,6 @@ const dashboardModule = {
                             if (cacheData.uuid && !this._proPresenterPlaylistLastUuid) {
                                 this._proPresenterPlaylistLastUuid = cacheData.uuid;
                             }
-                            console.log('[PP-PL-DEBUG] error handler: restoring title from cache:', cacheData.title);
                             if (cacheData.title) {
                                 const titleEl = widgetEl.querySelector('.widget-title');
                                 if (titleEl) titleEl.textContent = cacheData.title;
@@ -1875,7 +1840,6 @@ const dashboardModule = {
                 let thumbUrl = item.thumbUrl || `${baseUrl}/v1/presentation/${item.uuid}/thumbnail/${item.slideIndex}`;
                 const labelAttr = (item.label || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
                 const groupBadge = item.groupName ? `<div class="pp-group-badge">${item.groupName.replace(/'/g, "&#39;").replace(/"/g, "&quot;")}</div>` : '';
-                if (item.groupName) console.log('[PP-PL-DEBUG] rendering group badge:', item.groupName, 'for slide', item.slideIndex);
                 html += `<div class="pp-slide-item${activeClass}" 
                             data-pl-uuid="${item.uuid}" 
                             data-pl-item-index="${item.itemIndex}" 
@@ -1897,7 +1861,6 @@ const dashboardModule = {
 
     _triggerPlaylistSlide(uuid, slideIndex, el) {
         const baseUrl = this._getProPresenterBaseUrl();
-        console.log('[PP-PL-DEBUG] _triggerPlaylistSlide: uuid=', uuid, 'slideIndex=', slideIndex);
 
         // Visual feedback on the clicked element
         if (el) {
@@ -1908,20 +1871,17 @@ const dashboardModule = {
         }
 
         // Stap 1: Focus de presentation (maakt het de actieve presentation)
-        console.log('[PP-PL-DEBUG] Step 1: focusing presentation', uuid);
         fetch(`${baseUrl}/v1/presentation/${uuid}/trigger`, { method: 'GET' })
             .then(resp => {
-                console.log('[PP-PL-DEBUG] Step 1 response status:', resp.status);
                 // Stap 2: Wacht kort zodat ProPresenter de focus kan verwerken,
                 // daarna trigger de specifieke slide in de actieve presentation
                 setTimeout(() => {
-                    console.log('[PP-PL-DEBUG] Step 2: triggering slide', slideIndex, 'in active presentation');
                     fetch(`${baseUrl}/v1/presentation/active/${slideIndex}/trigger`, { method: 'GET' })
-                        .then(r => console.log('[PP-PL-DEBUG] Step 2 response status:', r.status))
-                        .catch(err => console.log('[PP-PL-DEBUG] Step 2 error:', err.message));
+                        
+                        .catch(() => {});
                 }, 150);
             })
-            .catch(err => console.log('[PP-PL-DEBUG] Step 1 error:', err.message));
+            .catch(() => {});
     },
 
     _toggleAutoScroll(btn) {
