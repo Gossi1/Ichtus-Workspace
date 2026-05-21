@@ -42,6 +42,7 @@ const dashboardModule = {
         this._updateRowHeight();
         this._restoreWidgetSizes();
         this._restoreWidgetPositions();
+        this._expandWidgetToGridHeight();
         this.initLayoutSelector();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
             this._startProPresenterPolling();
@@ -266,6 +267,7 @@ const dashboardModule = {
                 this.draggedEl = null;
                 this._applyWidgetGrid(card, free.col, free.row, span);
                 this._saveWidgetPositions();
+                this._expandWidgetToGridHeight();
             } else {
                 this.draggedEl = null;
             }
@@ -280,8 +282,6 @@ const dashboardModule = {
         const handle = el.querySelector('.widget-resize-handle');
         if (!handle) return;
 
-        const TOTAL_COLS = this.COL_COUNT;
-        const HEIGHT_STEP = 40;
         const MIN_HEIGHT = 80;
 
         const onPointerDown = (e) => {
@@ -293,14 +293,15 @@ const dashboardModule = {
             const grid = document.getElementById('widget-grid');
             if (!grid) return;
 
-            const gridWidth = grid.getBoundingClientRect().width;
-            const gapPx = this.GAP_PX * 2; // 24px gap for resize calculation consistency
-            const colWidth = (gridWidth - gapPx * (TOTAL_COLS - 1)) / TOTAL_COLS;
+            const metrics = this._getGridMetrics();
+            if (!metrics) return;
+            const { rowHeight, maxRows, gap } = metrics;
 
             const currentWidth = el.getBoundingClientRect().width;
             const currentHeight = el.getBoundingClientRect().height;
             // Preserve the initial grid column start so onMove doesn't reset it to 'auto' (col 1)
             const initCol = parseInt(el.style.gridColumnStart) || 1;
+            const startRow = parseInt(el.style.gridRowStart) || 1;
 
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'nwse-resize';
@@ -308,44 +309,49 @@ const dashboardModule = {
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
                 const targetWidth = currentWidth + dx;
-                let newSpan = Math.max(1, Math.round(targetWidth / (colWidth + gapPx)));
-                newSpan = Math.min(newSpan, TOTAL_COLS);
+                let newSpan = Math.max(1, Math.round(targetWidth / (rowHeight + this.GAP_PX)));
+                newSpan = Math.min(newSpan, this.COL_COUNT);
 
                 const dy = moveE.clientY - startY;
                 const targetHeight = currentHeight + dy;
-                let snappedHeight = Math.max(MIN_HEIGHT, Math.round(targetHeight / HEIGHT_STEP) * HEIGHT_STEP);
+                let snappedHeight = Math.max(MIN_HEIGHT, Math.round(targetHeight / rowHeight) * rowHeight);
+
+                // Max height: fill from start row to grid bottom
+                const maxRowsAvail = maxRows - startRow + 1;
+                const maxHeight = Math.max(MIN_HEIGHT, maxRowsAvail * rowHeight - gap);
 
                 // Occupancy check — clamp span/height to avoid overlapping neighbors
                 // Only run the expensive check when the widget is actually growing.
-                // Use dx/dy to detect direction without DOM reads (avoids layout thrashing).
                 const isGrowingWider = dx > 0;
                 const isGrowingTaller = dy > 0;
 
                 if (isGrowingWider || isGrowingTaller) {
-                    const metrics = this._getGridMetrics();
-                    if (metrics) {
-                        const map = this._buildOccupancyMap(metrics.maxRows, el);
-                        const startCol = parseInt(el.style.gridColumnStart) || 1;
-                        const startRow = parseInt(el.style.gridRowStart) || 1;
+                    const metrics2 = this._getGridMetrics();
+                    if (metrics2) {
+                        const map = this._buildOccupancyMap(metrics2.maxRows, el);
+                        const startRow2 = parseInt(el.style.gridRowStart) || 1;
                         // Clamp span (only if growing wider)
                         if (isGrowingWider) {
                             const oldSpan = parseInt(el.dataset.widgetSpan) || 1;
-                            let proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics.rowHeight));
-                            while (newSpan > oldSpan && !this._rectFits(map, startCol, startRow, newSpan, proposedRowSpan, metrics)) {
+                            let proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics2.rowHeight));
+                            while (newSpan > oldSpan && !this._rectFits(map, initCol, startRow2, newSpan, proposedRowSpan, metrics2)) {
                                 newSpan--;
                             }
                         }
                         // Clamp height (only if growing taller)
                         if (isGrowingTaller) {
                             const oldHeight = parseInt(el.dataset.widgetHeight) || parseInt(el.style.height) || MIN_HEIGHT;
-                            while (snappedHeight > oldHeight) {
-                                const proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics.rowHeight));
-                                if (this._rectFits(map, startCol, startRow, newSpan, proposedRowSpan, metrics)) break;
-                                snappedHeight -= HEIGHT_STEP;
+                            while (snappedHeight > oldHeight && snappedHeight > MIN_HEIGHT) {
+                                const proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics2.rowHeight));
+                                if (this._rectFits(map, initCol, startRow2, newSpan, proposedRowSpan, metrics2)) break;
+                                snappedHeight -= rowHeight;
                             }
                         }
                     }
                 }
+
+                // Clamp to grid bounds (laatste check: niet groter dan grid bodem)
+                snappedHeight = Math.min(snappedHeight, maxHeight);
 
                 el.style.gridColumn = `${initCol} / span ${newSpan}`;
                 el.dataset.widgetSpan = String(newSpan);
@@ -431,6 +437,7 @@ const dashboardModule = {
                         card.dataset.widgetHeight = String(clamped);
                     }
                 }
+
             });
         } catch (e) {}
     },
@@ -443,6 +450,30 @@ const dashboardModule = {
     _getDefaultHeight(widgetId) {
         const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320 };
         return defaults[widgetId] || 140;
+    },
+
+    /**
+     * Expand ProPresenter widget(s) to fill all available grid rows.
+     * This ensures the slides container takes full advantage of grid real estate.
+     */
+    _expandWidgetToGridHeight() {
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return;
+        const metrics = this._getGridMetrics();
+        if (!metrics) return;
+        const { rowHeight, maxRows, gap } = metrics;
+
+        grid.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(card => {
+            const rowStart = parseInt(card.style.gridRowStart) || 1;
+            const rowsAvail = maxRows - rowStart + 1;
+            const fullHeight = Math.max(120, rowsAvail * rowHeight - gap);
+
+            card.style.height = fullHeight + 'px';
+            card.style.minHeight = '';
+            card.dataset.widgetHeight = String(fullHeight);
+
+
+        });
     },
 
     // Upgrade old propresenter span by clearing saved sizes (now 24)
