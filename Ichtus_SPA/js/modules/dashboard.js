@@ -1013,11 +1013,6 @@ const dashboardModule = {
         defaultOpt.textContent = i18n.t('dashboard_layout_default') || 'Default';
         sel.appendChild(defaultOpt);
 
-        const addNewOpt = document.createElement('option');
-        addNewOpt.value = '__new__';
-        addNewOpt.textContent = '＋ Nieuw dashboard...';
-        sel.appendChild(addNewOpt);
-
         const layouts = this.loadLayouts();
         const activeName = this.getActiveLayoutName();
         Object.keys(layouts).forEach(name => {
@@ -1026,6 +1021,12 @@ const dashboardModule = {
             opt.textContent = name + (name === activeName ? ' ' + (i18n.t('dashboard_layout_active') || '(active)') : '');
             sel.appendChild(opt);
         });
+
+        const addNewOpt = document.createElement('option');
+        addNewOpt.value = '__new__';
+        addNewOpt.textContent = '＋ Nieuw dashboard...';
+        sel.appendChild(addNewOpt);
+
         sel.value = activeName;
     },
 
