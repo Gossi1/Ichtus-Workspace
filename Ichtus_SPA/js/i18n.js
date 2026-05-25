@@ -730,6 +730,11 @@ const i18n = {
         return str;
     },
 
+    // Get full locale string for toLocaleDateString / toLocaleTimeString
+    getLocale() {
+        return this.lang === 'nl' ? 'nl-NL' : 'en-US';
+    },
+
     // Set language and persist
     setLang(lang) {
         if (!this.strings[lang]) return;

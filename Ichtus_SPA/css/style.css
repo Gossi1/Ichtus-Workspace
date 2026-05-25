@@ -21,10 +21,12 @@
     display: none;
 }
 
-/* Role selector: z-index lager dan de sidebar zodat navigatie altijd werkt */
+/* Role selector: overlay onder de sidebar (z-index 100) maar boven de content */
 #role-selector {
     left: 0;
+    top: 0;
     width: 100%;
+    height: 100%;
     z-index: 50;
 }
 
@@ -1019,6 +1021,95 @@ canvas { display: block; max-width: 100%; height: auto; }
 }
 .cl-clear-filter:hover { color: #ed1c24; border-color: #ed1c24; }
 
+/* Checklist card (rendered by JS) - badge-stijl */
+.cl-checklist-card {
+    background: #272727;
+    border: 1px solid #383838;
+    border-radius: 20px;
+    padding: 14px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    user-select: none;
+    border-left: 4px solid var(--ichtus-orange);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.cl-checklist-card:hover {
+    border-color: var(--ichtus-orange);
+    background: #2d2d2d;
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.35);
+}
+.cl-checklist-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.cl-checklist-name {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 1rem;
+    color: #eee;
+    letter-spacing: 0.04em;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cl-repeat-icon {
+    color: var(--ichtus-orange);
+    flex-shrink: 0;
+    display: inline-flex;
+    align-items: center;
+}
+.cl-checklist-progress {
+    font-size: 0.78rem;
+    color: #777;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+.cl-checklist-due {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: #666;
+}
+.cl-due-label {
+    color: #666;
+}
+.cl-due-time {
+    font-family: 'Blockprint', sans-serif;
+    color: #888;
+}
+.cl-checklist-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.cl-checklist-progress-bar {
+    flex: 1;
+    height: 5px;
+    background: #3a3a3a;
+    border-radius: 6px;
+    overflow: hidden;
+}
+.cl-checklist-progress-fill {
+    height: 100%;
+    background: var(--ichtus-orange);
+    border-radius: 6px;
+    transition: width 0.4s ease;
+}
+.cl-checklist-progress-pct {
+    font-size: 0.75rem;
+    color: #777;
+    white-space: nowrap;
+    min-width: 32px;
+    text-align: right;
+}
+
 /* --- Detail view --- */
 .cl-detail {
     flex: 1;
@@ -1111,6 +1202,87 @@ canvas { display: block; max-width: 100%; height: auto; }
 .cl-task-time.urgent { color: #ed1c24; }
 .cl-task-time.warning { color: #f47920; }
 .cl-task-time.ok { color: var(--ichtus-green); }
+
+/* Item card (detail view items) - badge-stijl */
+.cl-item-card {
+    background: #272727;
+    border: 1px solid #383838;
+    border-radius: 24px;
+    padding: 10px 16px;
+    margin-bottom: 8px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    user-select: none;
+    border-left: 4px solid #4a4a4a;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+.cl-item-card:hover {
+    border-color: var(--ichtus-orange);
+    border-left-color: var(--ichtus-orange);
+    background: #2d2d2d;
+}
+.cl-item-card-completed {
+    opacity: 0.55;
+    border-left-color: var(--ichtus-green);
+}
+.cl-item-card-completed:hover {
+    border-left-color: var(--ichtus-green);
+}
+.cl-item-card-completed .cl-item-card-name {
+    text-decoration: line-through;
+}
+.cl-item-card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.cl-item-checkbox {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--ichtus-orange);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+.cl-item-card-name {
+    font-size: 0.92rem;
+    color: #ddd;
+    line-height: 1.3;
+    flex: 1;
+    min-width: 0;
+}
+.cl-item-card-name.completed {
+    text-decoration: line-through;
+    color: #777;
+}
+.cl-item-card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+.cl-item-card-footer {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 0.78rem;
+    color: #777;
+}
+.cl-item-card-team {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #888;
+}
+.cl-item-card-team::before {
+    content: '👤';
+    font-size: 0.7rem;
+}
+.cl-item-card-time {
+    font-family: 'Blockprint', sans-serif;
+    color: #888;
+}
 
 /* Tags on task */
 .cl-task-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }

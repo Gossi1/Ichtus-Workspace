@@ -29,6 +29,11 @@
     --ichtus-green: #00a651;
     --ichtus-teal: #00a79d;
     
+    /* CSS variables used by overlay-screen, buttons, and auth forms */
+    --primary-dark: #1a1a1a;
+    --primary: #2d2d2d;
+    --accent: #f47920;
+    
     /* Dark Mode UI Backgrounds */
     --bg-main: #1e1e1e;
     --bg-sidebar: #2d2d2d;
