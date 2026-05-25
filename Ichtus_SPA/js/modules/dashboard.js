@@ -46,7 +46,6 @@ const dashboardModule = {
         this._restoreWidgetPositions();
         this._expandWidgetToGridHeight();
         this.initLayoutSelector();
-        this.updateSidebarDashboards();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
             this._startProPresenterPolling();
         }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
@@ -1105,7 +1104,6 @@ const dashboardModule = {
         this._isApplyingLayout = false;
 
         this.populateLayoutSelector();
-        this.updateSidebarActiveState();
         document.querySelectorAll('#widget-grid .widget-body').forEach(b => { b.style.display = ''; });
     },
 
@@ -1445,7 +1443,6 @@ const dashboardModule = {
             this.applyLayout('__default__');
         }
         this.populateLayoutSelector();
-        this.updateSidebarDashboards();
     },
 
     renameLayout(oldName, newName) {
@@ -1458,7 +1455,6 @@ const dashboardModule = {
         this.saveLayouts(layouts);
         if (this.getActiveLayoutName() === oldName) this.setActiveLayoutName(trimmed);
         this.populateLayoutSelector();
-        this.updateSidebarDashboards();
         return true;
     },
 
@@ -1602,7 +1598,6 @@ const dashboardModule = {
         this.applyLayout(trimmed);
         
         this.populateLayoutSelector();
-        this.updateSidebarDashboards();
     },
 
     duplicateLayout(layoutName) {
@@ -1626,94 +1621,6 @@ const dashboardModule = {
         this.applyLayout(trimmed);
         
         this.populateLayoutSelector();
-        this.updateSidebarDashboards();
-    },
-
-    updateSidebarDashboards() {
-        const container = document.getElementById('sidebar-custom-dashboards');
-        if (!container) return;
-        
-        container.innerHTML = '';
-        const layouts = this.loadLayouts();
-        const activeName = this.getActiveLayoutName();
-        
-        Object.keys(layouts).forEach(name => {
-            const li = document.createElement('li');
-            li.dataset.view = 'dashboard';
-            li.dataset.layout = name;
-            if (name === activeName) {
-                li.className = 'active';
-            }
-            
-            const a = document.createElement('a');
-            a.href = '#';
-            a.onclick = (e) => {
-                e.preventDefault();
-                this.switchLayout(name);
-                router.navigate('dashboard');
-            };
-            
-            const iconDiv = document.createElement('div');
-            iconDiv.className = 'sidebar-icon';
-            iconDiv.innerHTML = `
-                <svg class="sidebar-nav-icon" style="opacity: 0.8; stroke-dasharray: 2 2;">
-                    <rect x="3" y="3" width="7" height="7"></rect>
-                    <rect x="14" y="3" width="7" height="7"></rect>
-                    <rect x="3" y="14" width="7" height="7"></rect>
-                    <rect x="14" y="14" width="7" height="7"></rect>
-                </svg>
-            `;
-            
-            const textSpan = document.createElement('span');
-            textSpan.className = 'sidebar-text';
-            textSpan.textContent = name;
-            textSpan.title = name;
-            textSpan.style.fontSize = '8px';
-            textSpan.style.textTransform = 'none';
-            
-            a.appendChild(iconDiv);
-            a.appendChild(textSpan);
-            li.appendChild(a);
-            container.appendChild(li);
-        });
-        
-        const addLi = document.createElement('li');
-        addLi.className = 'sidebar-sub-item sidebar-add-dash';
-        const addA = document.createElement('a');
-        addA.href = '#';
-        addA.onclick = (e) => {
-            e.preventDefault();
-            this.createNewLayout();
-        };
-        addA.title = 'Nieuw dashboard toevoegen';
-        
-        const addIconDiv = document.createElement('div');
-        addIconDiv.className = 'sidebar-icon';
-        addIconDiv.style.color = 'var(--ichtus-orange)';
-        addIconDiv.style.fontWeight = 'bold';
-        addIconDiv.style.fontSize = '14px';
-        addIconDiv.textContent = '＋';
-        
-        const addTextSpan = document.createElement('span');
-        addTextSpan.className = 'sidebar-text';
-        addTextSpan.textContent = 'Nieuw';
-        addTextSpan.style.fontSize = '8px';
-        
-        addA.appendChild(addIconDiv);
-        addA.appendChild(addTextSpan);
-        addLi.appendChild(addA);
-        container.appendChild(addLi);
-    },
-
-    updateSidebarActiveState() {
-        const activeName = this.getActiveLayoutName();
-        document.querySelectorAll('.sidebar-menu li[data-view="dashboard"]').forEach(li => {
-            if (li.dataset.layout === activeName) {
-                li.classList.add('active');
-            } else {
-                li.classList.remove('active');
-            }
-        });
     },
 
     // ===============================
