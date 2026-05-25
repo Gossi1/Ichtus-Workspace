@@ -1012,6 +1012,12 @@ const dashboardModule = {
         defaultOpt.value = '__default__';
         defaultOpt.textContent = i18n.t('dashboard_layout_default') || 'Default';
         sel.appendChild(defaultOpt);
+
+        const addNewOpt = document.createElement('option');
+        addNewOpt.value = '__new__';
+        addNewOpt.textContent = '＋ Nieuw dashboard...';
+        sel.appendChild(addNewOpt);
+
         const layouts = this.loadLayouts();
         const activeName = this.getActiveLayoutName();
         Object.keys(layouts).forEach(name => {
@@ -1102,7 +1108,15 @@ const dashboardModule = {
         document.querySelectorAll('#widget-grid .widget-body').forEach(b => { b.style.display = ''; });
     },
 
-    switchLayout(layoutName) { this.applyLayout(layoutName); },
+    switchLayout(layoutName) {
+        if (layoutName === '__new__') {
+            this.createNewLayout();
+            const sel = document.getElementById('layout-selector');
+            if (sel) sel.value = this.getActiveLayoutName();
+            return;
+        }
+        this.applyLayout(layoutName);
+    },
 
     // ===============================
     //  EDIT MODE
