@@ -5,7 +5,7 @@
 
 /* ==================== AUTH & SETUP SCREEN STYLES ==================== */
 .overlay-screen {
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     width: 100%;
@@ -19,6 +19,13 @@
 
 .overlay-screen.hidden {
     display: none;
+}
+
+/* Role selector: z-index lager dan de sidebar zodat navigatie altijd werkt */
+#role-selector {
+    left: 0;
+    width: 100%;
+    z-index: 50;
 }
 
 .auth-container, .setup-container {
@@ -221,7 +228,6 @@ html, body {
     width: 100%;
     min-height: 100vh;
     overflow-x: hidden;
-    position: relative;
 }
 
 .app-view.active {
