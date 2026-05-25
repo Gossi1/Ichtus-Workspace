@@ -318,7 +318,11 @@ const dashboardModule = {
             const { rowHeight, maxRows, gap } = metrics;
 
             const currentWidth = el.getBoundingClientRect().width;
-            const currentHeight = el.getBoundingClientRect().height;
+            const currentSpan = parseInt(el.dataset.widgetSpan) || this._getDefaultSpan(el.dataset.widgetId);
+            // Use stored snapped height if available, else getBoundingClientRect
+            const storedH = parseInt(el.dataset.widgetHeight);
+            const currentHeight = storedH > 0 ? storedH : el.getBoundingClientRect().height;
+            const currentRowSpan = Math.max(1, Math.round(currentHeight / rowHeight));
             // Preserve the initial grid column start so onMove doesn't reset it to 'auto' (col 1)
             const initCol = parseInt(el.style.gridColumnStart) || 1;
             const startRow = parseInt(el.style.gridRowStart) || 1;
@@ -327,21 +331,21 @@ const dashboardModule = {
 
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'nwse-resize';
-            console.log('[PP-RESIZE-DEBUG] onPointerDown → widget:', el.dataset.widgetId, '| startRow:', startRow, '| maxRows:', maxRows, '| rowsAvail:', maxRowsAvail, '| rowHeight:', rowHeight, '| currentHeight:', currentHeight, '| maxHeight:', maxHeight);
+            console.log('[PP-RESIZE-DEBUG] onPointerDown → widget:', el.dataset.widgetId, '| startRow:', startRow, '| maxRows:', maxRows, '| rowsAvail:', maxRowsAvail, '| rowHeight:', rowHeight, '| currentHeight:', currentHeight, '| currentSpan:', currentSpan, '| currentRowSpan:', currentRowSpan, '| maxHeight:', maxHeight);
 
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
-                const targetWidth = currentWidth + dx;
-                let newSpan = Math.max(1, Math.round(targetWidth / (rowHeight + this.GAP_PX)));
-                newSpan = Math.min(newSpan, this.COL_COUNT);
+                // Use delta-based span: start from currentSpan, add columns based on dx
+                const spanDelta = Math.round(dx / (rowHeight + this.GAP_PX));
+                let newSpan = Math.max(1, Math.min(currentSpan + spanDelta, this.COL_COUNT));
 
                 const dy = moveE.clientY - startY;
-                const targetHeight = currentHeight + dy;
-                let snappedHeight = Math.max(MIN_HEIGHT, Math.round(targetHeight / rowHeight) * rowHeight);
+                // Use delta-based height: start from currentRowSpan, add rows based on dy
+                const rowDelta = Math.round(dy / rowHeight);
+                let snappedHeight = Math.max(MIN_HEIGHT, (currentRowSpan + rowDelta) * rowHeight);
 
                 // Max height: fill from start row to grid bottom
-                const maxRowsAvail = maxRows - startRow + 1;
-                const maxHeight = Math.max(MIN_HEIGHT, maxRowsAvail * rowHeight - gap);
+                const maxHeightLocal = Math.max(MIN_HEIGHT, maxRowsAvail * rowHeight - gap);
 
                 // Occupancy check — clamp span/height to avoid overlapping neighbors
                 // Only run the expensive check when the widget is actually growing.
@@ -376,7 +380,7 @@ const dashboardModule = {
                 }
 
                 // Clamp to grid bounds (laatste check: niet groter dan grid bodem)
-                snappedHeight = Math.min(snappedHeight, maxHeight);
+                snappedHeight = Math.min(snappedHeight, maxHeightLocal);
 
                 el.style.gridColumn = `${initCol} / span ${newSpan}`;
                 el.dataset.widgetSpan = String(newSpan);
@@ -384,7 +388,7 @@ const dashboardModule = {
                 el.style.minHeight = '';
                 el.dataset.widgetHeight = String(snappedHeight);
 
-                console.log('[PP-RESIZE-DEBUG] onMove → dy:', dy, '| targetHeight:', targetHeight, '| snapped:', snappedHeight, '| maxHeight:', maxHeight, '| occupancyClamped:', occupancyClamped, '| maxClamped:', snappedHeight === maxHeight && dy > 0, '| newSpan:', newSpan);
+                console.log('[PP-RESIZE-DEBUG] onMove → dy:', dy, '| rowDelta:', rowDelta, '| spanDelta:', spanDelta, '| snapped:', snappedHeight, '| maxHeight:', maxHeightLocal, '| occupancyClamped:', occupancyClamped, '| maxClamped:', snappedHeight === maxHeightLocal && dy > 0, '| newSpan:', newSpan);
             };
 
             const onUp = () => {
@@ -503,9 +507,11 @@ const dashboardModule = {
 
             card.style.height = fullHeight + 'px';
             card.style.minHeight = '';
-            card.dataset.widgetHeight = String(fullHeight);
+            // Store height WITHOUT gap subtraction in dataset for consistent resize calculation.
+            // CSS height uses gap subtraction (correct visual), dataset uses raw rowSpan * rowHeight.
+            card.dataset.widgetHeight = String(rowsAvail * rowHeight);
 
-            console.log('[PP-TRACE] _expandWidgetToGridHeight → widget:', card.dataset.widgetId, '| rowStart:', rowStart, '| rowsAvail:', rowsAvail, '| rowHeight:', rowHeight, '| maxRows:', maxRows, '| oldH:', oldH, '| newH:', fullHeight);
+            console.log('[PP-TRACE] _expandWidgetToGridHeight → widget:', card.dataset.widgetId, '| rowStart:', rowStart, '| rowsAvail:', rowsAvail, '| rowHeight:', rowHeight, '| maxRows:', maxRows, '| oldH:', oldH, '| newH:', fullHeight, '| dsH:', rowsAvail * rowHeight);
         });
     },
 
