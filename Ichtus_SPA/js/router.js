@@ -93,7 +93,15 @@ const router = {
         document.querySelectorAll('.sidebar-menu li').forEach(li => {
             li.classList.remove('active');
             if (li.dataset.view === view) {
-                li.classList.add('active');
+                if (view === 'dashboard') {
+                    const layoutAttr = li.dataset.layout;
+                    const activeLayout = typeof dashboardModule !== 'undefined' ? dashboardModule.getActiveLayoutName() : '__default__';
+                    if (layoutAttr === activeLayout) {
+                        li.classList.add('active');
+                    }
+                } else {
+                    li.classList.add('active');
+                }
             }
         });
 

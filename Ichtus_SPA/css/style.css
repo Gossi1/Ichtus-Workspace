@@ -2420,6 +2420,11 @@ input:checked + .slider::before { transform: translateX(20px); }
     color: var(--ichtus-orange);
 }
 
+.dash-header-btn:hover {
+    color: var(--ichtus-orange);
+    transform: scale(1.05);
+}
+
 /* Layout Selector */
 .layout-selector {
     background: transparent !important;
@@ -2536,6 +2541,12 @@ input:checked + .slider::before { transform: translateX(20px); }
 .layout-manage-item .layout-actions .rename-btn:hover {
     background: var(--ichtus-blue);
     border-color: var(--ichtus-blue);
+    color: white;
+}
+
+.layout-manage-item .layout-actions .duplicate-btn:hover {
+    background: var(--ichtus-green);
+    border-color: var(--ichtus-green);
     color: white;
 }
 

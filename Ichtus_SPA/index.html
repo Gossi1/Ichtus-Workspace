@@ -26,8 +26,8 @@
             <span class='sidebar-title'>WORKSPACE</span>
         </div>
         <ul class='sidebar-menu'>
-            <li data-view='dashboard'>
-                <a href='#' onclick="router.navigate('dashboard'); return false;">
+            <li data-view='dashboard' data-layout='__default__'>
+                <a href='#' onclick="dashboardModule.switchLayout('__default__'); router.navigate('dashboard'); return false;">
                     <div class='sidebar-icon'>
                         <svg class='sidebar-nav-icon'>
                             <rect x='3' y='3' width='7' height='7'></rect>
@@ -39,6 +39,7 @@
                     <span class='sidebar-text' data-i18n='nav_dashboard'>Dashboard</span>
                 </a>
             </li>
+            <div id="sidebar-custom-dashboards"></div>
             <li data-view='agenda'>
                 <a href='#' onclick="router.navigate('agenda'); return false;">
                     <div class='sidebar-icon'>
@@ -710,6 +711,7 @@
                     <option value='__default__' data-i18n='dashboard_layout_default'>Default</option>
                 </select>
                 <div class='dashboard-header-actions'>
+                    <button class='dash-header-btn dash-save-btn' onclick="dashboardModule.saveCurrentLayout()" title='Opslaan'>💾</button>
                     <button class='dash-header-btn dash-edit-btn' onclick="dashboardModule.toggleEditMode()" title='Edit'>✎</button>
                     <button class='dash-header-btn dash-manage-btn' onclick="dashboardModule.manageLayout()" title='Manage layouts'>⚙</button>
                 </div>
