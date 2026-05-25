@@ -3189,3 +3189,109 @@ input:checked + .slider::before { transform: translateX(20px); }
     overflow-y: auto;
     max-height: none;
 }
+
+/* ===============================
+   Countdown Widget
+   =============================== */
+.countdown-widget {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.countdown-display {
+    font-size: 2.2rem;
+    color: var(--ichtus-orange);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.countdown-display.no-target {
+    color: var(--text-secondary, #888);
+    font-size: 1.8rem;
+}
+
+.countdown-display.finished {
+    color: var(--ichtus-green, #00a651);
+    animation: pulse-countdown 1.5s infinite alternate;
+}
+
+@keyframes pulse-countdown {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.05); opacity: 1; }
+}
+
+.countdown-labels {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+    transition: opacity 0.2s ease;
+}
+
+.countdown-target-info {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #888);
+    font-weight: 500;
+    text-align: center;
+}
+
+.countdown-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 0.5rem;
+}
+
+.countdown-input {
+    background: var(--bg-sidebar, #2c2c2e);
+    color: var(--text-main, #fff);
+    border: 1px solid var(--border-light, #444);
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.countdown-input:focus {
+    border-color: var(--ichtus-orange);
+}
+
+.countdown-settings .btn-save {
+    background: var(--ichtus-orange);
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.2s ease;
+}
+
+.countdown-settings .btn-save:hover {
+    opacity: 0.9;
+}
+
+.countdown-settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #888);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s ease;
+    margin-left: 0.75rem;
+}
+
+.countdown-settings-btn:hover {
+    color: var(--ichtus-orange);
+}

@@ -34,6 +34,7 @@ const dashboardModule = {
 
         this.setupDragAndDrop();
         this.setupTimer();
+        this.setupCountdown();
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
         this.restoreWidgetOrder();
@@ -84,7 +85,7 @@ const dashboardModule = {
     },
 
     _getDefaultRowSpan(widgetId) {
-        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8 };
+        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, servicecountdown: 4 };
         return defaults[widgetId] || 3;
     },
 
@@ -462,12 +463,12 @@ const dashboardModule = {
     },
 
     _getDefaultSpan(widgetId) {
-        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24 };
+        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, servicecountdown: 18 };
         return defaults[widgetId] || 6;
     },
 
     _getDefaultHeight(widgetId) {
-        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320 };
+        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, servicecountdown: 200 };
         return defaults[widgetId] || 140;
     },
 
@@ -623,6 +624,7 @@ const dashboardModule = {
                                 this._startPlaylistChangeDetection();
                                 this._startPlaylistSlideTracking();
                             }
+                            if (id === 'servicecountdown') this.setupCountdown();
                         }
                     }
                 }
@@ -750,6 +752,136 @@ const dashboardModule = {
         const m = Math.floor((s % 3600) / 60);
         const sec = s % 60;
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+    },
+
+    setupCountdown() {
+        if (this._countdownInterval) {
+            clearInterval(this._countdownInterval);
+            this._countdownInterval = null;
+        }
+
+        const updateDisplay = () => {
+            const cards = document.querySelectorAll('.widget-card[data-widget-id="servicecountdown"]');
+            if (cards.length === 0) {
+                if (this._countdownInterval) {
+                    clearInterval(this._countdownInterval);
+                    this._countdownInterval = null;
+                }
+                return;
+            }
+
+            const targetStr = localStorage.getItem('ichtus_countdown_target');
+            cards.forEach(card => {
+                const displayEl = card.querySelector('#countdown-display');
+                const labelsEl = card.querySelector('.countdown-labels');
+                const infoEl = card.querySelector('#countdown-target-info');
+                const inputEl = card.querySelector('#countdown-target-input');
+                const settingsPanel = card.querySelector('#countdown-settings-panel');
+
+                if (!targetStr) {
+                    if (displayEl) {
+                        displayEl.textContent = '--:--:--';
+                        displayEl.classList.add('no-target');
+                    }
+                    if (labelsEl) labelsEl.style.opacity = '0.3';
+                    if (infoEl) infoEl.textContent = 'Geen dienst gepland';
+                    if (settingsPanel && !card.dataset.settingsToggled) {
+                        settingsPanel.classList.remove('hidden');
+                    }
+                    return;
+                }
+
+                const targetDate = new Date(targetStr);
+                const now = new Date();
+                const diffMs = targetDate - now;
+
+                if (infoEl) {
+                    if (!isNaN(targetDate.getTime())) {
+                        const options = { weekday: 'long', day: 'numeric', month: 'long' };
+                        const datePart = targetDate.toLocaleDateString('nl-NL', options);
+                        const timePart = targetDate.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit' });
+                        const capitalizedDate = datePart.charAt(0).toUpperCase() + datePart.slice(1);
+                        infoEl.textContent = `${capitalizedDate} om ${timePart}`;
+                    } else {
+                        infoEl.textContent = 'Ongeldige datum';
+                    }
+                }
+
+                if (diffMs <= 0) {
+                    if (displayEl) {
+                        displayEl.textContent = '00:00:00';
+                        displayEl.classList.add('finished');
+                    }
+                    if (labelsEl) labelsEl.style.opacity = '1';
+                    return;
+                }
+
+                if (displayEl) displayEl.classList.remove('no-target', 'finished');
+                if (labelsEl) labelsEl.style.opacity = '1';
+
+                const totalSec = Math.floor(diffMs / 1000);
+                const days = Math.floor(totalSec / 86400);
+                const hours = Math.floor((totalSec % 86400) / 3600);
+                const minutes = Math.floor((totalSec % 3600) / 60);
+                const seconds = totalSec % 60;
+
+                let displayStr = '';
+                if (days > 0) {
+                    displayStr += `${days}d `;
+                }
+                displayStr += `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+                if (displayEl) displayEl.textContent = displayStr;
+                
+                if (inputEl && !inputEl.value) {
+                    const tzOffset = targetDate.getTimezoneOffset() * 60000;
+                    const localISOTime = (new Date(targetDate - tzOffset)).toISOString().slice(0, 16);
+                    inputEl.value = localISOTime;
+                }
+            });
+        };
+
+        updateDisplay();
+        this._countdownInterval = setInterval(updateDisplay, 1000);
+    },
+
+    toggleCountdownSettings(btn) {
+        const card = btn.closest('.widget-card');
+        if (!card) return;
+        const panel = card.querySelector('#countdown-settings-panel');
+        if (!panel) return;
+        
+        const isHidden = panel.classList.contains('hidden');
+        if (isHidden) {
+            panel.classList.remove('hidden');
+            card.dataset.settingsToggled = 'true';
+        } else {
+            panel.classList.add('hidden');
+            card.removeAttribute('data-settings-toggled');
+        }
+    },
+
+    saveCountdownTarget(btn) {
+        const card = btn.closest('.widget-card');
+        if (!card) return;
+        const inputEl = card.querySelector('#countdown-target-input');
+        if (!inputEl) return;
+
+        const val = inputEl.value;
+        if (!val) {
+            alert('Voer een geldige datum en tijd in.');
+            return;
+        }
+
+        localStorage.setItem('ichtus_countdown_target', val);
+        
+        const panel = card.querySelector('#countdown-settings-panel');
+        if (panel) {
+            panel.classList.add('hidden');
+            card.removeAttribute('data-settings-toggled');
+        }
+
+        this.setupCountdown();
     },
 
     // ===============================
@@ -969,7 +1101,8 @@ const dashboardModule = {
             { id: 'servicetimer', icon: '⏱', label: 'Service Timer' },
             { id: 'status', icon: '📊', label: 'Workspace Status' },
             { id: 'propresenter', icon: '🖥', label: 'ProPresenter Presentation' },
-            { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' }
+            { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' },
+            { id: 'servicecountdown', icon: '⏳', label: 'Service Countdown' }
         ];
 
         items.forEach(item => {
@@ -1058,6 +1191,25 @@ const dashboardModule = {
                         <div class="pp-loading">Loading playlist…</div>
                     </div>
                 </div>`;
+            case 'servicecountdown':
+                return `<div class="widget-card" draggable="true" data-widget-id="servicecountdown">
+                    <div class="widget-header">
+                        <h3 class="widget-title">Aftellen naar dienst</h3>
+                        <button class="countdown-settings-btn" onclick="dashboardModule.toggleCountdownSettings(this)" title="Instellingen">⚙️</button>
+                    </div>
+                    <div class="widget-body">
+                        <div class="countdown-widget">
+                            <div class="countdown-labels" style="opacity: 1;">
+                                <span class="countdown-target-info" id="countdown-target-info">Geen dienst gepland</span>
+                            </div>
+                            <div class="countdown-display heading-font" id="countdown-display">00:00:00</div>
+                            <div class="countdown-settings hidden" id="countdown-settings-panel">
+                                <input type="datetime-local" id="countdown-target-input" class="countdown-input">
+                                <button class="btn-save" onclick="dashboardModule.saveCountdownTarget(this)">Opslaan</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
             default:
                 return null;
         }
@@ -1116,6 +1268,7 @@ const dashboardModule = {
 
         // Initialize widget-specific functionality
         if (widgetId === 'servicetimer') this.setupTimer();
+        if (widgetId === 'servicecountdown') this.setupCountdown();
         if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') this._startProPresenterPolling();
         if (widgetId === 'propresenter-playlist') {
             this._loadProPresenterPlaylist();
