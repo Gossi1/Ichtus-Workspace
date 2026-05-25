@@ -2633,16 +2633,15 @@ input:checked + .slider::before { transform: translateX(20px); }
 }
 
 .widget-card {
-    background: var(--bg-card);
+    background: var(--bg-main);
     border: 1px solid var(--border-light);
     border-radius: 12px;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
     transition: transform 0.2s ease, box-shadow 0.2s ease;
-    cursor: grab;
     display: flex;
     flex-direction: column;
     position: relative;
+    align-self: stretch;
 }
 
 /* ProPresenter widget: override huge inline min-height so body scrolling works */
@@ -2652,9 +2651,8 @@ input:checked + .slider::before { transform: translateX(20px); }
 
 
 
-.widget-card:hover {
+.edit-mode .widget-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0,0,0,0.5);
 }
 
 .widget-card.dragging {

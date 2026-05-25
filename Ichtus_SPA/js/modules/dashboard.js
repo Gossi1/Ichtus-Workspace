@@ -83,6 +83,11 @@ const dashboardModule = {
         return { colWidth, rowHeight, maxRows, totalCols: this.COL_COUNT, gap: this.GAP_PX };
     },
 
+    _getDefaultRowSpan(widgetId) {
+        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8 };
+        return defaults[widgetId] || 3;
+    },
+
     /**
      * Build a 2D boolean occupancy map [row][col] from all widgets currently in the DOM.
      * Excludes the widget being dragged (this.draggedEl).
@@ -98,8 +103,12 @@ const dashboardModule = {
             const col = parseInt(card.style.gridColumnStart) || 1;
             const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
             const row = parseInt(card.style.gridRowStart) || 1;
-            const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
-            const rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+            
+            let rowSpan = parseInt(card.dataset.widgetRowSpan);
+            if (!rowSpan) {
+                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+            }
 
             for (let r = row - 1; r < Math.min(row - 1 + rowSpan, maxRows); r++) {
                 const rowArr = map[r];
@@ -194,10 +203,14 @@ const dashboardModule = {
     /**
      * Set CSS grid properties on a widget card.
      */
-    _applyWidgetGrid(card, col, row, span) {
+    _applyWidgetGrid(card, col, row, span, rowSpan) {
         card.style.gridColumn = `${col} / span ${span}`;
-        card.style.gridRowStart = String(row);
         card.dataset.widgetSpan = String(span);
+        const actualRowSpan = rowSpan || parseInt(card.dataset.widgetRowSpan) || this._getDefaultRowSpan(card.dataset.widgetId);
+        card.style.gridRow = `${row} / span ${actualRowSpan}`;
+        card.dataset.widgetRowSpan = String(actualRowSpan);
+        card.style.height = '';
+        card.style.minHeight = '';
     },
 
     // ===============================
@@ -217,6 +230,7 @@ const dashboardModule = {
         }
 
         grid.addEventListener('dragstart', (e) => {
+            if (!this._editMode) { e.preventDefault(); return; }
             if (e.target.closest('.widget-resize-handle')) { e.preventDefault(); return; }
             const card = e.target.closest('.widget-card');
             if (!card) return;
@@ -230,7 +244,7 @@ const dashboardModule = {
                 col: parseInt(card.style.gridColumnStart) || 1,
                 row: parseInt(card.style.gridRowStart) || 1,
                 span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId),
-                height: parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId),
+                rowSpan: parseInt(card.dataset.widgetRowSpan) || this._getDefaultRowSpan(card.dataset.widgetId),
                 savedPositions: (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}'); } catch(e) { return {}; } })(),
                 savedSizes: (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}'); } catch(e) { return {}; } })()
             };
@@ -249,8 +263,11 @@ const dashboardModule = {
             // Calculate the widget's full footprint for the indicator
             const card = this.draggedEl;
             const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
-            const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
-            const rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+            let rowSpan = parseInt(card.dataset.widgetRowSpan);
+            if (!rowSpan) {
+                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+            }
             const capRowSpan = Math.min(rowSpan, Math.max(1, metrics.maxRows - 2));
 
             indicator.style.display = 'block';
@@ -271,9 +288,12 @@ const dashboardModule = {
             if (card) {
                 card.classList.remove('dragging');
                 const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
-                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                let rowSpan = parseInt(card.dataset.widgetRowSpan);
+                if (!rowSpan) {
+                    const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                    rowSpan = metrics ? Math.max(1, Math.ceil(minH / metrics.rowHeight)) : 1;
+                }
                 const metrics = this._getGridMetrics();
-                const rowSpan = metrics ? Math.max(1, Math.ceil(minH / metrics.rowHeight)) : 1;
                 const cursorPos = this._cursorToGrid(e.clientX, e.clientY);
                 // Temporarily set draggedEl back so _buildOccupancyMap excludes this card
                 this.draggedEl = card;
@@ -281,12 +301,10 @@ const dashboardModule = {
                 const capRowSpan = Math.min(rowSpan, Math.max(1, (metrics ? metrics.maxRows : 15) - 2));
                 const free = this._findFreeSpot(span, capRowSpan, cursorPos?.col || 1, cursorPos?.row || 1);
                 this.draggedEl = null;
-                this._applyWidgetGrid(card, free.col, free.row, span);
+                this._applyWidgetGrid(card, free.col, free.row, span, rowSpan);
                 console.log('[PP-TRACE] dragend → after _applyWidgetGrid | cursor:', cursorPos, '| free:', free, '| old:', this._dragStartState ? {col: this._dragStartState.col, row: this._dragStartState.row} : 'N/A', '| applied: {col:', parseInt(card.style.gridColumnStart), 'row:', parseInt(card.style.gridRowStart), '} | span:', span, 'rowSpan:', rowSpan, 'capRowSpan:', capRowSpan);
                 this._saveWidgetPositions();
-                const beforeExpandH = parseInt(card.style.height);
                 this._expandWidgetToGridHeight();
-                console.log('[PP-TRACE] dragend → after _expandWidgetToGridHeight | applied: {col:', parseInt(card.style.gridColumnStart), 'row:', parseInt(card.style.gridRowStart), '} | height:', parseInt(card.style.height), '(was', beforeExpandH, ') | savedPositions row:', (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions')||'{}'); } catch(e) { return {}; } })().propresenter?.row || JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions')||'{}')['propresenter-playlist']?.row || 'N/A', '| dragStart row:', this._dragStartState?.row || 'N/A');
                 delete this._dragStartState;
             } else {
                 this.draggedEl = null;
@@ -302,8 +320,6 @@ const dashboardModule = {
         const handle = el.querySelector('.widget-resize-handle');
         if (!handle) return;
 
-        const MIN_HEIGHT = 80;
-
         const onPointerDown = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -315,80 +331,56 @@ const dashboardModule = {
 
             const metrics = this._getGridMetrics();
             if (!metrics) return;
-            const { rowHeight, maxRows, gap } = metrics;
+            const { rowHeight, maxRows } = metrics;
 
-            const currentWidth = el.getBoundingClientRect().width;
             const currentSpan = parseInt(el.dataset.widgetSpan) || this._getDefaultSpan(el.dataset.widgetId);
-            // Use stored snapped height if available, else getBoundingClientRect
-            const storedH = parseInt(el.dataset.widgetHeight);
-            const currentHeight = storedH > 0 ? storedH : el.getBoundingClientRect().height;
-            const currentRowSpan = Math.max(1, Math.round(currentHeight / rowHeight));
-            // Preserve the initial grid column start so onMove doesn't reset it to 'auto' (col 1)
+            const currentRowSpan = parseInt(el.dataset.widgetRowSpan) || this._getDefaultRowSpan(el.dataset.widgetId);
             const initCol = parseInt(el.style.gridColumnStart) || 1;
             const startRow = parseInt(el.style.gridRowStart) || 1;
             const maxRowsAvail = maxRows - startRow + 1;
-            const maxHeight = Math.max(80, maxRowsAvail * rowHeight - gap);
 
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'nwse-resize';
-            console.log('[PP-RESIZE-DEBUG] onPointerDown → widget:', el.dataset.widgetId, '| startRow:', startRow, '| maxRows:', maxRows, '| rowsAvail:', maxRowsAvail, '| rowHeight:', rowHeight, '| currentHeight:', currentHeight, '| currentSpan:', currentSpan, '| currentRowSpan:', currentRowSpan, '| maxHeight:', maxHeight);
 
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
-                // Use delta-based span: start from currentSpan, add columns based on dx
-                const spanDelta = Math.round(dx / (rowHeight + this.GAP_PX));
+                const spanDelta = Math.round(dx / rowHeight);
                 let newSpan = Math.max(1, Math.min(currentSpan + spanDelta, this.COL_COUNT));
 
                 const dy = moveE.clientY - startY;
-                // Use delta-based height: start from currentRowSpan, add rows based on dy
                 const rowDelta = Math.round(dy / rowHeight);
-                let snappedHeight = Math.max(MIN_HEIGHT, (currentRowSpan + rowDelta) * rowHeight);
+                let newRowSpan = Math.max(1, Math.min(currentRowSpan + rowDelta, maxRowsAvail));
 
-                // Max height: fill from start row to grid bottom
-                const maxHeightLocal = Math.max(MIN_HEIGHT, maxRowsAvail * rowHeight - gap);
-
-                // Occupancy check — clamp span/height to avoid overlapping neighbors
-                // Only run the expensive check when the widget is actually growing.
                 const isGrowingWider = dx > 0;
                 const isGrowingTaller = dy > 0;
-                let occupancyClamped = false;
 
                 if (isGrowingWider || isGrowingTaller) {
                     const metrics2 = this._getGridMetrics();
                     if (metrics2) {
                         const map = this._buildOccupancyMap(metrics2.maxRows, el);
                         const startRow2 = parseInt(el.style.gridRowStart) || 1;
-                        // Clamp span (only if growing wider)
                         if (isGrowingWider) {
                             const oldSpan = parseInt(el.dataset.widgetSpan) || 1;
-                            let proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics2.rowHeight));
-                            while (newSpan > oldSpan && !this._rectFits(map, initCol, startRow2, newSpan, proposedRowSpan, metrics2)) {
+                            while (newSpan > oldSpan && !this._rectFits(map, initCol, startRow2, newSpan, newRowSpan, metrics2)) {
                                 newSpan--;
                             }
                         }
-                        // Clamp height (only if growing taller)
                         if (isGrowingTaller) {
-                            const oldHeight = parseInt(el.dataset.widgetHeight) || parseInt(el.style.height) || MIN_HEIGHT;
-                            while (snappedHeight > oldHeight && snappedHeight > MIN_HEIGHT) {
-                                const proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics2.rowHeight));
-                                if (this._rectFits(map, initCol, startRow2, newSpan, proposedRowSpan, metrics2)) break;
-                                snappedHeight -= rowHeight;
-                                occupancyClamped = true;
+                            const oldRowSpan = parseInt(el.dataset.widgetRowSpan) || 1;
+                            while (newRowSpan > oldRowSpan && newRowSpan > 1) {
+                                if (this._rectFits(map, initCol, startRow2, newSpan, newRowSpan, metrics2)) break;
+                                newRowSpan--;
                             }
                         }
                     }
                 }
 
-                // Clamp to grid bounds (laatste check: niet groter dan grid bodem)
-                snappedHeight = Math.min(snappedHeight, maxHeightLocal);
-
                 el.style.gridColumn = `${initCol} / span ${newSpan}`;
                 el.dataset.widgetSpan = String(newSpan);
-                el.style.height = snappedHeight + 'px';
+                el.style.gridRow = `${startRow} / span ${newRowSpan}`;
+                el.dataset.widgetRowSpan = String(newRowSpan);
+                el.style.height = '';
                 el.style.minHeight = '';
-                el.dataset.widgetHeight = String(snappedHeight);
-
-                console.log('[PP-RESIZE-DEBUG] onMove → dy:', dy, '| rowDelta:', rowDelta, '| spanDelta:', spanDelta, '| snapped:', snappedHeight, '| maxHeight:', maxHeightLocal, '| occupancyClamped:', occupancyClamped, '| maxClamped:', snappedHeight === maxHeightLocal && dy > 0, '| newSpan:', newSpan);
             };
 
             const onUp = () => {
@@ -397,7 +389,6 @@ const dashboardModule = {
                 document.removeEventListener('pointermove', onMove);
                 document.removeEventListener('pointerup', onUp);
                 this._saveWidgetSizes();
-                // After resize, re-expand ProPresenter widgets to fill available grid height
                 const widgetId = el.dataset.widgetId;
                 if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') {
                     this._expandWidgetToGridHeight();
@@ -419,10 +410,10 @@ const dashboardModule = {
             const id = card.dataset.widgetId;
             if (!id) return;
             const span = parseInt(card.dataset.widgetSpan);
-            const height = parseInt(card.dataset.widgetHeight);
+            const rowSpan = parseInt(card.dataset.widgetRowSpan) || this._getDefaultRowSpan(id);
             const saved = {};
             if (span && span > 0 && span !== this._getDefaultSpan(id)) saved.span = span;
-            if (height && height > 0 && height !== this._getDefaultHeight(id)) saved.height = height;
+            if (rowSpan && rowSpan > 0 && rowSpan !== this._getDefaultRowSpan(id)) saved.rowSpan = rowSpan;
             if (Object.keys(saved).length > 0) sizes[id] = saved;
         });
         try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(sizes)); } catch (e) {}
@@ -437,43 +428,35 @@ const dashboardModule = {
                 const id = card.dataset.widgetId;
                 if (!id) return;
                 const data = saved[id];
-                let span, height;
+                let span, rowSpan;
                 if (typeof data === 'object' && data !== null) {
                     span = data.span ? Math.max(1, Math.min(36, parseInt(data.span) || 18)) : this._getDefaultSpan(id);
-                    height = data.height ? Math.max(60, parseInt(data.height) || 0) : 0;
+                    if (data.rowSpan) {
+                        rowSpan = Math.max(1, parseInt(data.rowSpan));
+                    } else if (data.height) {
+                        const m = this._getGridMetrics();
+                        const rH = m ? m.rowHeight : 42;
+                        rowSpan = Math.max(1, Math.round(parseInt(data.height) / rH));
+                    } else {
+                        rowSpan = this._getDefaultRowSpan(id);
+                    }
                 } else if (data) {
                     span = Math.max(1, Math.min(36, parseInt(data) || 18));
-                    height = 0;
+                    rowSpan = this._getDefaultRowSpan(id);
                 } else {
                     span = this._getDefaultSpan(id);
-                    height = 0;
-                }
-                card.style.gridColumn = `span ${span}`;
-                card.dataset.widgetSpan = String(span);
-                if (height > 0) {
-                    card.style.height = height + 'px';
-                    card.style.minHeight = '';
-                    card.dataset.widgetHeight = String(height);
-                } else {
-                    const defaultH = this._getDefaultHeight(id);
-                    card.style.height = defaultH + 'px';
-                    card.style.minHeight = '';
-                    card.dataset.widgetHeight = String(defaultH);
-                }
-                const m = this._getGridMetrics();
-                if (m) {
-                    const row = parseInt(card.style.gridRowStart) || 1;
-                    const rowsAvail = m.maxRows - row + 1;
-                    const maxH = rowsAvail * m.rowHeight - m.gap;
-                    const curH = parseInt(card.style.height) || 0;
-                    if (maxH > 0 && curH > maxH) {
-                        const clamped = Math.max(120, maxH);
-                        card.style.height = clamped + 'px';
-                        card.style.minHeight = '';
-                        card.dataset.widgetHeight = String(clamped);
-                    }
+                    rowSpan = this._getDefaultRowSpan(id);
                 }
 
+                card.style.gridColumn = `${parseInt(card.style.gridColumnStart) || 'auto'} / span ${span}`;
+                card.dataset.widgetSpan = String(span);
+                
+                const rowStart = parseInt(card.style.gridRowStart) || 1;
+                card.style.gridRow = `${rowStart} / span ${rowSpan}`;
+                card.dataset.widgetRowSpan = String(rowSpan);
+
+                card.style.height = '';
+                card.style.minHeight = '';
             });
         } catch (e) {}
     },
@@ -497,21 +480,16 @@ const dashboardModule = {
         if (!grid) return;
         const metrics = this._getGridMetrics();
         if (!metrics) return;
-        const { rowHeight, maxRows, gap } = metrics;
+        const { maxRows } = metrics;
 
         grid.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(card => {
             const rowStart = parseInt(card.style.gridRowStart) || 1;
-            const rowsAvail = maxRows - rowStart + 1;
-            const fullHeight = Math.max(120, rowsAvail * rowHeight - gap);
-            const oldH = parseInt(card.dataset.widgetHeight) || parseInt(card.style.height) || 0;
+            const rowsAvail = Math.max(1, maxRows - rowStart + 1);
 
-            card.style.height = fullHeight + 'px';
+            card.style.gridRow = `${rowStart} / span ${rowsAvail}`;
+            card.dataset.widgetRowSpan = String(rowsAvail);
+            card.style.height = '';
             card.style.minHeight = '';
-            // Store height WITHOUT gap subtraction in dataset for consistent resize calculation.
-            // CSS height uses gap subtraction (correct visual), dataset uses raw rowSpan * rowHeight.
-            card.dataset.widgetHeight = String(rowsAvail * rowHeight);
-
-            console.log('[PP-TRACE] _expandWidgetToGridHeight → widget:', card.dataset.widgetId, '| rowStart:', rowStart, '| rowsAvail:', rowsAvail, '| rowHeight:', rowHeight, '| maxRows:', maxRows, '| oldH:', oldH, '| newH:', fullHeight, '| dsH:', rowsAvail * rowHeight);
         });
     },
 
@@ -592,21 +570,28 @@ const dashboardModule = {
                 const pos = positions[id];
                 if (pos) {
                     const row = Math.min(pos.row, maxRow);
-                    card.style.gridColumn = `${pos.col || 1} / span ${pos.span || this._getDefaultSpan(id)}`;
-                    card.style.gridRowStart = String(row);
-                    card.dataset.widgetSpan = String(pos.span || this._getDefaultSpan(id));
+                    const span = pos.span || this._getDefaultSpan(id);
+                    const rowSpan = pos.rowSpan || this._getDefaultRowSpan(id);
+                    card.style.gridColumn = `${pos.col || 1} / span ${span}`;
+                    card.style.gridRow = `${row} / span ${rowSpan}`;
+                    card.dataset.widgetSpan = String(span);
+                    card.dataset.widgetRowSpan = String(rowSpan);
                 } else {
                     // No saved position — assign a default so _buildOccupancyMap sees explicit gridColumnStart
                     const span = this._getDefaultSpan(id);
+                    const rowSpan = this._getDefaultRowSpan(id);
                     if (fallbackCol + span > this.COL_COUNT + 1) {
                         fallbackCol = 1;
                         fallbackRow++;
                     }
                     card.style.gridColumn = `${fallbackCol} / span ${span}`;
-                    card.style.gridRowStart = String(Math.min(fallbackRow, maxRow));
+                    card.style.gridRow = `${Math.min(fallbackRow, maxRow)} / span ${rowSpan}`;
                     card.dataset.widgetSpan = String(span);
+                    card.dataset.widgetRowSpan = String(rowSpan);
                     fallbackCol += span;
                 }
+                card.style.height = '';
+                card.style.minHeight = '';
             });
         } catch (e) {}
     },
@@ -820,7 +805,7 @@ const dashboardModule = {
                 col: parseInt(card.style.gridColumnStart) || 1,
                 row: parseInt(card.style.gridRowStart) || 1,
                 span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id),
-                height: parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(id)
+                rowSpan: parseInt(card.dataset.widgetRowSpan) || this._getDefaultRowSpan(id)
             };
         });
         const sizes = {};
@@ -858,14 +843,14 @@ const dashboardModule = {
                 const pos = state.positions[id];
                 if (pos) {
                     const row = Math.min(pos.row, maxRow);
-                    card.style.gridColumn = `${pos.col || 1} / span ${pos.span || this._getDefaultSpan(id)}`;
-                    card.style.gridRowStart = String(row);
-                    card.dataset.widgetSpan = String(pos.span || this._getDefaultSpan(id));
-                    if (pos.height) {
-                        card.style.height = pos.height + 'px';
-                        card.style.minHeight = '';
-                        card.dataset.widgetHeight = String(pos.height);
-                    }
+                    const span = pos.span || this._getDefaultSpan(id);
+                    const rowSpan = pos.rowSpan || this._getDefaultRowSpan(id);
+                    card.style.gridColumn = `${pos.col || 1} / span ${span}`;
+                    card.style.gridRow = `${row} / span ${rowSpan}`;
+                    card.dataset.widgetSpan = String(span);
+                    card.dataset.widgetRowSpan = String(rowSpan);
+                    card.style.height = '';
+                    card.style.minHeight = '';
                 }
             });
         }
@@ -1083,9 +1068,7 @@ const dashboardModule = {
      */
     _getNewWidgetPosition(widgetId) {
         const span = this._getDefaultSpan(widgetId);
-        const height = this._getDefaultHeight(widgetId);
-        const metrics = this._getGridMetrics();
-        const rowSpan = metrics ? Math.max(1, Math.ceil(height / metrics.rowHeight)) : 1;
+        const rowSpan = this._getDefaultRowSpan(widgetId);
         return this._findFreeSpot(span, rowSpan, 1, 1);
     },
 
@@ -1105,9 +1088,12 @@ const dashboardModule = {
             const allRows = [];
             grid.querySelectorAll('.widget-card').forEach(card => {
                 const startRow = parseInt(card.style.gridRowStart) || 1;
-                const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
-                const thisSpan = Math.max(1, Math.ceil(minH / metrics.rowHeight));
-                allRows.push(startRow + thisSpan - 1);
+                let rowSpan = parseInt(card.dataset.widgetRowSpan);
+                if (!rowSpan) {
+                    const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
+                    rowSpan = Math.max(1, Math.ceil(minH / metrics.rowHeight));
+                }
+                allRows.push(startRow + rowSpan - 1);
             });
             const maxOccupiedRow = allRows.length > 0 ? Math.max(...allRows) : 0;
             if (maxOccupiedRow >= metrics.maxRows) {
@@ -1122,19 +1108,9 @@ const dashboardModule = {
         if (!card) return;
 
         const span = this._getDefaultSpan(widgetId);
+        const rowSpan = this._getDefaultRowSpan(widgetId);
         const pos = this._getNewWidgetPosition(widgetId);
-        this._applyWidgetGrid(card, pos.col, pos.row, span);
-
-        let defaultH = this._getDefaultHeight(widgetId);
-        const m = this._getGridMetrics();
-        if (m) {
-            const rowsAvail = m.maxRows - pos.row + 1;
-            const maxH = rowsAvail * metrics.rowHeight - metrics.gap;
-            if (maxH > 0 && defaultH > maxH) defaultH = Math.max(120, maxH);
-        }
-        card.style.height = defaultH + 'px';
-        card.style.minHeight = '';
-        card.dataset.widgetHeight = String(defaultH);
+        this._applyWidgetGrid(card, pos.col, pos.row, span, rowSpan);
 
         grid.appendChild(card);
 
