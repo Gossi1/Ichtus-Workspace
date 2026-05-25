@@ -1088,6 +1088,17 @@ input:checked + .slider::before { transform: translateX(20px); }
 .cl-context-menu-item.danger:hover { background: rgba(237, 28, 36, 0.15); color: #ed1c24; }
 .cl-context-separator { height: 1px; background: #333; margin: 4px 0; }
 
+/* Dashboard Context Menu */
+.dashboard-context-menu {
+    position: fixed; background: var(--bg-sidebar, #1e1e1e); border: 1px solid var(--border-light, #333);
+    border-radius: 8px; box-shadow: 0 8px 25px rgba(0,0,0,0.7); padding: 6px 0;
+    min-width: 180px; z-index: 10000; display: flex; flex-direction: column; font-family: sans-serif;
+}
+.dashboard-context-menu-item { padding: 10px 16px; color: #eee; font-size: 13px; cursor: pointer; transition: background 0.2s, color 0.2s; display: flex; align-items: center; gap: 8px; }
+.dashboard-context-menu-item:hover { background: rgba(244, 121, 32, 0.15); color: var(--ichtus-orange, #f47920); }
+.dashboard-context-menu-item.danger:hover { background: rgba(237, 28, 36, 0.15); color: #ed1c24; }
+.dashboard-context-separator { height: 1px; background: #333; margin: 4px 0; }
+
 @keyframes toast-fade {
     0% { opacity: 0; transform: translateX(-50%) translateY(10px); }
     15% { opacity: 1; transform: translateX(-50%) translateY(0); }
