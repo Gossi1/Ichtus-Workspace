@@ -772,6 +772,14 @@ const dashboardModule = {
 
             const targetStr = localStorage.getItem('ichtus_countdown_target');
             cards.forEach(card => {
+                if (!card.dataset.hasContextmenu) {
+                    card.dataset.hasContextmenu = "true";
+                    card.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        this.showCountdownContextMenu(e, card);
+                    });
+                }
+
                 const displayEl = card.querySelector('#countdown-display');
                 const labelsEl = card.querySelector('.countdown-labels');
                 const infoEl = card.querySelector('#countdown-target-info');
@@ -882,6 +890,84 @@ const dashboardModule = {
         }
 
         this.setupCountdown();
+    },
+
+    cancelCountdownSettings(btn) {
+        const card = btn.closest('.widget-card');
+        if (!card) return;
+        const panel = card.querySelector('#countdown-settings-panel');
+        if (panel) {
+            panel.classList.add('hidden');
+            card.removeAttribute('data-settings-toggled');
+        }
+    },
+
+    showCountdownContextMenu(e, card) {
+        this.closeDashboardContextMenu();
+
+        const menu = document.createElement('div');
+        menu.className = 'dashboard-context-menu';
+        menu.style.display = 'flex';
+        menu.style.left = e.clientX + 'px';
+        menu.style.top = e.clientY + 'px';
+        menu.style.position = 'fixed';
+        menu.style.zIndex = '10000';
+
+        const items = [
+            { 
+                label: 'Tijd aanpassen', 
+                icon: '⏳', 
+                action: () => {
+                    const settingsPanel = card.querySelector('#countdown-settings-panel');
+                    if (settingsPanel) {
+                        settingsPanel.classList.remove('hidden');
+                        card.dataset.settingsToggled = 'true';
+                    }
+                } 
+            },
+            {
+                label: 'Widget verwijderen',
+                icon: '×',
+                action: () => {
+                    if (confirm('Weet je zeker dat je deze widget wilt verwijderen?')) {
+                        this.deleteWidget(card);
+                    }
+                },
+                danger: true
+            }
+        ];
+
+        items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'dashboard-context-menu-item' + (item.danger ? ' danger' : '');
+            div.innerHTML = `<span>${item.icon}</span> ${item.label}`;
+            div.addEventListener('click', (ev) => {
+                ev.stopPropagation();
+                this.closeDashboardContextMenu();
+                item.action();
+            });
+            menu.appendChild(div);
+        });
+
+        document.body.appendChild(menu);
+
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 10) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 10) + 'px';
+
+        const closeMenu = (ev) => {
+            if (!ev.target.closest('.dashboard-context-menu')) {
+                this.closeDashboardContextMenu();
+                document.removeEventListener('click', closeMenu);
+            }
+        };
+        setTimeout(() => {
+            document.addEventListener('click', closeMenu);
+        }, 0);
+    },
+
+    closeDashboardContextMenu() {
+        document.querySelectorAll('.dashboard-context-menu').forEach(el => el.remove());
     },
 
     // ===============================
@@ -1193,10 +1279,6 @@ const dashboardModule = {
                 </div>`;
             case 'servicecountdown':
                 return `<div class="widget-card" draggable="true" data-widget-id="servicecountdown">
-                    <div class="widget-header">
-                        <h3 class="widget-title">Aftellen naar dienst</h3>
-                        <button class="countdown-settings-btn" onclick="dashboardModule.toggleCountdownSettings(this)" title="Instellingen">⚙️</button>
-                    </div>
                     <div class="widget-body">
                         <div class="countdown-widget">
                             <div class="countdown-labels" style="opacity: 1;">
@@ -1205,7 +1287,10 @@ const dashboardModule = {
                             <div class="countdown-display heading-font" id="countdown-display">00:00:00</div>
                             <div class="countdown-settings hidden" id="countdown-settings-panel">
                                 <input type="datetime-local" id="countdown-target-input" class="countdown-input">
-                                <button class="btn-save" onclick="dashboardModule.saveCountdownTarget(this)">Opslaan</button>
+                                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
+                                    <button class="btn-save" onclick="dashboardModule.saveCountdownTarget(this)" style="flex: 1;">Opslaan</button>
+                                    <button class="btn-cancel" onclick="dashboardModule.cancelCountdownSettings(this)" style="flex: 1; background: var(--border-light, #444); color: var(--text-main, #fff); border: none; border-radius: 6px; cursor: pointer; font-weight: 600; padding: 0.5rem; font-size: 0.9rem; transition: opacity 0.2s ease;">Annuleren</button>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1285,6 +1370,7 @@ const dashboardModule = {
             delBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteWidget(card); });
             const header = card.querySelector('.widget-header');
             if (header) header.appendChild(delBtn);
+            else card.appendChild(delBtn);
 
             const resizeHandle = document.createElement('div');
             resizeHandle.className = 'widget-resize-handle';
