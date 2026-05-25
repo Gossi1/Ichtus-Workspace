@@ -23,6 +23,7 @@ const dashboardModule = {
     _proPresenterPlaylistCheckInterval: null,
     _playlistAutoScroll: true,
     _hasPlaylistData: false,
+    _isApplyingLayout: false,
 
     // ===============================
     //  INIT
@@ -45,6 +46,7 @@ const dashboardModule = {
         this._restoreWidgetPositions();
         this._expandWidgetToGridHeight();
         this.initLayoutSelector();
+        this.updateSidebarDashboards();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
             this._startProPresenterPolling();
         }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
@@ -533,12 +535,21 @@ const dashboardModule = {
                 positions[id] = {
                     col: parseInt(card.style.gridColumnStart) || 1,
                     row: parseInt(card.style.gridRowStart) || 1,
-                    span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id)
+                    span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(id),
+                    rowSpan: parseInt(card.dataset.widgetRowSpan) || this._getDefaultRowSpan(id)
                 };
             });
             localStorage.setItem('ichtus_dashboard_widget_order', JSON.stringify(order));
             localStorage.setItem('ichtus_dashboard_widget_positions', JSON.stringify(positions));
 
+            if (!this._isApplyingLayout) {
+                const activeLayout = this.getActiveLayoutName();
+                if (activeLayout && activeLayout !== '__default__') {
+                    const layouts = this.loadLayouts();
+                    layouts[activeLayout] = this.getCurrentState();
+                    this.saveLayouts(layouts);
+                }
+            }
         } catch (e) {}
     },
 
@@ -1032,10 +1043,14 @@ const dashboardModule = {
     },
 
     applyLayout(layoutName) {
+        this._isApplyingLayout = true;
         const layouts = this.loadLayouts();
         const state = layoutName === '__default__' ? null : layouts[layoutName];
         const grid = document.getElementById('widget-grid');
-        if (!grid) return;
+        if (!grid) {
+            this._isApplyingLayout = false;
+            return;
+        }
 
         if (state && state.order) {
             state.order.forEach(id => {
@@ -1080,7 +1095,10 @@ const dashboardModule = {
 
         this._saveWidgetPositions();
         this.setActiveLayoutName(layoutName);
+        this._isApplyingLayout = false;
+
         this.populateLayoutSelector();
+        this.updateSidebarActiveState();
         document.querySelectorAll('#widget-grid .widget-body').forEach(b => { b.style.display = ''; });
     },
 
@@ -1412,6 +1430,7 @@ const dashboardModule = {
             this.applyLayout('__default__');
         }
         this.populateLayoutSelector();
+        this.updateSidebarDashboards();
     },
 
     renameLayout(oldName, newName) {
@@ -1424,6 +1443,7 @@ const dashboardModule = {
         this.saveLayouts(layouts);
         if (this.getActiveLayoutName() === oldName) this.setActiveLayoutName(trimmed);
         this.populateLayoutSelector();
+        this.updateSidebarDashboards();
         return true;
     },
 
@@ -1457,8 +1477,10 @@ const dashboardModule = {
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'layout-name';
                 nameSpan.textContent = name;
+                
                 const actions = document.createElement('div');
                 actions.className = 'layout-actions';
+                
                 const renameBtn = document.createElement('button');
                 renameBtn.className = 'rename-btn';
                 renameBtn.textContent = '✎';
@@ -1470,6 +1492,17 @@ const dashboardModule = {
                         this.manageLayout();
                     }
                 });
+                
+                const duplicateBtn = document.createElement('button');
+                duplicateBtn.className = 'duplicate-btn';
+                duplicateBtn.textContent = '📋';
+                duplicateBtn.title = i18n.t('dashboard_layout_duplicate') || 'Duplicate';
+                duplicateBtn.addEventListener('click', () => {
+                    this.duplicateLayout(name);
+                    modal.remove();
+                    this.manageLayout();
+                });
+                
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'delete-btn';
                 deleteBtn.textContent = '×';
@@ -1481,7 +1514,9 @@ const dashboardModule = {
                         this.manageLayout();
                     }
                 });
+                
                 actions.appendChild(renameBtn);
+                actions.appendChild(duplicateBtn);
                 actions.appendChild(deleteBtn);
                 item.appendChild(nameSpan);
                 item.appendChild(actions);
@@ -1489,6 +1524,37 @@ const dashboardModule = {
             });
         }
         content.appendChild(list);
+
+        const actionsContainer = document.createElement('div');
+        actionsContainer.className = 'layout-manage-global-actions';
+        actionsContainer.style.display = 'flex';
+        actionsContainer.style.gap = '0.5rem';
+        actionsContainer.style.marginTop = '1rem';
+        actionsContainer.style.justifyContent = 'center';
+
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'layout-manage-close';
+        saveBtn.textContent = '💾 Opslaan';
+        saveBtn.style.margin = '0';
+        saveBtn.addEventListener('click', () => {
+            this.saveCurrentLayout();
+            modal.remove();
+            this.manageLayout();
+        });
+
+        const newBtn = document.createElement('button');
+        newBtn.className = 'layout-manage-close';
+        newBtn.textContent = '＋ Nieuw';
+        newBtn.style.margin = '0';
+        newBtn.addEventListener('click', () => {
+            this.createNewLayout();
+            modal.remove();
+            this.manageLayout();
+        });
+
+        actionsContainer.appendChild(saveBtn);
+        actionsContainer.appendChild(newBtn);
+        content.appendChild(actionsContainer);
 
         const closeBtn = document.createElement('button');
         closeBtn.className = 'layout-manage-close';
@@ -1498,6 +1564,141 @@ const dashboardModule = {
         modal.appendChild(content);
         document.body.appendChild(modal);
         modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    },
+
+    createNewLayout(name) {
+        if (!name) {
+            name = prompt(i18n.t('dashboard_layout_new_prompt') || 'Naam voor het nieuwe dashboard:');
+        }
+        if (!name || !name.trim()) return;
+        const trimmed = name.trim();
+        if (trimmed === '__default__') {
+            alert('Deze naam is gereserveerd.');
+            return;
+        }
+        const layouts = this.loadLayouts();
+        if (layouts[trimmed]) {
+            alert('Er bestaat al een dashboard met deze naam.');
+            return;
+        }
+        layouts[trimmed] = this.getCurrentState();
+        this.saveLayouts(layouts);
+        this.setActiveLayoutName(trimmed);
+        this.applyLayout(trimmed);
+        
+        this.populateLayoutSelector();
+        this.updateSidebarDashboards();
+    },
+
+    duplicateLayout(layoutName) {
+        if (!layoutName) layoutName = this.getActiveLayoutName();
+        const newName = prompt(i18n.t('dashboard_layout_duplicate_prompt') || 'Naam voor het gedupliceerde dashboard:', `${layoutName} (Kopie)`);
+        if (!newName || !newName.trim()) return;
+        const trimmed = newName.trim();
+        if (trimmed === '__default__') {
+            alert('Deze naam is gereserveerd.');
+            return;
+        }
+        const layouts = this.loadLayouts();
+        if (layouts[trimmed]) {
+            alert('Er bestaat al een dashboard met deze naam.');
+            return;
+        }
+        const sourceState = layoutName === '__default__' ? this.getCurrentState() : layouts[layoutName];
+        layouts[trimmed] = JSON.parse(JSON.stringify(sourceState));
+        this.saveLayouts(layouts);
+        this.setActiveLayoutName(trimmed);
+        this.applyLayout(trimmed);
+        
+        this.populateLayoutSelector();
+        this.updateSidebarDashboards();
+    },
+
+    updateSidebarDashboards() {
+        const container = document.getElementById('sidebar-custom-dashboards');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        const layouts = this.loadLayouts();
+        const activeName = this.getActiveLayoutName();
+        
+        Object.keys(layouts).forEach(name => {
+            const li = document.createElement('li');
+            li.dataset.view = 'dashboard';
+            li.dataset.layout = name;
+            if (name === activeName) {
+                li.className = 'active';
+            }
+            
+            const a = document.createElement('a');
+            a.href = '#';
+            a.onclick = (e) => {
+                e.preventDefault();
+                this.switchLayout(name);
+                router.navigate('dashboard');
+            };
+            
+            const iconDiv = document.createElement('div');
+            iconDiv.className = 'sidebar-icon';
+            iconDiv.innerHTML = `
+                <svg class="sidebar-nav-icon" style="opacity: 0.8; stroke-dasharray: 2 2;">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                </svg>
+            `;
+            
+            const textSpan = document.createElement('span');
+            textSpan.className = 'sidebar-text';
+            textSpan.textContent = name;
+            textSpan.title = name;
+            textSpan.style.fontSize = '8px';
+            textSpan.style.textTransform = 'none';
+            
+            a.appendChild(iconDiv);
+            a.appendChild(textSpan);
+            li.appendChild(a);
+            container.appendChild(li);
+        });
+        
+        const addLi = document.createElement('li');
+        addLi.className = 'sidebar-sub-item sidebar-add-dash';
+        const addA = document.createElement('a');
+        addA.href = '#';
+        addA.onclick = (e) => {
+            e.preventDefault();
+            this.createNewLayout();
+        };
+        addA.title = 'Nieuw dashboard toevoegen';
+        
+        const addIconDiv = document.createElement('div');
+        addIconDiv.className = 'sidebar-icon';
+        addIconDiv.style.color = 'var(--ichtus-orange)';
+        addIconDiv.style.fontWeight = 'bold';
+        addIconDiv.style.fontSize = '14px';
+        addIconDiv.textContent = '＋';
+        
+        const addTextSpan = document.createElement('span');
+        addTextSpan.className = 'sidebar-text';
+        addTextSpan.textContent = 'Nieuw';
+        addTextSpan.style.fontSize = '8px';
+        
+        addA.appendChild(addIconDiv);
+        addA.appendChild(addTextSpan);
+        addLi.appendChild(addA);
+        container.appendChild(addLi);
+    },
+
+    updateSidebarActiveState() {
+        const activeName = this.getActiveLayoutName();
+        document.querySelectorAll('.sidebar-menu li[data-view="dashboard"]').forEach(li => {
+            if (li.dataset.layout === activeName) {
+                li.classList.add('active');
+            } else {
+                li.classList.remove('active');
+            }
+        });
     },
 
     // ===============================
