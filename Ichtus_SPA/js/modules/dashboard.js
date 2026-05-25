@@ -56,6 +56,7 @@ const dashboardModule = {
             if (document.getElementById('view-dashboard')?.classList.contains('active')) {
                 this._updateRowHeight();
                 this._restoreWidgetPositions();
+                if (this._editMode) this._createGridOverlay();
             }
         };
         window.addEventListener('resize', this._resizeHandler);
@@ -78,7 +79,7 @@ const dashboardModule = {
         const rect = grid.getBoundingClientRect();
         const colWidth = (rect.width - this.GAP_PX * (this.COL_COUNT - 1)) / this.COL_COUNT;
         const rowHeight = colWidth + this.GAP_PX;
-        const maxRows = Math.max(1, Math.floor(rect.height / rowHeight));
+        const maxRows = Math.max(1, Math.floor(rect.height / rowHeight)) + 1;
         return { colWidth, rowHeight, maxRows, totalCols: this.COL_COUNT, gap: this.GAP_PX };
     },
 
@@ -223,6 +224,17 @@ const dashboardModule = {
             card.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', card.dataset.widgetId || '');
+            // PP-TRACE snapshot
+            this._dragStartState = {
+                widgetId: card.dataset.widgetId,
+                col: parseInt(card.style.gridColumnStart) || 1,
+                row: parseInt(card.style.gridRowStart) || 1,
+                span: parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId),
+                height: parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId),
+                savedPositions: (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}'); } catch(e) { return {}; } })(),
+                savedSizes: (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}'); } catch(e) { return {}; } })()
+            };
+            console.log('[PP-TRACE] dragstart →', this._dragStartState);
         });
 
         grid.addEventListener('dragover', (e) => {
@@ -239,15 +251,17 @@ const dashboardModule = {
             const span = parseInt(card.dataset.widgetSpan) || this._getDefaultSpan(card.dataset.widgetId);
             const minH = parseInt(card.style.height) || parseInt(card.dataset.widgetHeight) || this._getDefaultHeight(card.dataset.widgetId);
             const rowSpan = Math.max(1, Math.ceil(minH / rowHeight));
+            const capRowSpan = Math.min(rowSpan, Math.max(1, metrics.maxRows - 2));
 
             indicator.style.display = 'block';
             indicator.style.left = ((pos.col - 1) * (colWidth + this.GAP_PX)) + 'px';
             indicator.style.top = ((pos.row - 1) * rowHeight) + 'px';
             indicator.style.width = (span * colWidth + (span - 1) * this.GAP_PX) + 'px';
-            indicator.style.height = (rowSpan * rowHeight - this.GAP_PX) + 'px';
+            indicator.style.height = (capRowSpan * rowHeight - this.GAP_PX) + 'px';
             indicator.style.borderRadius = '8px';
             indicator.style.background = 'rgba(244,121,32,0.12)';
             indicator.style.border = '2px dashed var(--ichtus-orange, #f47920)';
+            console.log('[PP-DRAG-DEBUG] dragover → pos:', pos, '| span:', span, 'rowSpan:', rowSpan, 'capRowSpan:', capRowSpan, '| indicator at col', pos.col, 'row', pos.row);
         });
 
         grid.addEventListener('drop', (e) => { e.preventDefault(); });
@@ -263,11 +277,17 @@ const dashboardModule = {
                 const cursorPos = this._cursorToGrid(e.clientX, e.clientY);
                 // Temporarily set draggedEl back so _buildOccupancyMap excludes this card
                 this.draggedEl = card;
-                const free = this._findFreeSpot(span, rowSpan, cursorPos?.col || 1, cursorPos?.row || 1);
+                // Cap rowSpan during findFreeSpot so a full-height widget can be placed at other rows
+                const capRowSpan = Math.min(rowSpan, Math.max(1, (metrics ? metrics.maxRows : 15) - 2));
+                const free = this._findFreeSpot(span, capRowSpan, cursorPos?.col || 1, cursorPos?.row || 1);
                 this.draggedEl = null;
                 this._applyWidgetGrid(card, free.col, free.row, span);
+                console.log('[PP-TRACE] dragend → after _applyWidgetGrid | cursor:', cursorPos, '| free:', free, '| old:', this._dragStartState ? {col: this._dragStartState.col, row: this._dragStartState.row} : 'N/A', '| applied: {col:', parseInt(card.style.gridColumnStart), 'row:', parseInt(card.style.gridRowStart), '} | span:', span, 'rowSpan:', rowSpan, 'capRowSpan:', capRowSpan);
                 this._saveWidgetPositions();
+                const beforeExpandH = parseInt(card.style.height);
                 this._expandWidgetToGridHeight();
+                console.log('[PP-TRACE] dragend → after _expandWidgetToGridHeight | applied: {col:', parseInt(card.style.gridColumnStart), 'row:', parseInt(card.style.gridRowStart), '} | height:', parseInt(card.style.height), '(was', beforeExpandH, ') | savedPositions row:', (() => { try { return JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions')||'{}'); } catch(e) { return {}; } })().propresenter?.row || JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions')||'{}')['propresenter-playlist']?.row || 'N/A', '| dragStart row:', this._dragStartState?.row || 'N/A');
+                delete this._dragStartState;
             } else {
                 this.draggedEl = null;
             }
@@ -302,9 +322,12 @@ const dashboardModule = {
             // Preserve the initial grid column start so onMove doesn't reset it to 'auto' (col 1)
             const initCol = parseInt(el.style.gridColumnStart) || 1;
             const startRow = parseInt(el.style.gridRowStart) || 1;
+            const maxRowsAvail = maxRows - startRow + 1;
+            const maxHeight = Math.max(80, maxRowsAvail * rowHeight - gap);
 
             document.body.style.userSelect = 'none';
             document.body.style.cursor = 'nwse-resize';
+            console.log('[PP-RESIZE-DEBUG] onPointerDown → widget:', el.dataset.widgetId, '| startRow:', startRow, '| maxRows:', maxRows, '| rowsAvail:', maxRowsAvail, '| rowHeight:', rowHeight, '| currentHeight:', currentHeight, '| maxHeight:', maxHeight);
 
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
@@ -324,6 +347,7 @@ const dashboardModule = {
                 // Only run the expensive check when the widget is actually growing.
                 const isGrowingWider = dx > 0;
                 const isGrowingTaller = dy > 0;
+                let occupancyClamped = false;
 
                 if (isGrowingWider || isGrowingTaller) {
                     const metrics2 = this._getGridMetrics();
@@ -345,6 +369,7 @@ const dashboardModule = {
                                 const proposedRowSpan = Math.max(1, Math.ceil(snappedHeight / metrics2.rowHeight));
                                 if (this._rectFits(map, initCol, startRow2, newSpan, proposedRowSpan, metrics2)) break;
                                 snappedHeight -= rowHeight;
+                                occupancyClamped = true;
                             }
                         }
                     }
@@ -358,6 +383,8 @@ const dashboardModule = {
                 el.style.height = snappedHeight + 'px';
                 el.style.minHeight = '';
                 el.dataset.widgetHeight = String(snappedHeight);
+
+                console.log('[PP-RESIZE-DEBUG] onMove → dy:', dy, '| targetHeight:', targetHeight, '| snapped:', snappedHeight, '| maxHeight:', maxHeight, '| occupancyClamped:', occupancyClamped, '| maxClamped:', snappedHeight === maxHeight && dy > 0, '| newSpan:', newSpan);
             };
 
             const onUp = () => {
@@ -366,6 +393,11 @@ const dashboardModule = {
                 document.removeEventListener('pointermove', onMove);
                 document.removeEventListener('pointerup', onUp);
                 this._saveWidgetSizes();
+                // After resize, re-expand ProPresenter widgets to fill available grid height
+                const widgetId = el.dataset.widgetId;
+                if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') {
+                    this._expandWidgetToGridHeight();
+                }
             };
 
             document.addEventListener('pointermove', onMove);
@@ -467,12 +499,13 @@ const dashboardModule = {
             const rowStart = parseInt(card.style.gridRowStart) || 1;
             const rowsAvail = maxRows - rowStart + 1;
             const fullHeight = Math.max(120, rowsAvail * rowHeight - gap);
+            const oldH = parseInt(card.dataset.widgetHeight) || parseInt(card.style.height) || 0;
 
             card.style.height = fullHeight + 'px';
             card.style.minHeight = '';
             card.dataset.widgetHeight = String(fullHeight);
 
-
+            console.log('[PP-TRACE] _expandWidgetToGridHeight → widget:', card.dataset.widgetId, '| rowStart:', rowStart, '| rowsAvail:', rowsAvail, '| rowHeight:', rowHeight, '| maxRows:', maxRows, '| oldH:', oldH, '| newH:', fullHeight);
         });
     },
 
@@ -620,6 +653,55 @@ const dashboardModule = {
         const metrics = this._getGridMetrics();
         if (!metrics) return;
         grid.style.gridAutoRows = metrics.colWidth + 'px';
+    },
+
+    /**
+     * Draw a grid overlay on the widget grid showing cell boundaries.
+     * Only visible in edit mode.
+     */
+    _createGridOverlay() {
+        const grid = document.getElementById('widget-grid');
+        if (!grid) return;
+        let overlay = grid.querySelector('.widget-grid-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'widget-grid-overlay';
+            const canvas = document.createElement('canvas');
+            overlay.appendChild(canvas);
+            grid.appendChild(overlay);
+        }
+        const canvas = overlay.querySelector('canvas');
+        if (!canvas) return;
+
+        const metrics = this._getGridMetrics();
+        if (!metrics) return;
+        const { colWidth, rowHeight, maxRows, totalCols, gap } = metrics;
+
+        const gridRect = grid.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = gridRect.width * dpr;
+        canvas.height = gridRect.height * dpr;
+        canvas.style.width = gridRect.width + 'px';
+        canvas.style.height = gridRect.height + 'px';
+
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, gridRect.width, gridRect.height);
+
+        // Draw cell boundaries
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 1;
+
+        for (let r = 0; r < maxRows; r++) {
+            for (let c = 0; c < totalCols; c++) {
+                const x = c * (colWidth + gap);
+                const y = r * rowHeight;
+                ctx.strokeRect(x, y, colWidth, rowHeight - gap);
+            }
+        }
+
+        // Update visibility based on edit mode
+        overlay.classList.toggle('visible', this._editMode);
     },
 
     _getMaxVisibleRow() {
@@ -807,6 +889,7 @@ const dashboardModule = {
         if (grid) grid.classList.toggle('edit-mode', this._editMode);
         if (addBtn) addBtn.style.display = this._editMode ? 'block' : 'none';
         if (editBtn) editBtn.classList.toggle('active', this._editMode);
+        this._createGridOverlay();
 
         document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
             // Remove old handles

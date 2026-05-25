@@ -2674,6 +2674,29 @@ input:checked + .slider::before { transform: translateX(20px); }
     box-shadow: inset 0 0 12px rgba(244, 121, 32, 0.1);
 }
 
+/* Grid overlay — shows cell boundaries in edit mode */
+.widget-grid-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 998;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.widget-grid-overlay.visible {
+    opacity: 1;
+}
+
+.widget-grid-overlay canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+}
+
 
 .widget-delete-btn {
     position: absolute;
