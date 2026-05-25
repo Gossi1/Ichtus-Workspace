@@ -1567,6 +1567,41 @@ const dashboardModule = {
         actionsContainer.appendChild(newBtn);
         content.appendChild(actionsContainer);
 
+        // Divider & Cloud synchronization section
+        const cloudHr = document.createElement('hr');
+        cloudHr.style.cssText = 'border: 0; border-top: 1px solid var(--border-light); margin: 1rem 0;';
+        content.appendChild(cloudHr);
+
+        const cloudTitle = document.createElement('h4');
+        cloudTitle.textContent = 'Cloud Synchronisatie';
+        cloudTitle.style.cssText = 'color: var(--text-main); font-size: 0.9rem; font-weight: 500; margin: 0 0 0.5rem 0; text-align: center;';
+        content.appendChild(cloudTitle);
+
+        const cloudActions = document.createElement('div');
+        cloudActions.style.cssText = 'display: flex; gap: 0.5rem; justify-content: center;';
+
+        const cloudSaveBtn = document.createElement('button');
+        cloudSaveBtn.className = 'layout-manage-close';
+        cloudSaveBtn.textContent = '☁️ Cloud Opslaan';
+        cloudSaveBtn.style.margin = '0';
+        cloudSaveBtn.addEventListener('click', async () => {
+            const success = await this.saveToCloud();
+            if (success) modal.remove();
+        });
+
+        const cloudLoadBtn = document.createElement('button');
+        cloudLoadBtn.className = 'layout-manage-close';
+        cloudLoadBtn.textContent = '📂 Cloud Laden';
+        cloudLoadBtn.style.margin = '0';
+        cloudLoadBtn.addEventListener('click', async () => {
+            const success = await this.loadFromCloud();
+            if (success) modal.remove();
+        });
+
+        cloudActions.appendChild(cloudSaveBtn);
+        cloudActions.appendChild(cloudLoadBtn);
+        content.appendChild(cloudActions);
+
         const closeBtn = document.createElement('button');
         closeBtn.className = 'layout-manage-close';
         closeBtn.textContent = i18n.t('dashboard_layout_close') || 'Close';
@@ -1621,6 +1656,157 @@ const dashboardModule = {
         this.applyLayout(trimmed);
         
         this.populateLayoutSelector();
+    },
+
+    async saveToCloud() {
+        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
+            this.showStatus('☁️ Geen Firebase verbinding', 'error');
+            return false;
+        }
+        try {
+            // First save locally to ensure consistency
+            this._saveWidgetPositions();
+
+            const layouts = this.loadLayouts();
+            const activeLayout = this.getActiveLayoutName();
+            
+            // Get default layout state
+            let defaultOrder = [];
+            let defaultPositions = {};
+            try {
+                defaultOrder = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_order') || '[]');
+                defaultPositions = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}');
+            } catch (e) {}
+
+            // Get widget sizes
+            let sizes = {};
+            try {
+                sizes = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}');
+            } catch (e) {}
+
+            // Get countdown target
+            const countdownTarget = localStorage.getItem('ichtus_countdown_target');
+
+            // Save to Firestore
+            await db.collection('dashboard').doc('state').set({
+                layouts: layouts,
+                activeLayout: activeLayout,
+                defaultLayout: {
+                    order: defaultOrder,
+                    positions: defaultPositions
+                },
+                sizes: sizes,
+                countdownTarget: countdownTarget || '',
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                updatedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'anonymous'
+            }, { merge: true });
+
+            this.showStatus('☁️ Dashboard opgeslagen in Cloud ✓', 'success');
+            return true;
+        } catch (e) {
+            console.error('Cloud save failed:', e);
+            this.showStatus('☁️ Cloud opslag mislukt: ' + e.message, 'error');
+            return false;
+        }
+    },
+
+    async loadFromCloud() {
+        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
+            this.showStatus('☁️ Geen Firebase verbinding', 'error');
+            return false;
+        }
+        try {
+            const doc = await db.collection('dashboard').doc('state').get();
+            if (doc.exists) {
+                const data = doc.data();
+                
+                // Confirm before overwriting local data
+                const confirmed = confirm('Dit vervangt al je lokale dashboard instellingen en layouts door de cloud versie. Doorgaan?');
+                if (!confirmed) {
+                    this.showStatus('☁️ Laden geannuleerd', 'info');
+                    return false;
+                }
+
+                // Restore layouts
+                if (data.layouts) {
+                    this.saveLayouts(data.layouts);
+                }
+
+                // Restore active layout name
+                if (data.activeLayout) {
+                    this.setActiveLayoutName(data.activeLayout);
+                }
+
+                // Restore default layout
+                if (data.defaultLayout) {
+                    if (data.defaultLayout.order) {
+                        localStorage.setItem('ichtus_dashboard_widget_order', JSON.stringify(data.defaultLayout.order));
+                    }
+                    if (data.defaultLayout.positions) {
+                        localStorage.setItem('ichtus_dashboard_widget_positions', JSON.stringify(data.defaultLayout.positions));
+                    }
+                }
+
+                // Restore widget sizes
+                if (data.sizes) {
+                    localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(data.sizes));
+                }
+
+                // Restore countdown target
+                if (data.countdownTarget) {
+                    localStorage.setItem('ichtus_countdown_target', data.countdownTarget);
+                }
+
+                // Apply active layout and reload view
+                const active = this.getActiveLayoutName();
+                this.applyLayout(active);
+                
+                // Re-setup countdown in case it changed
+                if (typeof this.setupCountdown === 'function') {
+                    this.setupCountdown();
+                }
+
+                this.showStatus('☁️ Dashboard geladen uit Cloud ✓', 'success');
+                return true;
+            } else {
+                this.showStatus('☁️ Nog geen cloud dashboard data gevonden', 'info');
+                return false;
+            }
+        } catch (e) {
+            console.error('Cloud load failed:', e);
+            this.showStatus('☁️ Cloud laden mislukt: ' + e.message, 'error');
+            return false;
+        }
+    },
+
+    showStatus(msg, type) {
+        // Create a temporary toast notification styled beautifully
+        const toast = document.createElement('div');
+        toast.className = 'dashboard-toast';
+        toast.style.cssText = `
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(42, 42, 42, 0.95);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 10001;
+            border: 1px solid var(--ichtus-orange, #f47920);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        `;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        
+        // Simple fade out
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
     },
 
     // ===============================
