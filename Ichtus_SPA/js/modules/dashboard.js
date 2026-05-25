@@ -38,12 +38,13 @@ const dashboardModule = {
         this.setupCountdown();
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
-        this.restoreWidgetOrder();
-        this._ensureSavedWidgets();
+
+        const activeLayout = this.getActiveLayoutName();
+        this.applyLayout(activeLayout);
+
         localStorage.removeItem('ichtus_dashboard_collapsed');
         this._updateRowHeight();
         this._restoreWidgetSizes();
-        this._restoreWidgetPositions();
         this._expandWidgetToGridHeight();
         this.initLayoutSelector();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
@@ -560,6 +561,15 @@ const dashboardModule = {
             if (!Array.isArray(order)) return;
             const grid = document.getElementById('widget-grid');
             if (!grid) return;
+
+            // Remove any widget cards that are NOT in the saved order
+            grid.querySelectorAll('.widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                if (id && !order.includes(id)) {
+                    card.remove();
+                }
+            });
+
             order.forEach(id => {
                 const card = grid.querySelector(`[data-widget-id="${id}"]`);
                 if (card) grid.appendChild(card);
@@ -569,7 +579,17 @@ const dashboardModule = {
 
     _restoreWidgetPositions() {
         try {
-            const positions = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}');
+            let positions = {};
+            const activeLayout = this.getActiveLayoutName();
+            if (activeLayout === '__default__') {
+                positions = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}');
+            } else {
+                const layouts = this.loadLayouts();
+                if (layouts[activeLayout] && layouts[activeLayout].positions) {
+                    positions = layouts[activeLayout].positions;
+                }
+            }
+
             const metrics = this._getGridMetrics();
             const maxRow = metrics ? metrics.maxRows : 20;
             const grid = document.getElementById('widget-grid');
@@ -1051,15 +1071,41 @@ const dashboardModule = {
     applyLayout(layoutName) {
         this._isApplyingLayout = true;
         const layouts = this.loadLayouts();
-        const state = layoutName === '__default__' ? null : layouts[layoutName];
+        
+        let state = null;
+        if (layoutName !== '__default__') {
+            state = layouts[layoutName];
+        } else {
+            // Load default layout state from localStorage if it exists
+            try {
+                const order = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_order'));
+                const positions = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_positions') || '{}');
+                const sizes = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}');
+                if (Array.isArray(order)) {
+                    state = { order, positions, sizes };
+                }
+            } catch (e) {}
+        }
+
         const grid = document.getElementById('widget-grid');
         if (!grid) {
             this._isApplyingLayout = false;
             return;
         }
 
-        if (state && state.order) {
-            state.order.forEach(id => {
+        if (state) {
+            const targetOrder = state.order || [];
+
+            // Remove any widget cards that are NOT in the target order
+            grid.querySelectorAll('.widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                if (id && !targetOrder.includes(id)) {
+                    card.remove();
+                }
+            });
+
+            // Reorder or recreate widgets
+            targetOrder.forEach(id => {
                 const card = grid.querySelector(`[data-widget-id="${id}"]`);
                 if (card) grid.appendChild(card);
                 else {
@@ -1072,32 +1118,64 @@ const dashboardModule = {
                     }
                 }
             });
-        }
 
-        if (state && state.positions) {
-            const metrics = this._getGridMetrics();
-            const maxRow = metrics ? metrics.maxRows : 20;
+            // Apply positions
+            if (state.positions) {
+                const metrics = this._getGridMetrics();
+                const maxRow = metrics ? metrics.maxRows : 20;
+                grid.querySelectorAll('.widget-card').forEach(card => {
+                    const id = card.dataset.widgetId;
+                    const pos = state.positions[id];
+                    if (pos) {
+                        const row = Math.min(pos.row, maxRow);
+                        const span = pos.span || this._getDefaultSpan(id);
+                        const rowSpan = pos.rowSpan || this._getDefaultRowSpan(id);
+                        card.style.gridColumn = `${pos.col || 1} / span ${span}`;
+                        card.style.gridRow = `${row} / span ${rowSpan}`;
+                        card.dataset.widgetSpan = String(span);
+                        card.dataset.widgetRowSpan = String(rowSpan);
+                    }
+                });
+            }
+
+            // Apply sizes
+            if (state.sizes) {
+                try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(state.sizes)); } catch (e) {}
+                this._restoreWidgetSizes();
+            }
+        } else {
+            // Fallback for default layout if no saved state exists yet:
+            // Just restore all hardcoded/default widgets in their initial state.
+            const defaultWidgetIds = ['quicklinks', 'servicetimer', 'status'];
+            defaultWidgetIds.forEach(id => {
+                const card = grid.querySelector(`[data-widget-id="${id}"]`);
+                if (!card) {
+                    const html = this.getWidgetTemplate(id);
+                    if (html) {
+                        const wrapper = document.createElement('div');
+                        wrapper.innerHTML = html;
+                        const newCard = wrapper.firstElementChild;
+                        if (newCard) grid.appendChild(newCard);
+                    }
+                }
+            });
+            // Reset grid column / row styles to default span
             grid.querySelectorAll('.widget-card').forEach(card => {
                 const id = card.dataset.widgetId;
-                const pos = state.positions[id];
-                if (pos) {
-                    const row = Math.min(pos.row, maxRow);
-                    const span = pos.span || this._getDefaultSpan(id);
-                    const rowSpan = pos.rowSpan || this._getDefaultRowSpan(id);
-                    card.style.gridColumn = `${pos.col || 1} / span ${span}`;
-                    card.style.gridRow = `${row} / span ${rowSpan}`;
-                    card.dataset.widgetSpan = String(span);
-                    card.dataset.widgetRowSpan = String(rowSpan);
-                    card.style.height = '';
-                    card.style.minHeight = '';
-                }
+                const span = this._getDefaultSpan(id);
+                const rowSpan = this._getDefaultRowSpan(id);
+                card.style.gridColumn = `span ${span}`;
+                card.style.gridRow = `span ${rowSpan}`;
+                card.dataset.widgetSpan = String(span);
+                card.dataset.widgetRowSpan = String(rowSpan);
             });
         }
 
-        if (state && state.sizes) {
-            try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(state.sizes)); } catch (e) {}
-            this._restoreWidgetSizes();
-        }
+        // Reset style dimensions and heights to default card styling
+        grid.querySelectorAll('.widget-card').forEach(card => {
+            card.style.height = '';
+            card.style.minHeight = '';
+        });
 
         this._saveWidgetPositions();
         this.setActiveLayoutName(layoutName);
