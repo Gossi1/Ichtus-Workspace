@@ -97,7 +97,7 @@ const dashboardModule = {
     },
 
     _getDefaultRowSpan(widgetId) {
-        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 6, servicecountdown: 4 };
+        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 10, servicecountdown: 4 };
         return defaults[widgetId] || 3;
     },
 
@@ -480,7 +480,7 @@ const dashboardModule = {
     },
 
     _getDefaultHeight(widgetId) {
-        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 320, servicecountdown: 200 };
+        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 480, servicecountdown: 200 };
         return defaults[widgetId] || 140;
     },
 
@@ -1405,9 +1405,49 @@ const dashboardModule = {
                 </div>`;
             case 'playlist-overview':
                 return `<div class="widget-card" draggable="true" data-widget-id="playlist-overview">
-                    <div class="widget-header"><h3 class="widget-title">Playlist Overzicht</h3><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylistOverview(this)" title="Vernieuwen">↻</button></div>
-                    <div class="widget-body" id="playlist-overview-container">
-                        <div class="pp-loading">Laden…</div>
+                    <div class="widget-header">
+                        <h3 class="widget-title">ProPresenter Control</h3>
+                        <button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylistOverview(this)" title="Vernieuwen">↻</button>
+                    </div>
+                    <div class="widget-body plo-control-body">
+                        <!-- 1. Toolbar -->
+                        <div class="plo-toolbar">
+                            <button class="plo-tool-btn active" onclick="dashboardModule._triggerClear('slide', this)" title="Clear Slide">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                            </button>
+                            <button class="plo-tool-btn" onclick="dashboardModule._triggerClear('timer', this)" title="Clear Timer">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                            </button>
+                            <button class="plo-tool-btn" onclick="dashboardModule._triggerClear('message', this)" title="Clear Message">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+                            </button>
+                            <button class="plo-tool-btn" onclick="dashboardModule._triggerClear('stage', this)" title="Clear Stage">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                            </button>
+                            <button class="plo-tool-btn" onclick="dashboardModule._triggerClear('props', this)" title="Clear Props">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                            </button>
+                            <button class="plo-tool-btn" onclick="dashboardModule._triggerClear('background', this)" title="Clear Background">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>
+                            </button>
+                            <button class="plo-tool-btn lightning" onclick="dashboardModule._triggerClear('all', this)" title="Clear All">
+                                <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                            </button>
+                        </div>
+                        
+                        <!-- 2. Playlist Section -->
+                        <div class="plo-section-title">PLAYLIST</div>
+                        <div id="playlist-overview-container">
+                            <div class="pp-loading">Laden…</div>
+                        </div>
+
+                        <!-- 3. Slides Section -->
+                        <div class="plo-section-title">SLIDES</div>
+                        <div id="playlist-overview-slides-container">
+                            <div id="playlist-overview-slides" class="plo-slides-scroll">
+                                <div class="pp-loading">Geen actieve slides</div>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
             case 'servicecountdown':
@@ -2238,6 +2278,9 @@ const dashboardModule = {
                                 }
                             }
                         }
+
+                        // Load and render slides in the slides section in real-time
+                        this._loadPlaylistOverviewSlides(baseUrl, activePresUuid, activeSlideIdx);
                     });
                 })
                 .catch(() => {});
@@ -2918,15 +2961,22 @@ const dashboardModule = {
         let html = '';
 
         playlists.forEach((playlist, pi) => {
-            if (pi > 0) {
+            const items = playlist.data?.items || playlist.items || [];
+            
+            if (pi === 0) {
+                const totalPresentations = items.filter(i => i.type !== 'header').length;
+                html += `
+                <div class="plo-playlist-header-card">
+                    <div class="plo-playlist-name">${setlistModule.escapeHtml(playlist.playlistName)}</div>
+                    <div class="plo-playlist-meta">${totalPresentations} presentaties</div>
+                </div>
+                <div class="plo-items-list">
+                `;
+            } else {
                 html += '<div class="plo-divider"></div>';
             }
 
-            const items = playlist.data?.items || playlist.items || [];
-            console.log('[PLO]', playlist.playlistName, '- data.items:', (playlist.data?.items || []).length, '- direct.items:', (playlist.items || []).length, '- total:', items.length);
-
             items.forEach((item, index) => {
-                console.log('[PLO] item:', JSON.stringify(item).substring(0, 500));
                 const isHeader = item.type === 'header';
                 const itemName = item.id?.name || item.name || '';
                 const itemUuid = isHeader
@@ -2938,24 +2988,52 @@ const dashboardModule = {
                     : 'rgba(255,255,255,0.05)';
 
                 if (isHeader) {
-                    html += `<div class="pl-slide-header" style="border-left: 4px solid ${headerColor}; background: ${headerColor.replace('0.3', '0.08')};">
+                    html += `</div>
+                    <div class="pl-slide-header" style="border-left: 4px solid ${headerColor}; background: ${headerColor.replace('0.3', '0.08')};">
                         <span class="pl-header-label">${setlistModule.escapeHtml(itemName)}</span>
-                    </div>`;
+                    </div>
+                    <div class="plo-items-list">`;
                 } else {
-                    let itemIcon = '📄';
+                    const presUuid = item.presentation_info?.presentation_uuid || '';
+                    
+                    let slideCountText = 'Laden...';
                     if (item.type === 'media') {
-                        itemIcon = '🖼️';
-                    } else if (item.type === 'playlist') {
-                        itemIcon = '📋';
+                        slideCountText = 'Media';
+                    } else if (presUuid) {
+                        if (this._slideCountCache && this._slideCountCache[presUuid] !== undefined) {
+                            slideCountText = `${this._slideCountCache[presUuid]} slides`;
+                        } else {
+                            slideCountText = 'presentatie';
+                            const baseUrl = this._getProPresenterBaseUrl();
+                            if (!this._slideCountCache) this._slideCountCache = {};
+                            fetch(`${baseUrl}/v1/presentation/${presUuid}`)
+                                .then(r => r.json())
+                                .then(data => {
+                                    const count = (data?.presentation?.groups || []).flatMap(g => g.slides || []).length;
+                                    this._slideCountCache[presUuid] = count;
+                                    const metaEl = container.querySelector(`.plo-item[data-pres-uuid="${presUuid}"] .plo-item-meta`);
+                                    if (metaEl) metaEl.textContent = `${count} slides`;
+                                })
+                                .catch(() => {});
+                        }
                     }
-                    html += `<div class="plo-item${isActive ? ' active' : ''}" 
-                                 data-pres-uuid="${item.presentation_info?.presentation_uuid || ''}" 
-                                 onclick="dashboardModule._triggerPlaylistItem('${playlist.uuid}', ${index}, this)">
-                        <span class="plo-item-icon">${itemIcon}</span>
-                        <div class="plo-item-name">${setlistModule.escapeHtml(itemName)}</div>
+
+                    html += `
+                    <div class="plo-item${isActive ? ' active' : ''}" 
+                         data-pres-uuid="${presUuid}" 
+                         onclick="dashboardModule._triggerPlaylistItem('${playlist.uuid}', ${index}, this)">
+                        <div class="plo-item-details">
+                            <div class="plo-item-title">${setlistModule.escapeHtml(itemName)}</div>
+                            <div class="plo-item-meta">${slideCountText}</div>
+                        </div>
+                        ${isActive ? '<div class="plo-active-dot"></div>' : ''}
                     </div>`;
                 }
             });
+            
+            if (pi === playlists.length - 1) {
+                html += `</div>`;
+            }
         });
 
         if (!html) {
@@ -2983,12 +3061,135 @@ const dashboardModule = {
         const baseUrl = this._getProPresenterBaseUrl();
         fetch(`${baseUrl}/v1/playlist/${playlistUuid}/${itemIndex}/trigger`, { method: 'GET' })
             .then(() => {
-                // Snel verversen van het overzicht om de nieuwe status direct te reflecteren
                 setTimeout(() => this._loadPlaylistOverview(), 150);
             })
             .catch(err => {
                 console.error('[PLO] Error triggering playlist item:', err);
             });
+    },
+
+    _triggerClear(type, btn) {
+        if (btn) {
+            btn.classList.add('active-flash');
+            setTimeout(() => btn.classList.remove('active-flash'), 400);
+        }
+        const baseUrl = this._getProPresenterBaseUrl();
+        let endpoint = `/v1/clear/all`;
+        if (type === 'slide') endpoint = `/v1/clear/slide`;
+        else if (type === 'timer') endpoint = `/v1/clear/timer`;
+        else if (type === 'message') endpoint = `/v1/clear/message`;
+        else if (type === 'stage') endpoint = `/v1/clear/stage`;
+        else if (type === 'props') endpoint = `/v1/clear/props`;
+        else if (type === 'background') endpoint = `/v1/clear/background`;
+        
+        fetch(`${baseUrl}${endpoint}`, { method: 'GET' })
+            .catch(err => console.error('[PLO] Error clearing:', err));
+    },
+
+    _loadPlaylistOverviewSlides(baseUrl, activePresUuid, activeSlideIdx) {
+        if (!activePresUuid) {
+            const slidesContainer = document.getElementById('playlist-overview-slides');
+            if (slidesContainer) slidesContainer.innerHTML = '<div class="pp-offline">Geen actieve slides</div>';
+            return;
+        }
+
+        if (this._playlistOverviewLastPresUuid === activePresUuid && this._playlistOverviewSlidesData) {
+            this._renderPlaylistOverviewSlides(activeSlideIdx);
+            return;
+        }
+
+        this._playlistOverviewLastPresUuid = activePresUuid;
+
+        fetch(`${baseUrl}/v1/presentation/${activePresUuid}`, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                const groups = data?.presentation?.groups || [];
+                const slides = [];
+                
+                let globalSlideIndex = 0;
+                groups.forEach(group => {
+                    const groupSlides = group.slides || [];
+                    groupSlides.forEach((slide, idx) => {
+                        let label = slide.label || String(globalSlideIndex + 1);
+                        
+                        slides.push({
+                            uuid: activePresUuid,
+                            slideIndex: globalSlideIndex,
+                            label: label,
+                            groupName: group.name,
+                            groupColor: group.color,
+                            image: slide.image || slide.thumb_url || slide.thumbnail || null
+                        });
+                        globalSlideIndex++;
+                    });
+                });
+
+                this._playlistOverviewSlidesData = slides;
+                this._renderPlaylistOverviewSlides(activeSlideIdx);
+            })
+            .catch(() => {
+                this._playlistOverviewLastPresUuid = null;
+                this._playlistOverviewSlidesData = null;
+            });
+    },
+
+    _renderPlaylistOverviewSlides(activeSlideIdx) {
+        const slidesContainer = document.getElementById('playlist-overview-slides');
+        if (!slidesContainer || !this._playlistOverviewSlidesData) return;
+
+        const baseUrl = this._getProPresenterBaseUrl();
+        let html = '';
+
+        this._playlistOverviewSlidesData.forEach(slide => {
+            const isActive = slide.slideIndex === activeSlideIdx;
+            const activeClass = isActive ? ' active' : '';
+
+            let groupStyle = '';
+            if (slide.groupColor) {
+                const r = Math.round((slide.groupColor.red || 0) * 255);
+                const g = Math.round((slide.groupColor.green || 0) * 255);
+                const b = Math.round((slide.groupColor.blue || 0) * 255);
+                groupStyle = `background: rgb(${r}, ${g}, ${b}); color: ${this._getContrastYIQ(r, g, b)};`;
+            } else {
+                groupStyle = `background: var(--ichtus-orange); color: white;`;
+            }
+
+            let thumbUrl = `${baseUrl}/v1/presentation/${slide.uuid}/thumbnail/${slide.slideIndex}`;
+            if (slide.image) {
+                if (slide.image.startsWith('data:')) {
+                    thumbUrl = slide.image;
+                } else if (slide.image.startsWith('http')) {
+                      thumbUrl = slide.image;
+                } else if (slide.image.startsWith('/')) {
+                    thumbUrl = baseUrl + slide.image;
+                } else {
+                    thumbUrl = 'data:image/jpeg;base64,' + slide.image;
+                }
+            }
+
+            const groupBadge = slide.groupName ? `<div class="plo-slide-group-badge" style="${groupStyle}">${slide.groupName}</div>` : '';
+
+            html += `<div class="plo-slide-card${activeClass}" 
+                          data-slide-index="${slide.slideIndex}"
+                          onclick="dashboardModule._triggerPlaylistSlide('${slide.uuid}', ${slide.slideIndex}, this)">
+                <div class="plo-slide-num">${slide.slideIndex + 1}</div>
+                ${groupBadge}
+                <img class="plo-slide-thumb" src="${thumbUrl}" onerror="this.style.opacity=0" loading="lazy" />
+                <div class="plo-slide-checkerboard"></div>
+            </div>`;
+        });
+
+        slidesContainer.innerHTML = html;
+
+        const activeCard = slidesContainer.querySelector('.plo-slide-card.active');
+        if (activeCard) {
+            activeCard.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' });
+        }
+    },
+
+    _getContrastYIQ(r, g, b) {
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 128) ? '#000' : '#fff';
     },
 
     syncState() {}
