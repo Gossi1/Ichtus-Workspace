@@ -4553,10 +4553,288 @@ input:checked + .slider::before { transform: translateX(20px); }
     text-align: center;
 }
 
+/* ---- ProPresenter Control Center Styles ---- */
+.plo-control-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    overflow-y: auto;
+    padding: 12px !important;
+}
+
+/* 1. Toolbar */
+.plo-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-bottom: 4px;
+}
+
+.plo-tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.plo-tool-btn:hover {
+    background: rgba(51, 65, 85, 0.6);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f1f5f9;
+}
+
+.plo-tool-btn.active {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: #00d2ff;
+    color: #00d2ff;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+}
+
+.plo-tool-btn.active-flash {
+    animation: plo-btn-flash 0.4s ease-out;
+}
+
+@keyframes plo-btn-flash {
+    0% { transform: scale(1); background: rgba(0, 210, 255, 0.4); border-color: #00d2ff; color: #fff; }
+    100% { transform: scale(1); }
+}
+
+.plo-tool-btn.lightning:hover {
+    background: rgba(244, 63, 94, 0.15);
+    border-color: #f43f5e;
+    color: #f43f5e;
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
+}
+
+/* 2. Sections & Cards */
+.plo-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    margin-top: 6px;
+}
+
+.plo-playlist-header-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+}
+
+.plo-playlist-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.plo-playlist-meta {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.plo-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Customize scrollbar inside items list */
+.plo-items-list::-webkit-scrollbar,
+.plo-slides-scroll::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.plo-items-list::-webkit-scrollbar-thumb,
+.plo-slides-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.plo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(30, 41, 59, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.plo-item:hover {
+    background: rgba(51, 65, 85, 0.4);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.plo-item.active {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: #00d2ff;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
+}
+
+.plo-item-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.plo-item-title {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s;
+}
+
+.plo-item.active .plo-item-title {
+    color: #00d2ff;
+    font-weight: 600;
+}
+
+.plo-item-meta {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 1px;
+}
+
+.plo-active-dot {
+    width: 8px;
+    height: 8px;
+    background: #00d2ff;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00d2ff;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+/* 3. Horizontal Slides Section */
+#playlist-overview-slides-container {
+    background: rgba(15, 23, 42, 0.2);
+    border-radius: 10px;
+    padding: 4px;
+}
+
+.plo-slides-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 4px 8px 4px;
+}
+
+.plo-slide-card {
+    position: relative;
+    width: 140px;
+    min-width: 140px;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #111;
+}
+
+.plo-slide-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.plo-slide-card.active {
+    border-color: #00d2ff;
+    box-shadow: 0 0 14px rgba(0, 210, 255, 0.4);
+    transform: scale(0.98);
+}
+
+.plo-slide-num {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    z-index: 5;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.plo-slide-card.active .plo-slide-num {
+    color: #00d2ff;
+}
+
+.plo-slide-group-badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plo-slide-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 2;
+    transition: opacity 0.2s;
+}
+
+/* Realistic checkerboard background pattern */
+.plo-slide-checkerboard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background-color: #1e1e1e;
+    background-image: 
+        linear-gradient(45deg, #151515 25%, transparent 25%), 
+        linear-gradient(-45deg, #151515 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #151515 75%), 
+        linear-gradient(-45deg, transparent 75%, #151515 75%);
+    background-size: 12px 12px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+}
+
 /* ---- Responsive ---- */
 @media (max-width: 768px) {
     .pl-slide-header { padding: 8px 10px; }
-    .plo-item { padding: 6px 10px 6px 14px; }
+    .plo-item { padding: 8px 12px; }
     .pl-header-label { font-size: 0.78rem; }
-    .plo-item-name { font-size: 0.82rem; }
+    .plo-item-title { font-size: 0.82rem; }
+    .plo-slide-card { width: 120px; min-width: 120px; }
 }
