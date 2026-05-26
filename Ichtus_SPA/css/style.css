@@ -4049,6 +4049,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     margin: 0.75rem 0 0.25rem 0;
     border-left: 4px solid;
     border-radius: 0 8px 8px 0;
+    font-family: 'Blockprint', sans-serif;
     font-size: 0.85rem;
     text-transform: uppercase;
     letter-spacing: 0.08em;
@@ -4443,4 +4444,119 @@ input:checked + .slider::before { transform: translateX(20px); }
 
 .countdown-settings-btn:hover {
     color: var(--ichtus-orange);
+}
+
+/* ==================== PLAYLIST OVERVIEW WIDGET STYLES ==================== */
+
+.widget-card[data-widget-id="playlist-overview"] .widget-body {
+    padding: 0;
+    overflow-y: auto;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+#playlist-overview-container {
+    padding: 8px 12px;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ---- Header items (section dividers) ---- */
+/* ---- Presentation items ---- */
+.plo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 16px;
+    margin: 2px 0;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+
+.plo-item:hover {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.06);
+}
+
+.plo-item.active {
+    background: rgba(244,121,32,0.12);
+    border-color: var(--ichtus-orange);
+    box-shadow: 0 0 12px rgba(244,121,32,0.15);
+}
+
+.plo-item.pp-triggered {
+    transform: scale(0.97);
+    background: rgba(244,121,32,0.25) !important;
+    border-color: var(--ichtus-orange) !important;
+    transition: transform 0.05s ease;
+}
+
+.plo-item-icon {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.plo-item.active .plo-item-icon {
+    opacity: 1;
+}
+
+.plo-item-name {
+    font-size: 0.88rem;
+    color: #ddd;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.plo-item.active .plo-item-name {
+    color: #fff;
+    font-weight: 600;
+}
+
+.plo-item-active-badge {
+    font-size: 0.75rem;
+    color: var(--ichtus-orange);
+    flex-shrink: 0;
+    animation: plo-badge-pulse 1.5s ease-in-out infinite;
+    background: rgba(244,121,32,0.2);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes plo-badge-pulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* ---- Divider between presentation and announcements ---- */
+.plo-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #444, transparent);
+    margin: 8px 0;
+}
+
+/* ---- Loading & offline states (reuse existing pp-* classes) ---- */
+#playlist-overview-container .pp-loading,
+#playlist-overview-container .pp-offline {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .pl-slide-header { padding: 8px 10px; }
+    .plo-item { padding: 6px 10px 6px 14px; }
+    .pl-header-label { font-size: 0.78rem; }
+    .plo-item-name { font-size: 0.82rem; }
 }
