@@ -97,6 +97,7 @@ const setlistModule = {
     editingTemplateKey: null,
     receivedSetlist: null,
     parsedSongs: null,
+    fullItems: null,
     serviceDate: null,
     proConnectionStatus: 'unknown', // 'unknown' | 'online' | 'offline'
 
@@ -164,6 +165,7 @@ const setlistModule = {
                 const data = JSON.parse(saved);
                 this.receivedSetlist = data.raw;
                 this.parsedSongs = data.parsed;
+                this.fullItems = data.fullItems || null;
                 this.serviceDate = data.date || null;
                 this.updateConnectionStatus('received');
                 this.renderSongPreview();
@@ -195,6 +197,7 @@ const setlistModule = {
 
         this.receivedSetlist = rawText;
         this.parsedSongs = this.parseSongs(rawText);
+        this.fullItems = this.parseFullItems(rawText);
         this.serviceDate = date || null;
         console.log('[SPA] serviceDate set to:', this.serviceDate);
 
@@ -202,6 +205,7 @@ const setlistModule = {
         localStorage.setItem('ichtus_received_setlist', JSON.stringify({
             raw: rawText,
             parsed: this.parsedSongs,
+            fullItems: this.fullItems,
             date: this.serviceDate,
             receivedAt: new Date().toISOString()
         }));
@@ -432,6 +436,42 @@ const setlistModule = {
                 testBtn.textContent = __('setlist_test_connection');
             }
         }
+    },
+
+    parseFullItems(rawText) {
+        const items = [];
+        let currentSection = 'opening';
+        const lines = rawText.split('\n');
+
+        for (let line of lines) {
+            line = line.trim();
+            if (!line) continue;
+
+            // Detect section breaks from WorshipTools markers
+            if (line.includes("D000 - Opening dienst en offergave")) {
+                currentSection = 'praise';
+                items.push({ name: 'Openingsliederen', type: 'section', section: currentSection });
+                continue;
+            } else if (line.includes("D000 - Preek")) {
+                currentSection = 'closing';
+                items.push({ name: 'Eindliederen', type: 'section', section: currentSection });
+                continue;
+            }
+
+            // Skip noisy items
+            const ignore = ["preek", "opening", "offergave", "repetities", "kerkdiensten", "worship tools", "avondmaal", "reserve"];
+            if (ignore.some(word => line.toLowerCase().includes(word))) continue;
+
+            let cleaned = line.replace(/^\d{1,2}:\d{2}\s*(?:\|\s*)?/, '').trim();
+            // Remove chord notation from end
+            cleaned = cleaned.replace(/\s+[A-G][b#]?(?:m|maj|min|dim|aug|sus|add|\d+)*$/i, '').trim();
+
+            if (cleaned) {
+                items.push({ name: cleaned, type: 'item', section: currentSection });
+            }
+        }
+
+        return items;
     },
 
     parseSongs(rawText) {

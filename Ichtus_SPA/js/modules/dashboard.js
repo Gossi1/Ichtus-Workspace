@@ -5,7 +5,7 @@ const dashboardModule = {
     timerStartTime: null,
     timerRunning: false,
     draggedEl: null,
-    _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter'],
+    _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter', 'playlist-overview'],
     _editMode: false,
     _widgetInstance: 0,
 
@@ -21,6 +21,7 @@ const dashboardModule = {
     _proPresenterPlaylistSlideCheckInterval: null,
     _proPresenterPlaylistLastUuid: null,
     _proPresenterPlaylistCheckInterval: null,
+    _proPresenterPlaylistIndex: null,
     _playlistAutoScroll: true,
     _hasPlaylistData: false,
     _isApplyingLayout: false,
@@ -29,6 +30,11 @@ const dashboardModule = {
     //  INIT
     // ===============================
     init() {
+        // Sla ProPresenter WebSocket wachtwoord op in localStorage (niet in de code)
+        if (!localStorage.getItem('ichtus_pp_ws_password')) {
+            const pwd = prompt('Voer het ProPresenter netwerk wachtwoord in voor WebSocket connectie:');
+            if (pwd) localStorage.setItem('ichtus_pp_ws_password', pwd);
+        }
         if (this.initialized && this._lastView === 'dashboard') return;
         this.initialized = true;
         this._lastView = 'dashboard';
@@ -47,13 +53,17 @@ const dashboardModule = {
         this._restoreWidgetSizes();
         this._expandWidgetToGridHeight();
         this.initLayoutSelector();
-        if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
+        if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
             this._startProPresenterPolling();
         }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
                 this._loadProPresenterPlaylist();
                 this._startPlaylistChangeDetection();
                 this._startPlaylistSlideTracking();
             }
+        if (document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
+            this._startPlaylistOverviewPolling();
+            this._loadPlaylistOverview();
+        }
 
         this._resizeHandler = () => {
             if (document.getElementById('view-dashboard')?.classList.contains('active')) {
@@ -87,7 +97,7 @@ const dashboardModule = {
     },
 
     _getDefaultRowSpan(widgetId) {
-        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, servicecountdown: 4 };
+        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 6, servicecountdown: 4 };
         return defaults[widgetId] || 3;
     },
 
@@ -393,7 +403,7 @@ const dashboardModule = {
                 document.removeEventListener('pointerup', onUp);
                 this._saveWidgetSizes();
                 const widgetId = el.dataset.widgetId;
-                if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') {
+                if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist' || widgetId === 'playlist-overview') {
                     this._expandWidgetToGridHeight();
                 }
             };
@@ -465,12 +475,12 @@ const dashboardModule = {
     },
 
     _getDefaultSpan(widgetId) {
-        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, servicecountdown: 18 };
+        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, 'playlist-overview': 24, servicecountdown: 18 };
         return defaults[widgetId] || 6;
     },
 
     _getDefaultHeight(widgetId) {
-        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, servicecountdown: 200 };
+        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 320, servicecountdown: 200 };
         return defaults[widgetId] || 140;
     },
 
@@ -485,7 +495,7 @@ const dashboardModule = {
         if (!metrics) return;
         const { maxRows } = metrics;
 
-        grid.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]').forEach(card => {
+        grid.querySelectorAll('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]').forEach(card => {
             const rowStart = parseInt(card.style.gridRowStart) || 1;
             const rowsAvail = Math.max(1, maxRows - rowStart + 1);
 
@@ -648,11 +658,14 @@ const dashboardModule = {
                         const card = wrapper.firstElementChild;
                         if (card) {
                             grid.appendChild(card);
-                            if (id === 'propresenter' || id === 'propresenter-playlist') this._startProPresenterPolling();
+                            if (id === 'propresenter' || id === 'propresenter-playlist' || id === 'playlist-overview') this._startProPresenterPolling();
                             if (id === 'propresenter-playlist') {
                                 this._loadProPresenterPlaylist();
                                 this._startPlaylistChangeDetection();
                                 this._startPlaylistSlideTracking();
+                            }
+                            if (id === 'playlist-overview') {
+                                this._startPlaylistOverviewPolling();
                             }
                             if (id === 'servicecountdown') this.setupCountdown();
                         }
@@ -1238,16 +1251,19 @@ const dashboardModule = {
     // ===============================
     deleteWidget(card) {
         this.showConfirmModal('Remove this widget?', () => {
-            const wasProPresenter = card.dataset.widgetId === 'propresenter' || card.dataset.widgetId === 'propresenter-playlist';
+            const wasProPresenter = card.dataset.widgetId === 'propresenter' || card.dataset.widgetId === 'propresenter-playlist' || card.dataset.widgetId === 'playlist-overview';
             card.remove();
             this.setupDragAndDrop();
             this.saveWidgetOrder();
-            if (!document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"]')) {
+            if (!document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
                 this._stopProPresenterPolling();
             }
             if (!document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
                 this._stopPlaylistChangeDetection();
                 this._stopPlaylistSlideTracking();
+            }
+            if (!document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
+                this._stopPlaylistOverviewPolling();
             }
         });
     },
@@ -1297,7 +1313,8 @@ const dashboardModule = {
             { id: 'status', icon: '📊', label: 'Workspace Status' },
             { id: 'propresenter', icon: '🖥', label: 'ProPresenter Presentation' },
             { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' },
-            { id: 'servicecountdown', icon: '⏳', label: 'Service Countdown' }
+            { id: 'servicecountdown', icon: '⏳', label: 'Service Countdown' },
+            { id: 'playlist-overview', icon: '📄', label: 'Playlist Overzicht' }
         ];
 
         items.forEach(item => {
@@ -1386,6 +1403,13 @@ const dashboardModule = {
                         <div class="pp-loading">Loading playlist…</div>
                     </div>
                 </div>`;
+            case 'playlist-overview':
+                return `<div class="widget-card" draggable="true" data-widget-id="playlist-overview">
+                    <div class="widget-header"><h3 class="widget-title">Playlist Overzicht</h3><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylistOverview(this)" title="Vernieuwen">↻</button></div>
+                    <div class="widget-body" id="playlist-overview-container">
+                        <div class="pp-loading">Laden…</div>
+                    </div>
+                </div>`;
             case 'servicecountdown':
                 return `<div class="widget-card" draggable="true" data-widget-id="servicecountdown">
                     <div class="widget-body">
@@ -1463,11 +1487,14 @@ const dashboardModule = {
         // Initialize widget-specific functionality
         if (widgetId === 'servicetimer') this.setupTimer();
         if (widgetId === 'servicecountdown') this.setupCountdown();
-        if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist') this._startProPresenterPolling();
+        if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist' || widgetId === 'playlist-overview') this._startProPresenterPolling();
         if (widgetId === 'propresenter-playlist') {
             this._loadProPresenterPlaylist();
             this._startPlaylistChangeDetection();
             this._startPlaylistSlideTracking();
+        }
+        if (widgetId === 'playlist-overview') {
+            this._startPlaylistOverviewPolling();
         }
 
         // Add edit-mode controls if edit mode is active
@@ -2202,6 +2229,167 @@ const dashboardModule = {
         }
     },
 
+    // ===============================
+    //  WEBSOCKET PLAYLIST NAVIGATION
+    //  Gebruikt ProPresenter WebSocket API om binnen de playlist te navigeren
+    //  zonder de playlist context te verbreken.
+    // ===============================
+
+    /** Bouw WebSocket URL op basis van hetzelfde IP/poort als de REST API */
+    _getProPresenterWsUrl() {
+        let ip = '127.0.0.1', port = '50001';
+        if (typeof settingsModule !== 'undefined' && settingsModule.settings && settingsModule.settings.proPresenterIp) {
+            ip = settingsModule.settings.proPresenterIp;
+            port = settingsModule.settings.proPresenterPort || port;
+        } else {
+            const combined = localStorage.getItem('setlistProIp');
+            if (combined && combined.includes(':')) {
+                const parts = combined.split(':');
+                ip = parts[0];
+                port = parts[1];
+            } else if (combined) {
+                ip = combined;
+                port = localStorage.getItem('setlistProPort') || port;
+            }
+        }
+        return `ws://${ip}:${port}/remote`;
+    },
+
+    /** Haal playlist index op uit /v1/playlist/active en cache hem */
+    _getActivePlaylistIndex() {
+        const baseUrl = this._getProPresenterBaseUrl();
+        return fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(data => {
+                // De playlist index zit in data.presentation.playlist.index (0-based)
+                const idx = data?.presentation?.playlist?.index;
+                if (idx !== undefined && idx !== null) {
+                    this._proPresenterPlaylistIndex = idx;
+                    return idx;
+                }
+                // Fallback: zoek index via /v1/playlist
+                return fetch(`${baseUrl}/v1/playlist`, { headers: { 'Accept': 'application/json' } })
+                    .then(r => r.json())
+                    .then(playlists => {
+                        const activeUuid = data?.presentation?.playlist?.uuid;
+                        const list = Array.isArray(playlists) ? playlists : (playlists?.playlists || []);
+                        const found = list.findIndex(p => p.uuid === activeUuid);
+                        if (found >= 0) {
+                            this._proPresenterPlaylistIndex = found;
+                        } else {
+                            this._proPresenterPlaylistIndex = 0;
+                        }
+                        return this._proPresenterPlaylistIndex;
+                    });
+            })
+            .catch(() => {
+                // Fallback naar 0 als er geen actieve playlist is
+                this._proPresenterPlaylistIndex = 0;
+                return 0;
+            });
+    },
+
+    /** Trigger een slide via WebSocket — blijft binnen de playlist context */
+    _triggerViaWebSocket(uuid, slideIndex, el) {
+        const slideIndexStr = String(slideIndex);
+        const itemIndex = el ? parseInt(el.dataset.plItemIndex) : 0;
+
+        // Eerst playlist index ophalen (gecached of via API)
+        const usePlaylistIndex = (idx) => {
+            const presentationPath = `${idx}:${itemIndex}`;
+
+            // Wachtwoord ophalen uit localStorage
+            const password = localStorage.getItem('ichtus_pp_ws_password') || '';
+            if (!password) {
+                console.warn('[WS] Geen wachtwoord in localStorage, sla eerst wachtwoord in via init()');
+                // Fallback naar REST als er geen wachtwoord is
+                const baseUrl = this._getProPresenterBaseUrl();
+                fetch(`${baseUrl}/v1/presentation/${uuid}/trigger`, { method: 'GET' })
+                    .then(() => {
+                        setTimeout(() => {
+                            fetch(`${baseUrl}/v1/presentation/active/${slideIndex}/trigger`, { method: 'GET' })
+                                .catch(() => {});
+                        }, 150);
+                    })
+                    .catch(() => {});
+                return;
+            }
+
+            const wsUrl = this._getProPresenterWsUrl();
+            let ws = null;
+            let didAuth = false;
+            let didTrigger = false;
+
+            ws = new WebSocket(wsUrl);
+
+            ws.onopen = () => {
+                // Stap 1: Authenticeren
+                ws.send(JSON.stringify({
+                    action: 'authenticate',
+                    protocol: 701,
+                    password: password
+                }));
+            };
+
+            ws.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    // Als we een auth response krijgen, stuur dan de trigger
+                    if (msg.action === 'authenticate' && !didAuth) {
+                        didAuth = true;
+                        // Stap 2: Trigger de slide binnen de playlist
+                        ws.send(JSON.stringify({
+                            action: 'presentationTriggerIndex',
+                            slideIndex: slideIndexStr,
+                            presentationPath: presentationPath
+                        }));
+                    }
+                    // Als we een trigger response krijgen (of een andere response), sluit dan
+                    if (msg.action === 'presentationTriggerIndex' && !didTrigger) {
+                        didTrigger = true;
+                        setTimeout(() => {
+                            try { ws.close(); } catch(e) {}
+                        }, 100);
+                    }
+                } catch(e) {}
+            };
+
+            // Timeout: na 2s sluiten als er nog niets gebeurd is
+            setTimeout(() => {
+                if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+                    try { ws.close(); } catch(e) {}
+                }
+            }, 2000);
+
+            ws.onerror = () => {
+                // Fallback bij WebSocket fout: probeer via REST (focus + trigger)
+                console.warn('[WS] WebSocket error, falling back to REST');
+                const baseUrl = this._getProPresenterBaseUrl();
+                fetch(`${baseUrl}/v1/presentation/${uuid}/trigger`, { method: 'GET' })
+                    .then(() => {
+                        setTimeout(() => {
+                            fetch(`${baseUrl}/v1/presentation/active/${slideIndex}/trigger`, { method: 'GET' })
+                                .catch(() => {});
+                        }, 150);
+                    })
+                    .catch(() => {});
+            };
+
+            ws.onclose = () => {};
+        };
+
+        // Gebruik gecached playlist index of haal hem op
+        if (this._proPresenterPlaylistIndex !== undefined && this._proPresenterPlaylistIndex !== null) {
+            usePlaylistIndex(this._proPresenterPlaylistIndex);
+        } else {
+            this._getActivePlaylistIndex().then(idx => {
+                usePlaylistIndex(idx);
+            }).catch(() => {
+                usePlaylistIndex(0);
+            });
+        }
+    },
+
     _loadProPresenterPlaylist() {
         document.querySelectorAll('.widget-card[data-widget-id="propresenter-playlist"]').forEach(el => {
             this._fetchProPresenterPlaylist(el);
@@ -2582,8 +2770,6 @@ const dashboardModule = {
     },
 
     _triggerPlaylistSlide(uuid, slideIndex, el) {
-        const baseUrl = this._getProPresenterBaseUrl();
-
         // Visual feedback on the clicked element
         if (el) {
             el.classList.remove('pp-triggered');
@@ -2592,18 +2778,9 @@ const dashboardModule = {
             setTimeout(() => el.classList.remove('pp-triggered'), 350);
         }
 
-        // Stap 1: Focus de presentation (maakt het de actieve presentation)
-        fetch(`${baseUrl}/v1/presentation/${uuid}/trigger`, { method: 'GET' })
-            .then(resp => {
-                // Stap 2: Wacht kort zodat ProPresenter de focus kan verwerken,
-                // daarna trigger de specifieke slide in de actieve presentation
-                setTimeout(() => {
-                    fetch(`${baseUrl}/v1/presentation/active/${slideIndex}/trigger`, { method: 'GET' })
-                        
-                        .catch(() => {});
-                }, 150);
-            })
-            .catch(() => {});
+        // Via WebSocket: presentationTriggerIndex navigeert binnen de playlist context
+        // Hierdoor blijft /v1/playlist/active gewoon werken
+        this._triggerViaWebSocket(uuid, slideIndex, el);
     },
 
     _toggleAutoScroll(btn) {
@@ -2620,6 +2797,174 @@ const dashboardModule = {
         const isGrid = container.classList.toggle('pp-grid-layout');
         btn.textContent = isGrid ? '☰' : '⊞';
         try { localStorage.setItem('ichtus_pp_playlist_layout', isGrid ? 'grid' : 'single'); } catch(e) {}
+    },
+
+        // ===============================
+    //  PLAYLIST OVERVIEW WIDGET
+    //  Shows the full playlist structure: presentation names, headers,
+    //  and announcements without individual slides.
+    // ===============================
+
+    _loadPlaylistOverview() {
+        document.querySelectorAll('.widget-card[data-widget-id="playlist-overview"]').forEach(el => {
+            this._fetchPlaylistOverview(el);
+        });
+    },
+
+    _refreshPlaylistOverview(btn) {
+        const widgetEl = btn.closest('.widget-card');
+        if (widgetEl) this._fetchPlaylistOverview(widgetEl);
+    },
+
+    _startPlaylistOverviewPolling() {
+        this._stopPlaylistOverviewPolling();
+        this._loadPlaylistOverview();
+        this._playlistOverviewInterval = setInterval(() => this._loadPlaylistOverview(), 10000);
+    },
+
+    _stopPlaylistOverviewPolling() {
+        if (this._playlistOverviewInterval) {
+            clearInterval(this._playlistOverviewInterval);
+            this._playlistOverviewInterval = null;
+        }
+    },
+
+    _fetchPlaylistOverview(widgetEl) {
+        const baseUrl = this._getProPresenterBaseUrl();
+        const container = widgetEl.querySelector('#playlist-overview-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+
+        fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
+            .then(r => r.json())
+            .then(activeData => {
+                console.log('[PLO] activeData FULL:', JSON.stringify(activeData).substring(0, 3000));
+                console.log('[PLO] pres keys:', Object.keys(activeData?.presentation || {}), '| ann keys:', Object.keys(activeData?.announcements || {}));
+                const pres = activeData?.presentation;
+                const ann = activeData?.announcements;
+
+                const playlists = [];
+                let activeItemIds = [];
+
+                if (pres?.playlist?.uuid) {
+                    playlists.push({ uuid: pres.playlist.uuid, name: pres.playlist.name || '', branch: 'presentation' });
+                    if (pres?.item?.uuid) activeItemIds.push(pres.item.uuid);
+                }
+                if (ann?.playlist?.uuid) {
+                    if (!playlists.find(p => p.uuid === ann.playlist.uuid)) {
+                        playlists.push({ uuid: ann.playlist.uuid, name: ann.playlist.name || '', branch: 'announcements' });
+                    }
+                    if (ann?.item?.uuid && !activeItemIds.includes(ann.item.uuid)) {
+                        activeItemIds.push(ann.item.uuid);
+                    }
+                }
+
+                if (!playlists.length) {
+                    // Skip if content already rendered (prevents overwriting during temporary empty state, e.g. after slide trigger)
+                    if (!container.querySelector('.pl-slide-header, .plo-item')) {
+                        container.innerHTML = '<div class="pp-offline"><div class="pp-offline-icon">📋</div><div>Geen actieve playlist</div></div>';
+                    }
+                    return;
+                }
+
+                const fetches = playlists.map(pl =>
+                    fetch(`${baseUrl}/v1/playlist/${pl.uuid}`, { headers: { 'Accept': 'application/json' } })
+                        .then(r => r.json())
+                        .then(data => ({ ...data, branch: pl.branch, playlistName: pl.name, activeItemIds }))
+                );
+
+                Promise.all(fetches)
+                    .then(results => {
+                        this._renderPlaylistOverview(container, results);
+                        const titleEl = widgetEl.querySelector('.widget-title');
+                        if (titleEl && results[0]?.playlistName) {
+                            titleEl.textContent = `Playlist: ${results[0].playlistName}`;
+                        }
+                    })
+                    .catch(() => {
+                        if (!container.querySelector('.pl-slide-header, .plo-item')) {
+                            container.innerHTML = '<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>Fout bij ophalen playlist</div></div>';
+                        }
+                    });
+            })
+            .catch(() => {
+                if (!container.querySelector('.pl-slide-header, .plo-item')) {
+                    container.innerHTML = '<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div></div>';
+                }
+            });
+    },
+
+    _renderPlaylistOverview(container, playlists) {
+        let html = '';
+
+        playlists.forEach((playlist, pi) => {
+            if (pi > 0) {
+                html += '<div class="plo-divider"></div>';
+            }
+
+            const items = playlist.data?.items || playlist.items || [];
+            console.log('[PLO]', playlist.playlistName, '- data.items:', (playlist.data?.items || []).length, '- direct.items:', (playlist.items || []).length, '- total:', items.length);
+
+            items.forEach((item, index) => {
+                console.log('[PLO] item:', JSON.stringify(item).substring(0, 500));
+                const isHeader = item.type === 'header';
+                const itemName = item.id?.name || item.name || '';
+                const itemUuid = isHeader
+                    ? null
+                    : (item.id?.uuid || item.uuid || '');
+                const isActive = itemUuid && playlist.activeItemIds?.includes(itemUuid);
+                const headerColor = isHeader && item.header_color
+                    ? `rgba(${Math.round(item.header_color.red * 255)}, ${Math.round(item.header_color.green * 255)}, ${Math.round(item.header_color.blue * 255)}, 0.3)`
+                    : 'rgba(255,255,255,0.05)';
+
+                if (isHeader) {
+                    html += `<div class="pl-slide-header" style="border-left: 4px solid ${headerColor}; background: ${headerColor.replace('0.3', '0.08')};">
+                        <span class="pl-header-label">${setlistModule.escapeHtml(itemName)}</span>
+                    </div>`;
+                } else {
+                    let itemIcon = '📄';
+                    if (item.type === 'media') {
+                        itemIcon = '🖼️';
+                    } else if (item.type === 'playlist') {
+                        itemIcon = '📋';
+                    }
+                    html += `<div class="plo-item${isActive ? ' active' : ''}" onclick="dashboardModule._triggerPlaylistItem('${playlist.uuid}', ${index}, this)">
+                        <span class="plo-item-icon">${itemIcon}</span>
+                        <div class="plo-item-name">${setlistModule.escapeHtml(itemName)}</div>
+                    </div>`;
+                }
+            });
+        });
+
+        if (!html) {
+            html = '<div class="pp-loading">Geen items in playlist</div>';
+        }
+
+        container.innerHTML = html;
+
+        // Auto-scroll naar actieve presentatie
+        const activeItem = container.querySelector('.plo-item.active');
+        if (activeItem) {
+            requestAnimationFrame(() => {
+                activeItem.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+        }
+    },
+
+    _triggerPlaylistItem(playlistUuid, itemIndex, el) {
+        if (el) {
+            el.classList.remove('pp-triggered');
+            void el.offsetWidth;
+            el.classList.add('pp-triggered');
+            setTimeout(() => el.classList.remove('pp-triggered'), 350);
+        }
+        const baseUrl = this._getProPresenterBaseUrl();
+        fetch(`${baseUrl}/v1/playlist/${playlistUuid}/${itemIndex}/trigger`, { method: 'GET' })
+            .then(() => {
+                // Snel verversen van het overzicht om de nieuwe status direct te reflecteren
+                setTimeout(() => this._loadPlaylistOverview(), 150);
+            })
+            .catch(err => {
+                console.error('[PLO] Error triggering playlist item:', err);
+            });
     },
 
     syncState() {}
