@@ -2217,6 +2217,28 @@ const dashboardModule = {
                             }
                         }
                     });
+
+                    // Update active item in all playlist overview widgets in real-time
+                    document.querySelectorAll('.widget-card[data-widget-id="playlist-overview"]').forEach(widget => {
+                        const container = widget.querySelector('#playlist-overview-container');
+                        if (!container) return;
+
+                        if (activePresUuid) {
+                            const activeEl = container.querySelector(`.plo-item[data-pres-uuid="${activePresUuid}"]`);
+                            if (activeEl && !activeEl.classList.contains('active')) {
+                                // Remove active from all items first
+                                container.querySelectorAll('.plo-item.active').forEach(el => el.classList.remove('active'));
+                                activeEl.classList.add('active');
+                                
+                                // Auto-scroll active item into view
+                                const rect = activeEl.getBoundingClientRect();
+                                const containerRect = container.getBoundingClientRect();
+                                if (rect.bottom > containerRect.bottom || rect.top < containerRect.top) {
+                                    activeEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+                                }
+                            }
+                        }
+                    });
                 })
                 .catch(() => {});
         }, 1000);
@@ -2926,7 +2948,9 @@ const dashboardModule = {
                     } else if (item.type === 'playlist') {
                         itemIcon = '📋';
                     }
-                    html += `<div class="plo-item${isActive ? ' active' : ''}" onclick="dashboardModule._triggerPlaylistItem('${playlist.uuid}', ${index}, this)">
+                    html += `<div class="plo-item${isActive ? ' active' : ''}" 
+                                 data-pres-uuid="${item.presentation_info?.presentation_uuid || ''}" 
+                                 onclick="dashboardModule._triggerPlaylistItem('${playlist.uuid}', ${index}, this)">
                         <span class="plo-item-icon">${itemIcon}</span>
                         <div class="plo-item-name">${setlistModule.escapeHtml(itemName)}</div>
                     </div>`;
