@@ -81,3 +81,6 @@ tmp/
 # Firebase Config (contains API keys)
 firebase-config.js
 firebase-config.js.backup
+
+# Service Account Keys (sensitive credentials!)
+mic-iem-server/serviceAccountKey.json

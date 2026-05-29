@@ -5,7 +5,7 @@ const dashboardModule = {
     timerStartTime: null,
     timerRunning: false,
     draggedEl: null,
-    _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter', 'playlist-overview'],
+    _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter', 'playlist-overview', 'mic-iem-monitor'],
     _editMode: false,
     _widgetInstance: 0,
 
@@ -44,6 +44,7 @@ const dashboardModule = {
         this.setupCountdown();
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
+        this._initMicMonitor();
 
         const activeLayout = this.getActiveLayoutName();
         this.applyLayout(activeLayout);
@@ -97,7 +98,7 @@ const dashboardModule = {
     },
 
     _getDefaultRowSpan(widgetId) {
-        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 10, servicecountdown: 4 };
+        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 10, servicecountdown: 4, 'mic-iem-monitor': 6 };
         return defaults[widgetId] || 3;
     },
 
@@ -475,12 +476,12 @@ const dashboardModule = {
     },
 
     _getDefaultSpan(widgetId) {
-        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, 'playlist-overview': 24, servicecountdown: 18 };
+        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, 'playlist-overview': 24, servicecountdown: 18, 'mic-iem-monitor': 18 };
         return defaults[widgetId] || 6;
     },
 
     _getDefaultHeight(widgetId) {
-        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 480, servicecountdown: 200 };
+        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 480, servicecountdown: 200, 'mic-iem-monitor': 320 };
         return defaults[widgetId] || 140;
     },
 
@@ -1265,6 +1266,10 @@ const dashboardModule = {
             if (!document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
                 this._stopPlaylistOverviewPolling();
             }
+            if (card.dataset.widgetId === 'mic-iem-monitor' && this._micUnsubscribe) {
+                this._micUnsubscribe();
+                this._micUnsubscribe = null;
+            }
         });
     },
 
@@ -1314,7 +1319,8 @@ const dashboardModule = {
             { id: 'propresenter', icon: '🖥', label: 'ProPresenter Presentation' },
             { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' },
             { id: 'servicecountdown', icon: '⏳', label: 'Service Countdown' },
-            { id: 'playlist-overview', icon: '📄', label: 'Playlist Overzicht' }
+            { id: 'playlist-overview', icon: '📄', label: 'Playlist Overzicht' },
+            { id: 'mic-iem-monitor', icon: '🎤', label: 'Mic & IEM Monitor' }
         ];
 
         items.forEach(item => {
@@ -1468,6 +1474,22 @@ const dashboardModule = {
                         </div>
                     </div>
                 </div>`;
+            case 'mic-iem-monitor':
+                return `<div class="widget-card" draggable="true" data-widget-id="mic-iem-monitor">
+                    <div class="widget-header">
+                        <h3 class="widget-title">MIC & IEM STATUS</h3>
+                        <button class="pp-refresh-btn" id="toggle-mic-settings" onclick="dashboardModule._toggleMicEditMode()" title="Instellingen">⚙</button>
+                    </div>
+                    <div class="widget-body">
+                        <div id="mic-settings-actions" class="mic-settings-actions hidden">
+                            <button class="btn-save" onclick="dashboardModule._saveMicSettingsFromUI()">Opslaan</button>
+                            <button class="btn-cancel" onclick="dashboardModule._toggleMicEditMode()">Annuleren</button>
+                        </div>
+                        <div id="mic-monitor-grid" class="mic-monitor-grid">
+                            <div class="pp-loading">Laden…</div>
+                        </div>
+                    </div>
+                </div>`;
             default:
                 return null;
         }
@@ -1556,6 +1578,177 @@ const dashboardModule = {
 
         this.setupDragAndDrop();
         this.saveWidgetOrder();
+    },
+
+    // ===============================
+    //  MIC & IEM MONITOR
+    // ===============================
+
+    /** Cached hardware config (for Edit Mode) */
+    _micEditMode: false,
+    _micLocalCache: null,
+    _micUnsubscribe: null,
+
+    /**
+     * Initialize the Mic Monitor: start Firestore listener.
+     */
+    _initMicMonitor() {
+        if (typeof firebase === 'undefined' || !firebase.database) {
+            // Geen Realtime Database – probeer Firestore
+            this._initMicMonitorFirestore();
+            return;
+        }
+        // Use Realtime Database if available
+        try {
+            const ref = firebase.database().ref('/mic_monitor/live_status');
+            this._micUnsubscribe = ref.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (data && !this._micEditMode) {
+                    this._micLocalCache = data;
+                    this._renderMicCardsDOM(data);
+                }
+            });
+        } catch (e) {
+            console.warn('[MIC] Realtime Database failed, trying Firestore:', e.message);
+            this._initMicMonitorFirestore();
+        }
+    },
+
+    /**
+     * Fallback: use Firestore onSnapshot for real-time mic data.
+     */
+    _initMicMonitorFirestore() {
+        if (typeof firebase === 'undefined' || !firebase.firestore) {
+            console.warn('[MIC] No Firebase available');
+            return;
+        }
+        try {
+            this._micUnsubscribe = firebase.firestore().collection('mic_monitor').doc('live_status')
+                .onSnapshot((doc) => {
+                    if (doc.exists) {
+                        const data = doc.data();
+                        const channels = data.channels || [];
+                        if (!this._micEditMode) {
+                            this._micLocalCache = channels;
+                            this._renderMicCardsDOM(channels);
+                        }
+                    }
+                }, (err) => {
+                    console.warn('[MIC] Firestore listener error:', err.message);
+                });
+        } catch (e) {
+            console.warn('[MIC] Firestore init failed:', e.message);
+        }
+    },
+
+    /**
+     * Render the 4 mic cards into the grid container.
+     */
+    _renderMicCardsDOM(channels) {
+        const gridContainer = document.getElementById('mic-monitor-grid');
+        const actionBalk = document.querySelector('#mic-settings-actions');
+        if (!gridContainer) return;
+
+        if (!channels || channels.length === 0) {
+            gridContainer.innerHTML = '<div class="pp-loading">Geen data…</div>';
+            return;
+        }
+
+        if (this._micEditMode) {
+            // ── EDIT MODE ──
+            if (actionBalk) actionBalk.classList.remove('hidden');
+            gridContainer.innerHTML = channels.map((mic, idx) => {
+                const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
+                return `<div class="mic-card edit-mode" data-mic-id="${mic.mic_id}">
+                    <div class="mic-card-bg" style="background-image: url(${mic.avatar_url || fallbackSvg});"></div>
+                    <div class="mic-card-overlay"></div>
+                    <div class="mic-card-content">
+                        <div class="mic-card-header">
+                            <span class="mic-label">CONFIG MIC ${mic.mic_id}</span>
+                        </div>
+                        <div class="mic-edit-fields">
+                            <div class="mic-edit-row">
+                                <label>IEM Pack</label>
+                                <input type="text" class="mic-input edit-iem" value="${mic.iem_pack}" placeholder="IEM Pack ${mic.mic_id}">
+                            </div>
+                            <div class="mic-edit-row">
+                                <label>RF Frequentie</label>
+                                <input type="text" class="mic-input edit-freq" value="${mic.frequency}" placeholder="000.000 MHz">
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+        } else {
+            // ── NORMAL VIEW ──
+            if (actionBalk) actionBalk.classList.add('hidden');
+            const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
+            gridContainer.innerHTML = channels.map(mic => {
+                const micLabel = mic.name || 'Unassigned / Standby';
+                const isActive = mic.active === true;
+                return `<div class="mic-card">
+                    <div class="mic-card-bg" style="background-image: url(${mic.avatar_url || fallbackSvg});"></div>
+                    <div class="mic-card-gradient"></div>
+                    <div class="mic-card-content">
+                        <div class="mic-card-top">
+                            <span class="mic-badge">MIC ${mic.mic_id}</span>
+                        </div>
+                        <div class="mic-name">${micLabel}</div>
+                        <div class="mic-iem">${mic.iem_pack}</div>
+                        <div class="mic-status ${isActive ? 'connected' : 'disconnected'}">
+                            ${isActive ? '● Connected' : ' No Network Connect...'}
+                        </div>
+                        <div class="mic-frequency">${mic.frequency}</div>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+    },
+
+    /**
+     * Toggle Edit Mode for Mic/IEM hardware configuration.
+     */
+    _toggleMicEditMode() {
+        this._micEditMode = !this._micEditMode;
+        if (this._micLocalCache) {
+            this._renderMicCardsDOM(this._micLocalCache);
+        }
+    },
+
+    /**
+     * Save the hardware config from Edit Mode inputs to the backend/Firestore.
+     */
+    async _saveMicSettingsFromUI() {
+        const cards = document.querySelectorAll('#mic-monitor-grid [data-mic-id]');
+        const updatedHardwareConfig = [];
+        cards.forEach(card => {
+            updatedHardwareConfig.push({
+                mic_id: parseInt(card.getAttribute('data-mic-id')),
+                iem_pack: card.querySelector('.edit-iem').value.trim(),
+                frequency: card.querySelector('.edit-freq').value.trim()
+            });
+        });
+
+        // Save to backend server
+        try {
+            const resp = await fetch('http://127.0.0.1:3001/api/save-hardware-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedHardwareConfig)
+            });
+            if (resp.ok) {
+                this._micEditMode = false;
+                // Re-render: after server saves, Firestore will push updated data back
+                // so the listener will auto-refresh
+                this.showStatus('✅ Mic configuratie opgeslagen', 'success');
+            } else {
+                const err = await resp.json();
+                this.showStatus('❌ Fout: ' + (err.error || resp.statusText), 'error');
+            }
+        } catch (e) {
+            this.showStatus('❌ Kan server niet bereiken. Start mic-iem-server.', 'error');
+            console.error('[MIC] Save failed:', e);
+        }
     },
 
     // ===============================
