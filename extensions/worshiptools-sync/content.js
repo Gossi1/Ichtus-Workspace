@@ -202,16 +202,31 @@ function extractSetlist() {
             // B. Remove trailing musical keys (e.g., "Song Name A" becomes "Song Name")
             cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '');
 
-            // C. Remove specific conversational fragments / user notes
-            const fragments = [
+            // C. Detect and remove user notes (conversational Dutch, not song titles).
+            //    Notes are typically: short, lowercase, no song-code prefix, contain note keywords.
+            const noteFragments = [
                 "hebben we", "na de preek", "als het goed is", "reserve", "terug naar",
-                "wil ik oefenen", "wil ik ook oefenen", "oefenen", "deze wil ik",
+                "wil ik oefenen", "wil ik ook oefenen", "deze wil ik oefenen",
                 "deze moeten we", "deze nog", "nog oefenen", "even oefenen",
-                "deze wil ik oefenen"
+                "test voor", "even kijken", "niet vergeten", "let op",
+                "nog doen", "moet nog", "voor de dienst", "na de dienst", "tijdens de dienst"
             ];
-            fragments.forEach(frag => {
-                if (cleaned.toLowerCase().includes(frag)) cleaned = "";
-            });
+            for (const frag of noteFragments) {
+                if (cleaned.toLowerCase().includes(frag)) {
+                    cleaned = "";
+                    break;
+                }
+            }
+
+            // D. If line survived fragments, check if it looks like a pure note
+            //    (lowercase Dutch sentence without a song-code prefix like D013, O586).
+            if (cleaned.length > 0) {
+                const hasSongCode = /^[A-Z]\d{2,4}\b/.test(cleaned);
+                const isLowercaseNote = /^[a-zéûïëöäü]/.test(cleaned) && !hasSongCode;
+                if (isLowercaseNote) {
+                    cleaned = "";
+                }
+            }
 
             return cleaned.trim();
         });
