@@ -55,6 +55,7 @@ const dashboardModule = {
         this._restoreWidgetSizes();
         this._expandWidgetToGridHeight();
         this.initLayoutSelector();
+        this._initDropdownCloseListener();
         if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
             this._startProPresenterPolling();
         }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
@@ -1039,29 +1040,39 @@ const dashboardModule = {
     },
 
     populateLayoutSelector() {
-        const sel = document.getElementById('layout-selector');
-        if (!sel) return;
-        sel.innerHTML = '';
-        const defaultOpt = document.createElement('option');
-        defaultOpt.value = '__default__';
+        const optionsContainer = document.getElementById('custom-select-options');
+        if (!optionsContainer) return;
+        optionsContainer.innerHTML = '';
+
+        const defaultOpt = document.createElement('div');
+        defaultOpt.className = 'custom-option';
+        defaultOpt.setAttribute('data-value', '__default__');
         defaultOpt.textContent = i18n.t('dashboard_layout_default') || 'Default';
-        sel.appendChild(defaultOpt);
+        defaultOpt.addEventListener('click', () => this.selectCustomOption(defaultOpt));
+        optionsContainer.appendChild(defaultOpt);
 
         const layouts = this.loadLayouts();
         const activeName = this.getActiveLayoutName();
         Object.keys(layouts).forEach(name => {
-            const opt = document.createElement('option');
-            opt.value = name;
+            const opt = document.createElement('div');
+            opt.className = 'custom-option';
+            opt.setAttribute('data-value', name);
             opt.textContent = name + (name === activeName ? ' ' + (i18n.t('dashboard_layout_active') || '(active)') : '');
-            sel.appendChild(opt);
+            opt.addEventListener('click', () => this.selectCustomOption(opt));
+            optionsContainer.appendChild(opt);
         });
 
-        const addNewOpt = document.createElement('option');
-        addNewOpt.value = '__new__';
+        const addNewOpt = document.createElement('div');
+        addNewOpt.className = 'custom-option';
+        addNewOpt.setAttribute('data-value', '__new__');
         addNewOpt.textContent = '＋ Nieuw dashboard...';
-        sel.appendChild(addNewOpt);
+        addNewOpt.addEventListener('click', () => this.selectCustomOption(addNewOpt));
+        optionsContainer.appendChild(addNewOpt);
 
-        sel.value = activeName;
+        const triggerText = document.getElementById('custom-select-text');
+        if (triggerText) {
+            triggerText.textContent = activeName === '__default__' ? (i18n.t('dashboard_layout_default') || 'Default') : activeName;
+        }
     },
 
     getCurrentState() {
@@ -1203,12 +1214,53 @@ const dashboardModule = {
     switchLayout(layoutName) {
         if (layoutName === '__new__') {
             this.createNewLayout();
-            const sel = document.getElementById('layout-selector');
-            if (sel) sel.value = this.getActiveLayoutName();
+            const triggerText = document.getElementById('custom-select-text');
+            if (triggerText) {
+                const activeName = this.getActiveLayoutName();
+                triggerText.textContent = activeName === '__default__' ? (i18n.t('dashboard_layout_default') || 'Default') : activeName;
+            }
             return;
         }
         this.applyLayout(layoutName);
+        const triggerText = document.getElementById('custom-select-text');
+        if (triggerText) {
+            const activeName = this.getActiveLayoutName();
+            triggerText.textContent = activeName === '__default__' ? (i18n.t('dashboard_layout_default') || 'Default') : activeName;
+        }
     },
+
+    toggleCustomDropdown() {
+        const options = document.getElementById('custom-select-options');
+        const container = document.querySelector('.custom-select-container');
+        if (!options) return;
+        options.classList.toggle('show');
+        if (container) container.classList.toggle('open', options.classList.contains('show'));
+    },
+
+    selectCustomOption(element) {
+        const value = element.getAttribute('data-value');
+        const text = element.textContent;
+        document.getElementById('custom-select-text').textContent = text;
+        document.getElementById('custom-select-options').classList.remove('show');
+        const container = document.querySelector('.custom-select-container');
+        if (container) container.classList.remove('open');
+        this.switchLayout(value);
+    },
+    _initDropdownCloseListener() {
+        if (this._dropdownCloseListenerAdded) return;
+        this._dropdownCloseListenerAdded = true;
+        window.addEventListener('click', (e) => {
+            const container = document.querySelector('.custom-select-container');
+            if (container && !container.contains(e.target)) {
+                const options = document.getElementById('custom-select-options');
+                if (options) {
+                    options.classList.remove('show');
+                    container.classList.remove('open');
+                }
+            }
+        });
+    },
+
 
     // ===============================
     //  EDIT MODE

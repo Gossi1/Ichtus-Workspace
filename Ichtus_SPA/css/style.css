@@ -3749,7 +3749,9 @@ input:checked + .slider::before { transform: translateX(20px); }
 .dashboard-header {
     display: flex;
     align-items: center;
+    margin-bottom: 0.9rem;
     position: relative;
+    z-index: 10;
     min-height: 2.8rem;
     background: transparent;
     border-radius: 10px;
@@ -3782,28 +3784,82 @@ input:checked + .slider::before { transform: translateX(20px); }
 }
 
 /* Layout Selector */
-.layout-selector {
-    background: transparent !important;
-    border: none !important;
-    color: var(--text-main) !important;
-    font-size: 0.9rem !important;
+/* Custom Layout Dropdown */
+.custom-select-container {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-block;
+}
+
+.custom-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
     cursor: pointer;
-    appearance: auto;
-    -webkit-appearance: auto;
-    padding: 0.3rem 1.8rem 0.3rem 0.5rem !important;
-    font-family: inherit;
-    width: auto;
     white-space: nowrap;
-}
-
-.layout-selector:focus {
-    outline: none !important;
-    box-shadow: none !important;
-}
-
-.layout-selector option {
-    background: var(--bg-card);
     color: var(--text-main);
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.custom-select-trigger:hover {
+    border-color: var(--ichtus-orange);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-select-arrow-line {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-secondary, #9ca3af);
+    border-bottom: 2px solid var(--text-secondary, #9ca3af);
+    transform: rotate(45deg);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.custom-select-container.open .custom-select-arrow-line {
+    transform: rotate(-135deg);
+}
+
+.custom-select-options {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    margin-top: 4px;
+    overflow: hidden;
+}
+
+.custom-select-options.show {
+    display: block;
+}
+
+.custom-option {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-main);
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.custom-option:hover {
+    background: rgba(244, 121, 32, 0.15);
+    color: var(--ichtus-orange);
 }
 
 /* Layout manage modal */
