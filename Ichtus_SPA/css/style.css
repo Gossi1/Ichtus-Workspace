@@ -3749,7 +3749,6 @@ input:checked + .slider::before { transform: translateX(20px); }
 .dashboard-header {
     display: flex;
     align-items: center;
-    margin-bottom: 2rem;
     position: relative;
     min-height: 2.8rem;
     background: transparent;
@@ -3787,16 +3786,13 @@ input:checked + .slider::before { transform: translateX(20px); }
     background: transparent !important;
     border: none !important;
     color: var(--text-main) !important;
-    font-size: 1.1rem !important;
+    font-size: 0.9rem !important;
     cursor: pointer;
     appearance: auto;
     -webkit-appearance: auto;
-    padding: 0.3rem 1.5rem 0.3rem 0.5rem !important;
+    padding: 0.3rem 1.8rem 0.3rem 0.5rem !important;
     font-family: inherit;
-    max-width: 220px;
-    position: absolute;
-    left: 50%;
-    transform: translateX(-50%);
+    width: auto;
     white-space: nowrap;
 }
 
