@@ -158,20 +158,18 @@ function extractSetlist() {
     try {
         console.log('[WT→SPA] extractSetlist() called — scanning page...');
 
-        // Build element list:
-        // 1. For each .song-description, only take the FIRST [data-v-3dc57186] child (song name),
-        //    NOT additional spans that contain user notes like "Deze wil ik oefenen".
+        // Song names are always in <h3> inside .song-description.
+        // Notes live in <div class="notes"> — we skip those by targeting h3 directly.
         const songNameElements = [];
-        document.querySelectorAll('.song-description').forEach(desc => {
-            const firstSpan = desc.querySelector('[data-v-3dc57186]');
-            if (firstSpan) songNameElements.push(firstSpan);
+        document.querySelectorAll('.song-description h3').forEach(h3 => {
+            songNameElements.push(h3);
         });
 
-        // 2. Other standalone song-title selectors (no notes inside these)
+        // Fallback: other standalone song-title selectors for different page layouts
         const otherElements = document.querySelectorAll('.item-name, .song-title, .planning-item-name, .wt-song-name, .planning-song-name');
 
         const rawElements = [...songNameElements, ...otherElements];
-        console.log('[WT→SPA] Elements collected — song-description first spans:', songNameElements.length, ', other:', otherElements.length, ', total:', rawElements.length);
+        console.log('[WT→SPA] Elements collected — song-description h3:', songNameElements.length, ', other:', otherElements.length, ', total:', rawElements.length);
 
         if (rawElements.length === 0) {
             console.warn('[WT→SPA] No elements found on page.');
@@ -201,32 +199,6 @@ function extractSetlist() {
 
             // B. Remove trailing musical keys (e.g., "Song Name A" becomes "Song Name")
             cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '');
-
-            // C. Detect and remove user notes (conversational Dutch, not song titles).
-            //    Notes are typically: short, lowercase, no song-code prefix, contain note keywords.
-            const noteFragments = [
-                "hebben we", "na de preek", "als het goed is", "reserve", "terug naar",
-                "wil ik oefenen", "wil ik ook oefenen", "deze wil ik oefenen",
-                "deze moeten we", "deze nog", "nog oefenen", "even oefenen",
-                "test voor", "even kijken", "niet vergeten", "let op",
-                "nog doen", "moet nog", "voor de dienst", "na de dienst", "tijdens de dienst"
-            ];
-            for (const frag of noteFragments) {
-                if (cleaned.toLowerCase().includes(frag)) {
-                    cleaned = "";
-                    break;
-                }
-            }
-
-            // D. If line survived fragments, check if it looks like a pure note
-            //    (lowercase Dutch sentence without a song-code prefix like D013, O586).
-            if (cleaned.length > 0) {
-                const hasSongCode = /^[A-Z]\d{2,4}\b/.test(cleaned);
-                const isLowercaseNote = /^[a-zéûïëöäü]/.test(cleaned) && !hasSongCode;
-                if (isLowercaseNote) {
-                    cleaned = "";
-                }
-            }
 
             return cleaned.trim();
         });
