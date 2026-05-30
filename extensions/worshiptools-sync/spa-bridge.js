@@ -10,6 +10,7 @@
 
 let cachedSetlist = null;
 let cachedDate = null;
+let cachedRoster = null;
 
 function dispatchSetlist(data, date) {
   console.log('[BRIDGE] Dispatching worshiptools-setlist, length:', data?.length, 'date:', date);
@@ -24,12 +25,28 @@ function dispatchSetlist(data, date) {
   document.dispatchEvent(event);
 }
 
+function dispatchRoster(data) {
+  console.log('[BRIDGE] Dispatching worshiptools-roster, assignments:', data?.length);
+  const event = new CustomEvent('worshiptools-roster', {
+    detail: { roster: data },
+    bubbles: true,
+    composed: true
+  });
+  document.dispatchEvent(event);
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SETLIST_RECEIVED' && message.data) {
     console.log('[BRIDGE] Received SETLIST_RECEIVED from background, length:', message.data?.length);
     cachedSetlist = message.data;
     cachedDate = message.date || null;
     dispatchSetlist(message.data, cachedDate);
+    sendResponse({ received: true });
+  }
+  if (message.type === 'ROSTER_RECEIVED' && message.data) {
+    console.log('[BRIDGE] Received ROSTER_RECEIVED from background, assignments:', message.data?.length);
+    cachedRoster = message.data;
+    dispatchRoster(message.data);
     sendResponse({ received: true });
   }
   return true;
@@ -45,6 +62,15 @@ chrome.runtime.sendMessage({ type: 'GET_LAST_SETLIST' }, (response) => {
     cachedSetlist = response.data;
     cachedDate = response.date || null;
     dispatchSetlist(response.data, cachedDate);
+  }
+});
+
+// Request any previously extracted roster from the background script.
+chrome.runtime.sendMessage({ type: 'GET_LAST_ROSTER' }, (response) => {
+  console.log('[BRIDGE] GET_LAST_ROSTER response — has data?', !!(response && response.data));
+  if (response && response.data) {
+    cachedRoster = response.data;
+    dispatchRoster(response.data);
   }
 });
 

@@ -2,6 +2,11 @@
 const settingsModule = {
     initialized: false,
     
+    // Version information
+    appVersion: null,
+    latestGitHubVersion: null,
+    versionError: null,
+    
     // Default settings
     defaults: {
         language: 'nl',
@@ -20,6 +25,8 @@ const settingsModule = {
 
     init() {
         this.loadSettings();
+        this.loadAppVersion();
+        this.fetchLatestGitHubVersion();
         this.render();
         this.applySettings();
     },
@@ -137,6 +144,53 @@ const settingsModule = {
             }
         }
         return null;
+    },
+
+    loadAppVersion() {
+        fetch('../Ichtus_SPA/version.json')
+            .then(response => response.json())
+            .then(data => {
+                this.appVersion = data.version || '1.0.0';
+                this.render(); // Re-render when version loaded
+            })
+            .catch(error => {
+                console.warn('Could not load version.json:', error);
+                this.appVersion = '1.0.0';
+                this.render(); // Re-render even on error
+            });
+    },
+
+    fetchLatestGitHubVersion() {
+        fetch('https://api.github.com/repos/Gossi1/Ichtus-Workspace/releases/latest')
+            .then(response => {
+                if (!response.ok) throw new Error('GitHub API error');
+                return response.json();
+            })
+            .then(data => {
+                if (data.tag_name) {
+                    this.latestGitHubVersion = data.tag_name.replace(/^v/, '');
+                }
+                this.render(); // Re-render when GitHub version loaded
+            })
+            .catch(error => {
+                console.warn('Could not fetch latest GitHub release:', error);
+                this.versionError = __('settings_version_github_error');
+                this.render(); // Re-render even on error
+            });
+    },
+
+    compareVersions(version1, version2) {
+        if (!version1 || !version2) return 0;
+        const parts1 = version1.split('.').map(Number);
+        const parts2 = version2.split('.').map(Number);
+        
+        for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+            const part1 = parts1[i] || 0;
+            const part2 = parts2[i] || 0;
+            if (part1 > part2) return 1;
+            if (part1 < part2) return -1;
+        }
+        return 0;
     },
 
     render() {
@@ -384,7 +438,15 @@ const settingsModule = {
                         <div class='settings-info-item'>
                             <label>${__('settings_version')}</label>
                             <div class='settings-info-value'>
-                                <code>1.0.0</code>
+                                <code>${this.appVersion || '1.0.0'}</code>
+                                ${this.latestGitHubVersion ? `
+                                    <div style='margin-top: 5px; font-size: 12px;'>
+                                        ${this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0 ? 
+                                            `<span style='color: #ff9800;'>⬆️ ${__('settings_version_update_available')}: ${this.latestGitHubVersion}</span>` :
+                                            `<span style='color: #4caf50;'>✓ ${__('settings_version_latest')}</span>`
+                                        }
+                                    </div>
+                                ` : ''}
                             </div>
                         </div>
                         <div class='settings-info-item'>
