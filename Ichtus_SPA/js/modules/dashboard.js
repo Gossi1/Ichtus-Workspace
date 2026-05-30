@@ -45,6 +45,7 @@ const dashboardModule = {
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
         this._initMicMonitor();
+        this._initRosterListener();
 
         const activeLayout = this.getActiveLayoutName();
         this.applyLayout(activeLayout);
@@ -1476,15 +1477,7 @@ const dashboardModule = {
                 </div>`;
             case 'mic-iem-monitor':
                 return `<div class="widget-card" draggable="true" data-widget-id="mic-iem-monitor">
-                    <div class="widget-header">
-                        <h3 class="widget-title">MIC & IEM STATUS</h3>
-                        <button class="pp-refresh-btn" id="toggle-mic-settings" onclick="dashboardModule._toggleMicEditMode()" title="Instellingen">⚙</button>
-                    </div>
                     <div class="widget-body">
-                        <div id="mic-settings-actions" class="mic-settings-actions hidden">
-                            <button class="btn-save" onclick="dashboardModule._saveMicSettingsFromUI()">Opslaan</button>
-                            <button class="btn-cancel" onclick="dashboardModule._toggleMicEditMode()">Annuleren</button>
-                        </div>
                         <div id="mic-monitor-grid" class="mic-monitor-grid">
                             <div class="pp-loading">Laden…</div>
                         </div>
@@ -1584,8 +1577,7 @@ const dashboardModule = {
     //  MIC & IEM MONITOR
     // ===============================
 
-    /** Cached hardware config (for Edit Mode) */
-    _micEditMode: false,
+    /** Hardware config cache */
     _micLocalCache: null,
     _micUnsubscribe: null,
 
@@ -1603,7 +1595,7 @@ const dashboardModule = {
             const ref = firebase.database().ref('/mic_monitor/live_status');
             this._micUnsubscribe = ref.on('value', (snapshot) => {
                 const data = snapshot.val();
-                if (data && !this._micEditMode) {
+                if (data) {
                     this._micLocalCache = data;
                     this._renderMicCardsDOM(data);
                 }
@@ -1628,10 +1620,8 @@ const dashboardModule = {
                     if (doc.exists) {
                         const data = doc.data();
                         const channels = data.channels || [];
-                        if (!this._micEditMode) {
-                            this._micLocalCache = channels;
-                            this._renderMicCardsDOM(channels);
-                        }
+                        this._micLocalCache = channels;
+                        this._renderMicCardsDOM(channels);
                     }
                 }, (err) => {
                     console.warn('[MIC] Firestore listener error:', err.message);
@@ -1642,114 +1632,263 @@ const dashboardModule = {
     },
 
     /**
-     * Render the 4 mic cards into the grid container.
+     * Render the 4 mic cards as 3D flip cards into the grid container.
+     * Click a card to flip it and edit IEM Pack / Frequency on the back.
      */
     _renderMicCardsDOM(channels) {
         const gridContainer = document.getElementById('mic-monitor-grid');
-        const actionBalk = document.querySelector('#mic-settings-actions');
         if (!gridContainer) return;
+
+        // Don't overwrite DOM if any card is currently flipped (user is editing)
+        if (gridContainer.querySelector('.mic-flip-card.flipped')) return;
 
         if (!channels || channels.length === 0) {
             gridContainer.innerHTML = '<div class="pp-loading">Geen data…</div>';
             return;
         }
 
-        if (this._micEditMode) {
-            // ── EDIT MODE ──
-            if (actionBalk) actionBalk.classList.remove('hidden');
-            gridContainer.innerHTML = channels.map((mic, idx) => {
-                const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
-                return `<div class="mic-card edit-mode" data-mic-id="${mic.mic_id}">
-                    <div class="mic-card-bg" style="background-image: url(${mic.avatar_url || fallbackSvg});"></div>
-                    <div class="mic-card-overlay"></div>
-                    <div class="mic-card-content">
+        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
+
+        gridContainer.innerHTML = channels.map(mic => {
+            const micLabel = mic.name || 'Unassigned / Standby';
+            return `<div class="mic-flip-card" data-mic-id="${mic.mic_id}" onclick="dashboardModule._flipMicCard(${mic.mic_id})">
+                <div class="mic-flip-inner">
+                    <!-- FRONT FACE -->
+                     <div class="mic-flip-front mic-card">
+                         <div class="mic-card-photo" style="background-image: url(${mic.avatar_url || fallbackSvg});">
+                             <span class="mic-badge">MIC ${mic.mic_id}</span>
+                         </div>
+                         <div class="mic-card-info">
+                             <div class="mic-name">${micLabel}</div>
+                             <div class="mic-iem">${mic.iem_pack}</div>
+                             <div class="mic-frequency">${mic.frequency}</div>
+                         </div>
+                     </div>
+                    <!-- BACK FACE -->
+                    <div class="mic-flip-back">
                         <div class="mic-card-header">
                             <span class="mic-label">CONFIG MIC ${mic.mic_id}</span>
                         </div>
                         <div class="mic-edit-fields">
                             <div class="mic-edit-row">
                                 <label>IEM Pack</label>
-                                <input type="text" class="mic-input edit-iem" value="${mic.iem_pack}" placeholder="IEM Pack ${mic.mic_id}">
+                                <input type="text" class="mic-input edit-iem" value="${mic.iem_pack}" placeholder="IEM Pack ${mic.mic_id}" onclick="event.stopPropagation()">
                             </div>
                             <div class="mic-edit-row">
                                 <label>RF Frequentie</label>
-                                <input type="text" class="mic-input edit-freq" value="${mic.frequency}" placeholder="000.000 MHz">
+                                <input type="text" class="mic-input edit-freq" value="${mic.frequency}" placeholder="000.000 MHz" onclick="event.stopPropagation()">
                             </div>
                         </div>
                     </div>
-                </div>`;
-            }).join('');
+                </div>
+            </div>`;
+        }).join('');
+    },
+
+    /**
+     * Flip a mic card between front (info) and back (edit).
+     * When flipping back to front, save edited hardware fields to Firestore.
+     */
+    _flipMicCard(micId) {
+        const flipCard = document.querySelector(`#mic-monitor-grid .mic-flip-card[data-mic-id="${micId}"]`);
+        if (!flipCard) return;
+        
+        const isCurrentlyFlipped = flipCard.classList.contains('flipped');
+        
+        if (isCurrentlyFlipped) {
+            // Flipping BACK to front: save edits from the back face
+            const iemPack = flipCard.querySelector('.edit-iem')?.value?.trim() || '';
+            const frequency = flipCard.querySelector('.edit-freq')?.value?.trim() || '';
+            
+            // Update local cache
+            if (!this._micLocalCache || !Array.isArray(this._micLocalCache)) return;
+            const channel = this._micLocalCache.find(c => c.mic_id === micId);
+            if (!channel) return;
+            
+            // Only save if values actually changed
+            const changed = channel.iem_pack !== iemPack || channel.frequency !== frequency;
+            channel.iem_pack = iemPack;
+            channel.frequency = frequency;
+            
+            // Write to Firestore in background (only if changed)
+            if (changed) {
+                this._writeMicAssignmentsToFirestore(this._micLocalCache, 'hardware');
+            }
+            
+            // Update front face in-place (preserves flip animation)
+            const frontIem = flipCard.querySelector('.mic-flip-front .mic-iem');
+            const frontFreq = flipCard.querySelector('.mic-flip-front .mic-frequency');
+            if (frontIem) frontIem.textContent = iemPack;
+            if (frontFreq) frontFreq.textContent = frequency;
+            
+            // Flip back
+            flipCard.classList.remove('flipped');
         } else {
-            // ── NORMAL VIEW ──
-            if (actionBalk) actionBalk.classList.add('hidden');
-            const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
-            gridContainer.innerHTML = channels.map(mic => {
-                const micLabel = mic.name || 'Unassigned / Standby';
-                const isActive = mic.active === true;
-                return `<div class="mic-card">
-                    <div class="mic-card-bg" style="background-image: url(${mic.avatar_url || fallbackSvg});"></div>
-                    <div class="mic-card-gradient"></div>
-                    <div class="mic-card-content">
-                        <div class="mic-card-top">
-                            <span class="mic-badge">MIC ${mic.mic_id}</span>
-                        </div>
-                        <div class="mic-name">${micLabel}</div>
-                        <div class="mic-iem">${mic.iem_pack}</div>
-                        <div class="mic-status ${isActive ? 'connected' : 'disconnected'}">
-                            ${isActive ? '● Connected' : ' No Network Connect...'}
-                        </div>
-                        <div class="mic-frequency">${mic.frequency}</div>
-                    </div>
-                </div>`;
-            }).join('');
+            // Flipping TO back: just show edit fields
+            flipCard.classList.add('flipped');
         }
+    },
+// ===============================
+    //  ROSTER → MIC AUTO-ASSIGNMENT
+    // ===============================
+
+    /**
+     * Initialize the roster listener from the WorshipTools extension.
+     * When roster data arrives, apply AV Stage Business Rules and write to Firestore.
+     */
+    _initRosterListener() {
+        if (this._rosterListenerAdded) return;
+        this._rosterListenerAdded = true;
+        document.addEventListener('worshiptools-roster', (e) => {
+            const roster = e.detail?.roster;
+            if (!roster || !Array.isArray(roster)) return;
+            console.log('[MIC] Received roster from extension:', roster.length, 'assignments');
+            this._processRoster(roster);
+        });
     },
 
     /**
-     * Toggle Edit Mode for Mic/IEM hardware configuration.
+     * Apply AV Stage Business Rules to roster data and write mic assignments.
+     *
+     * Rules:
+     * - Worship Leader → Mic 1 (unless also on Piano → then WL skipped for mic)
+     * - Vocalists → remaining mics (2, 3, 4)
+     * - If WL is also on Piano, they get NO mic, and Vocalists start from Mic 1
      */
-    _toggleMicEditMode() {
-        this._micEditMode = !this._micEditMode;
-        if (this._micLocalCache) {
-            this._renderMicCardsDOM(this._micLocalCache);
-        }
+    /**
+     * Extract the first name from a full name. E.g. "Rafael Barendse" → "Rafael".
+     */
+    _getFirstName(fullName) {
+        if (!fullName) return '';
+        return fullName.trim().split(' ')[0];
     },
 
-    /**
-     * Save the hardware config from Edit Mode inputs to the backend/Firestore.
-     */
-    async _saveMicSettingsFromUI() {
-        const cards = document.querySelectorAll('#mic-monitor-grid [data-mic-id]');
-        const updatedHardwareConfig = [];
-        cards.forEach(card => {
-            updatedHardwareConfig.push({
-                mic_id: parseInt(card.getAttribute('data-mic-id')),
-                iem_pack: card.querySelector('.edit-iem').value.trim(),
-                frequency: card.querySelector('.edit-freq').value.trim()
-            });
+    _processRoster(roster) {
+        // Group by person: collect all roles per person + avatar URLs
+        const personRoles = {};
+        const personAvatars = {};
+        roster.forEach(entry => {
+            const firstName = this._getFirstName(entry.name);
+            if (!personRoles[firstName]) {
+                personRoles[firstName] = new Set();
+            }
+            personRoles[firstName].add(entry.role);
+            if (entry.avatar_url && !personAvatars[firstName]) {
+                personAvatars[firstName] = entry.avatar_url;
+            }
         });
 
-        // Save to backend server
-        try {
-            const resp = await fetch('http://127.0.0.1:3001/api/save-hardware-config', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(updatedHardwareConfig)
-            });
-            if (resp.ok) {
-                this._micEditMode = false;
-                // Re-render: after server saves, Firestore will push updated data back
-                // so the listener will auto-refresh
-                this.showStatus('✅ Mic configuratie opgeslagen', 'success');
-            } else {
-                const err = await resp.json();
-                this.showStatus('❌ Fout: ' + (err.error || resp.statusText), 'error');
+        // Determine WL and vocalists
+        let wlName = null;
+        const vocalists = [];
+
+        for (const [name, roles] of Object.entries(personRoles)) {
+            const rolesLower = new Set();
+            roles.forEach(r => rolesLower.add(r.toLowerCase()));
+
+            if (rolesLower.has('worship leader')) {
+                wlName = name;
             }
-        } catch (e) {
-            this.showStatus('❌ Kan server niet bereiken. Start mic-iem-server.', 'error');
-            console.error('[MIC] Save failed:', e);
+            if (rolesLower.has('vocalist')) {
+                vocalists.push(name);
+            }
+        }
+
+        console.log('[MIC] WL:', wlName, '| Vocalists:', vocalists);
+
+        // Apply AV Stage Business Rules
+        const assignments = [];
+        let micIndex = 1;
+
+        // Rule: Worship Leader gets Mic 1 UNLESS also on Piano
+        if (wlName) {
+            const wlRoles = personRoles[wlName];
+            const wlRolesLower = new Set();
+            wlRoles.forEach(r => wlRolesLower.add(r.toLowerCase()));
+
+            if (!wlRolesLower.has('piano')) {
+                assignments.push({ mic_id: micIndex, name: wlName });
+                micIndex++;
+            } else {
+                console.log('[MIC] WL', wlName, 'also on Piano — skipping mic assignment');
+            }
+        }
+
+        // Vocalists get remaining mics
+        vocalists.forEach(name => {
+            if (name !== wlName && micIndex <= 4) {
+                assignments.push({ mic_id: micIndex, name });
+                micIndex++;
+            }
+        });
+
+        console.log('[MIC] Final assignments:', assignments);
+
+        // Build 4-channel array for Firestore
+        const channels = [];
+        for (let i = 1; i <= 4; i++) {
+            const assigned = assignments.find(a => a.mic_id === i);
+            channels.push({
+                mic_id: i,
+                name: assigned ? assigned.name : 'Unassigned / Standby',
+                iem_pack: 'IEM Pack ' + i,
+                frequency: '',
+                active: !!assigned,
+                avatar_url: assigned ? (personAvatars[assigned.name] || '') : ''
+            });
+        }
+
+        // Write to Firestore
+        this._writeMicAssignmentsToFirestore(channels);
+    },
+
+    /**
+     * Write mic assignments to Firestore. Tries Firestore first, then Realtime Database.
+     */
+    _writeMicAssignmentsToFirestore(channels, context) {
+        if (typeof firebase === 'undefined') {
+            console.warn('[MIC] No Firebase available — cannot write assignments');
+            this.showStatus('❓ Geen Firebase verbinding', 'error');
+            return;
+        }
+
+        const isHardwareSave = context === 'hardware';
+        const label = isHardwareSave ? 'Mic configuratie' : 'Mic toewijzing';
+        const activeCount = channels.filter(c => c.active).length;
+
+        // Try Firestore first
+        if (firebase.firestore) {
+            try {
+                firebase.firestore().collection('mic_monitor').doc('live_status').set({
+                    channels: channels,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                }, { merge: true }).then(() => {
+                    console.log('[MIC]', label, 'written to Firestore');
+                    this.showStatus('✅ ' + label + ' opgeslagen (' + (isHardwareSave ? channels.length + ' kanalen' : activeCount + ' actief') + ')', 'success');
+                }).catch(err => {
+                    console.error('[MIC] Firestore write failed:', err);
+                    this.showStatus('❓ Opslaan mislukt: ' + err.message, 'error');
+                });
+            } catch (e) {
+                console.error('[MIC] Firestore write error:', e);
+            }
+        } else if (firebase.database) {
+            // Fallback to Realtime Database
+            try {
+                firebase.database().ref('/mic_monitor/live_status').set(channels).then(() => {
+                    console.log('[MIC]', label, 'written to RTDB');
+                    this.showStatus('✅ ' + label + ' opgeslagen (' + (isHardwareSave ? channels.length + ' kanalen' : activeCount + ' actief') + ')', 'success');
+                }).catch(err => {
+                    console.error('[MIC] RTDB write failed:', err);
+                    this.showStatus('❓ Opslaan mislukt: ' + err.message, 'error');
+                });
+            } catch (e) {
+                console.error('[MIC] RTDB write error:', e);
+            }
         }
     },
+
+
 
     // ===============================
     //  LAYOUT SAVE / DELETE / RENAME

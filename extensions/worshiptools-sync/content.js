@@ -75,6 +75,85 @@ function extractDate() {
     return today;
 }
 
+function extractRoster() {
+    try {
+        console.log('[WT→SPA] extractRoster() called — scanning page...');
+
+        // Find the "Rollen" / "Roles" heading
+        const headings = document.querySelectorAll('.card-section-title');
+        let rolesContainer = null;
+        for (const h of headings) {
+            const text = h.textContent.trim();
+            if (text === 'Rollen' || text === 'Roles') {
+                rolesContainer = h.closest('.col') || h.parentElement;
+                break;
+            }
+        }
+
+        if (!rolesContainer) {
+            console.warn('[WT→SPA] Could not find "Rollen" / "Roles" section');
+            alert('❌ Could not find the "Rollen" / "Roles" section on this page.');
+            return;
+        }
+
+        const roster = [];
+        // Each role section is a .pb-3 div within the roles container
+        const roleSections = rolesContainer.querySelectorAll('.pb-3');
+
+        roleSections.forEach(section => {
+            // Get the role name
+            const roleEl = section.querySelector('.col-12.mb-2 div, .col-12.mb-2');
+            if (!roleEl) return;
+            const role = roleEl.textContent.trim();
+            if (!role) return;
+
+            // Find all people assigned to this role
+            const personItems = section.querySelectorAll('.list-group-item');
+            personItems.forEach(item => {
+                // Get the person's name
+                const nameSpan = item.querySelector('.user-name span');
+                const name = nameSpan ? nameSpan.textContent.trim() : '';
+                if (!name || name === 'Persoon toevoegen') return; // skip "Add Person" button row
+
+                // Try to extract avatar URL from the profile picture
+                let avatarUrl = '';
+                const img = item.querySelector('img[alt="Profile Picture"]');
+                if (img && img.src) {
+                    avatarUrl = img.src;
+                }
+
+                roster.push({ name, role, avatar_url: avatarUrl });
+            });
+        });
+
+        console.log('[WT→SPA] Roster extracted:', roster.length, 'assignments', roster);
+
+        if (roster.length === 0) {
+            alert('⚠️ Geen teamleden gevonden in de Rollen sectie.');
+            return;
+        }
+
+        const names = [...new Set(roster.map(r => r.name))];
+        const preview = names.slice(0, 5).join(', ');
+        const more = names.length > 5 ? ` +${names.length - 5} meer` : '';
+        alert(`✅ ${roster.length} rol-toewijzingen gevonden (${names.length} personen): ${preview}${more}\n\nOpen Ichtus SPA → Dashboard om de mic toewijzing te zien.`);
+
+        chrome.runtime.sendMessage({
+            type: 'ROSTER_EXTRACTED',
+            data: roster
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('[WT→SPA] Background error:', chrome.runtime.lastError.message);
+            } else {
+                console.log('[WT→SPA] Background acknowledged:', response);
+            }
+        });
+    } catch (err) {
+        console.error('[WT→SPA] CRASH in extractRoster:', err);
+        alert('❌ Error in extractRoster:\n' + (err?.message || String(err)) + '\n\nCheck the browser console (F12) for full details.');
+    }
+}
+
 function extractSetlist() {
     try {
         console.log('[WT→SPA] extractSetlist() called — scanning page...');
@@ -193,6 +272,29 @@ function injectSyncButton() {
     `;
     syncBtn.onclick = extractSetlist;
     document.body.appendChild(syncBtn);
+
+    // Check if roster button already exists
+    if (document.getElementById('pro-roster-btn')) return;
+
+    const rosterBtn = document.createElement('button');
+    rosterBtn.id = 'pro-roster-btn';
+    rosterBtn.innerText = "Extract Roster";
+    rosterBtn.style = `
+        position: fixed; 
+        top: 70px; 
+        right: 80px; 
+        z-index: 99999; 
+        padding: 12px 20px; 
+        background: #2196F3; 
+        color: white; 
+        border: none; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    `;
+    rosterBtn.onclick = extractRoster;
+    document.body.appendChild(rosterBtn);
 }
 
 // 1. Initial injection attempt

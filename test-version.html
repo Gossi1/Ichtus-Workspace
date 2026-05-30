@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Version Integration Test</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        .result { margin: 10px 0; padding: 10px; border: 1px solid #ccc; }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        code { background: #f5f5f5; padding: 2px 5px; }
+    </style>
+</head>
+<body>
+    <h1>Ichtus Workspace - Version Integration Test</h1>
+    
+    <h2>Test Results:</h2>
+    <div id="results"></div>
+    
+    <script>
+        const results = document.getElementById('results');
+        
+        // Test 1: Load version.json
+        fetch('/Ichtus_SPA/version.json')
+            .then(r => r.json())
+            .then(data => {
+                const div = document.createElement('div');
+                div.className = 'result success';
+                div.innerHTML = `<strong>✓ version.json loaded</strong><br>
+                    Version: <code>${data.version}</code><br>
+                    Name: <code>${data.name}</code>`;
+                results.appendChild(div);
+            })
+            .catch(err => {
+                const div = document.createElement('div');
+                div.className = 'result error';
+                div.innerHTML = `<strong>✗ Failed to load version.json</strong><br>${err}`;
+                results.appendChild(div);
+            });
+        
+        // Test 2: Check GitHub API
+        fetch('https://api.github.com/repos/Gossi1/Ichtus-Workspace/releases/latest')
+            .then(r => {
+                if (!r.ok) throw new Error('GitHub API error: ' + r.status);
+                return r.json();
+            })
+            .then(data => {
+                const div = document.createElement('div');
+                div.className = 'result success';
+                div.innerHTML = `<strong>✓ GitHub API accessible</strong><br>
+                    Latest Release: <code>${data.tag_name}</code><br>
+                    Published: <code>${new Date(data.published_at).toLocaleDateString()}</code>`;
+                results.appendChild(div);
+            })
+            .catch(err => {
+                const div = document.createElement('div');
+                div.className = 'result error';
+                div.innerHTML = `<strong>✗ Failed to fetch GitHub API</strong><br>${err}`;
+                results.appendChild(div);
+            });
+        
+        // Test 3: Version comparison logic
+        setTimeout(() => {
+            const div = document.createElement('div');
+            div.className = 'result info';
+            
+            const compareVersions = (v1, v2) => {
+                const parts1 = v1.split('.').map(Number);
+                const parts2 = v2.split('.').map(Number);
+                for (let i = 0; i < Math.max(parts1.length, parts2.length); i++) {
+                    const p1 = parts1[i] || 0;
+                    const p2 = parts2[i] || 0;
+                    if (p1 > p2) return 1;
+                    if (p1 < p2) return -1;
+                }
+                return 0;
+            };
+            
+            const tests = [
+                { a: '1.0.0', b: '1.0.0', expected: 0 },
+                { a: '1.0.1', b: '1.0.0', expected: 1 },
+                { a: '1.0.0', b: '1.0.1', expected: -1 },
+                { a: '2.0.0', b: '1.9.9', expected: 1 }
+            ];
+            
+            let allPass = true;
+            let html = '<strong>✓ Version comparison tests:</strong><br>';
+            tests.forEach(t => {
+                const result = compareVersions(t.a, t.b);
+                const pass = result === t.expected;
+                allPass = allPass && pass;
+                html += `${pass ? '✓' : '✗'} compareVersions('${t.a}', '${t.b}') = ${result} (expected ${t.expected})<br>`;
+            });
+            
+            div.innerHTML = html;
+            results.appendChild(div);
+        }, 100);
+    </script>
+</body>
+</html>

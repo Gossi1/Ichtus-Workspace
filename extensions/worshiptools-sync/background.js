@@ -6,6 +6,8 @@
 // Store the latest extracted setlist in memory
 let lastExtractedSetlist = null;
 let lastServiceDate = null;
+// Store the latest extracted roster in memory
+let lastExtractedRoster = null;
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SETLIST_EXTRACTED') {
@@ -47,9 +49,48 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === 'ROSTER_EXTRACTED') {
+    console.log('[BG] Received ROSTER_EXTRACTED, assignments:', message.data?.length);
+    lastExtractedRoster = message.data;
+
+    // Forward to all SPA tabs
+    chrome.tabs.query({}, (tabs) => {
+      let spaTabs = 0;
+      tabs.forEach(tab => {
+        const url = tab.url || '';
+        const isSpa = url.includes('Ichtus_SPA') ||
+                      url.includes('localhost') ||
+                      url.includes('127.0.0.1');
+
+        if (isSpa && tab.id !== sender.tab?.id) {
+          spaTabs++;
+          console.log('[BG] Forwarding roster to tab', tab.id, url);
+          chrome.tabs.sendMessage(tab.id, {
+            type: 'ROSTER_RECEIVED',
+            data: message.data
+          }).then(() => {
+            console.log('[BG] Tab', tab.id, 'roster received OK');
+          }).catch((err) => {
+            console.warn('[BG] Tab', tab.id, 'roster send failed — content script not injected?', err?.message);
+          });
+        }
+      });
+      console.log('[BG] Roster forwarded to', spaTabs, 'SPA tabs out of', tabs.length, 'total');
+    });
+
+    sendResponse({ success: true });
+    return true;
+  }
+
   if (message.type === 'GET_LAST_SETLIST') {
     console.log('[BG] GET_LAST_SETLIST — has data?', !!lastExtractedSetlist);
     sendResponse({ data: lastExtractedSetlist, date: lastServiceDate });
+    return true;
+  }
+
+  if (message.type === 'GET_LAST_ROSTER') {
+    console.log('[BG] GET_LAST_ROSTER — has data?', !!lastExtractedRoster);
+    sendResponse({ data: lastExtractedRoster });
     return true;
   }
 });
