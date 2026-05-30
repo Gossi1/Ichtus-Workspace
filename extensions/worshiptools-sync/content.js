@@ -157,18 +157,30 @@ function extractRoster() {
 function extractSetlist() {
     try {
         console.log('[WT→SPA] extractSetlist() called — scanning page...');
-        const selector = '.song-description [data-v-3dc57186], .item-name, .song-title, .planning-item-name, .wt-song-name, .planning-song-name';
-        const rawElements = document.querySelectorAll(selector);
-        console.log('[WT→SPA] Selector matched', rawElements.length, 'elements');
+
+        // Build element list:
+        // 1. For each .song-description, only take the FIRST [data-v-3dc57186] child (song name),
+        //    NOT additional spans that contain user notes like "Deze wil ik oefenen".
+        const songNameElements = [];
+        document.querySelectorAll('.song-description').forEach(desc => {
+            const firstSpan = desc.querySelector('[data-v-3dc57186]');
+            if (firstSpan) songNameElements.push(firstSpan);
+        });
+
+        // 2. Other standalone song-title selectors (no notes inside these)
+        const otherElements = document.querySelectorAll('.item-name, .song-title, .planning-item-name, .wt-song-name, .planning-song-name');
+
+        const rawElements = [...songNameElements, ...otherElements];
+        console.log('[WT→SPA] Elements collected — song-description first spans:', songNameElements.length, ', other:', otherElements.length, ', total:', rawElements.length);
 
         if (rawElements.length === 0) {
-            console.warn('[WT→SPA] No elements matched selector:', selector);
+            console.warn('[WT→SPA] No elements found on page.');
             alert("No items found. The page structure may have changed. Try refreshing the page or check the console for details.");
             return;
         }
 
         // 1. Convert to array and get raw text
-        const rawLines = Array.from(rawElements)
+        const rawLines = rawElements
             .map(el => {
                 if (!el || typeof el.innerText !== 'string') {
                     console.warn('[WT→SPA] Element without innerText:', el);
@@ -190,8 +202,13 @@ function extractSetlist() {
             // B. Remove trailing musical keys (e.g., "Song Name A" becomes "Song Name")
             cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '');
 
-            // C. Remove specific conversational fragments found in your list
-            const fragments = ["hebben we", "na de preek", "als het goed is", "reserve", "terug naar"];
+            // C. Remove specific conversational fragments / user notes
+            const fragments = [
+                "hebben we", "na de preek", "als het goed is", "reserve", "terug naar",
+                "wil ik oefenen", "wil ik ook oefenen", "oefenen", "deze wil ik",
+                "deze moeten we", "deze nog", "nog oefenen", "even oefenen",
+                "deze wil ik oefenen"
+            ];
             fragments.forEach(frag => {
                 if (cleaned.toLowerCase().includes(frag)) cleaned = "";
             });
