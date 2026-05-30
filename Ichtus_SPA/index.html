@@ -706,9 +706,15 @@
         <div id='view-dashboard' class='app-view hidden'>
             <div class='dashboard-header'>
                 <button id='dash-add-widget-btn' class='dash-add-widget-btn' onclick="dashboardModule.addWidget()" title='Add widget'>+</button>
-                <select id='layout-selector' class='layout-selector heading-font' onchange="dashboardModule.switchLayout(this.value)">
-                    <option value='__default__' data-i18n='dashboard_layout_default'>Default</option>
-                </select>
+                <div class='custom-select-container'>
+                    <button id='custom-select-trigger' class='custom-select-trigger heading-font' onclick="dashboardModule.toggleCustomDropdown()">
+                        <span id='custom-select-text'>Default</span>
+                        <span class='custom-select-arrow-line'></span>
+                    </button>
+                    <div id='custom-select-options' class='custom-select-options'>
+                        <div class='custom-option' data-value='__default__' onclick="dashboardModule.selectCustomOption(this)">Default</div>
+                    </div>
+                </div>
                 <div class='dashboard-header-actions'>
                     <button class='dash-header-btn dash-edit-btn' onclick="dashboardModule.toggleEditMode()" title='Edit'>✎</button>
                     <button class='dash-header-btn dash-manage-btn' onclick="dashboardModule.manageLayout()" title='Manage layouts'>⚙</button>
