@@ -1457,7 +1457,7 @@ const dashboardModule = {
                 const autoscrollPref = (() => { try { return localStorage.getItem('ichtus_pp_autoscroll'); } catch(e) { return null; } })();
                 const autoscrollActive = autoscrollPref === null || autoscrollPref === '1';
                 return `<div class="widget-card" draggable="true" data-widget-id="propresenter-playlist">
-                    <div class="widget-header"><h3 class="widget-title"></h3><button class="pp-layout-toggle" onclick="dashboardModule._togglePlaylistLayout(this)" title="Toggle layout">⊞</button><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylist(this)" title="Refresh playlist">↻</button><button class="pp-autoscroll-btn${autoscrollActive ? ' active' : ''}" onclick="dashboardModule._toggleAutoScroll(this)" title="${autoscrollActive ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit'}">◎</button></div>
+                    <div class="widget-header"><h3 class="widget-title"></h3><div class="pp-settings-wrap"><button class="pp-settings-btn" onclick="dashboardModule._togglePlaylistSettingsDropdown(event)" title="Playlist instellingen">⚙</button><div class="pp-settings-dropdown"><button class="pp-layout-toggle" onclick="dashboardModule._togglePlaylistLayout(this)" title="Toggle layout">⊞ Weergave</button><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylist(this)" title="Refresh playlist">↻ Verversen</button><button class="pp-autoscroll-btn${autoscrollActive ? ' active' : ''}" onclick="dashboardModule._toggleAutoScroll(this)" title="${autoscrollActive ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit'}">◎ Auto-scroll</button></div></div></div>
                     <div class="widget-body widget-propresenter" id="propresenter-playlist-container">
                         <div class="pp-loading">Loading playlist…</div>
                     </div>
@@ -3137,10 +3137,10 @@ const dashboardModule = {
                                     const btn = widgetEl.querySelector('.pp-layout-toggle');
                                     if (layoutPref === 'grid') {
                                         container.classList.add('pp-grid-layout');
-                                        if (btn) btn.textContent = '☰';
+                                        if (btn) btn.textContent = '☰ Weergave';
                                     } else {
                                         container.classList.remove('pp-grid-layout');
-                                        if (btn) btn.textContent = '⊞';
+                                        if (btn) btn.textContent = '⊞ Weergave';
                                     }
                                 } catch (e) {}
                             })
@@ -3232,6 +3232,35 @@ const dashboardModule = {
         this._triggerViaWebSocket(uuid, slideIndex, el);
     },
 
+    _togglePlaylistSettingsDropdown(event) {
+        event.stopPropagation();
+        const btn = event.currentTarget;
+        if (!btn) return;
+        const wrap = btn.closest('.pp-settings-wrap');
+        const dropdown = wrap ? wrap.querySelector('.pp-settings-dropdown') : null;
+        if (!dropdown) return;
+        
+        // Close all other settings dropdowns
+        document.querySelectorAll('.pp-settings-dropdown.show').forEach(el => {
+            if (el !== dropdown) el.classList.remove('show');
+        });
+        
+        dropdown.classList.toggle('show');
+        btn.classList.toggle('active', dropdown.classList.contains('show'));
+        
+        // Close on outside click
+        if (dropdown.classList.contains('show')) {
+            const closeHandler = (e) => {
+                if (wrap && !wrap.contains(e.target)) {
+                    dropdown.classList.remove('show');
+                    btn.classList.remove('active');
+                    document.removeEventListener('click', closeHandler);
+                }
+            };
+            setTimeout(() => document.addEventListener('click', closeHandler), 0);
+        }
+    },
+
     _toggleAutoScroll(btn) {
         this._playlistAutoScroll = !this._playlistAutoScroll;
         btn.classList.toggle('active', this._playlistAutoScroll);
@@ -3244,7 +3273,7 @@ const dashboardModule = {
         const container = widgetEl.querySelector('.widget-propresenter');
         if (!container) return;
         const isGrid = container.classList.toggle('pp-grid-layout');
-        btn.textContent = isGrid ? '☰' : '⊞';
+        btn.textContent = isGrid ? '☰ Weergave' : '⊞ Weergave';
         try { localStorage.setItem('ichtus_pp_playlist_layout', isGrid ? 'grid' : 'single'); } catch(e) {}
     },
 
