@@ -150,106 +150,279 @@ h1, h2, h3, .heading-font {
 ::-webkit-scrollbar-track { background: var(--bg-main); }
 ::-webkit-scrollbar-thumb { background: var(--ichtus-orange); border-radius: 4px; }
 
-/* --- Ichtus Suite Sidebar --- */
+/* ==================== ICHTUS SIDEBAR ==================== */
+
 .ichtus-sidebar {
     position: fixed;
     top: 0;
     left: 0;
-    width: 70px;
     height: 100vh;
-    background-color: #4d4d4f;
-    border-right: 1px solid #5c5c5e;
+    z-index: 100;
+    background: #2a2a2a;
+    border-right: 1px solid #3a3a3c;
     display: flex;
     flex-direction: column;
-    z-index: 100;
+    width: 260px;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
-.sidebar-header {
-    height: 56px;
+.ichtus-sidebar.collapsed {
+    width: 70px;
+}
+
+/* Brand Section */
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 8px;
+    border-bottom: 1px solid #3a3a3c;
+    min-height: 62px;
+    flex-shrink: 0;
+}
+
+.sidebar-logo-wrap {
+    width: 54px;
+    min-width: 54px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-bottom: 1px solid #5c5c5e;
+    flex-shrink: 0;
     overflow: hidden;
 }
 
-.sidebar-logo {
-    max-width: 40px;
-    max-height: 35px;
+.sidebar-logo-wrap img {
+    width: auto;
+    height: 24px;
     object-fit: contain;
 }
 
-.sidebar-title {
-    display: none;
+.sidebar-brand-text {
+    overflow: hidden;
+    white-space: nowrap;
+    transition: opacity 0.2s ease, width 0.2s ease;
 }
 
+.ichtus-sidebar.collapsed .sidebar-brand-text {
+    opacity: 0;
+    width: 0;
+}
+
+.sidebar-brand-name {
+    display: block;
+    font-family: 'Blockprint', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: #f9f9f7;
+    letter-spacing: 0.06em;
+    line-height: 1.2;
+}
+
+.sidebar-brand-plan {
+    display: block;
+    font-size: 11px;
+    color: #888;
+    line-height: 1.2;
+    font-family: 'PMN Caecilia', serif;
+}
+
+/* Scrollable nav area */
+.sidebar-scroll {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 6px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+/* Section labels */
+.sidebar-section-label {
+    padding: 14px 12px 4px;
+    font-size: 10px;
+    font-weight: 600;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity 0.2s ease, height 0.2s ease, padding 0.2s ease;
+    font-family: 'Blockprint', sans-serif;
+}
+
+.ichtus-sidebar.collapsed .sidebar-section-label {
+    opacity: 0;
+    height: 0;
+    padding: 0;
+    overflow: hidden;
+}
+
+/* Menu */
 .sidebar-menu {
     list-style: none;
-    padding: 20px 0;
-    flex-grow: 1;
-    overflow-x: hidden;
-    overflow-y: auto;
+    padding: 0;
+    margin: 0 0 2px 0;
 }
 
-.sidebar-menu li { position: relative; margin-bottom: 5px; }
+.sidebar-menu li {
+    margin-bottom: 1px;
+}
 
 .sidebar-menu a {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    padding: 10px 4px 8px;
-    color: #eee;
+    gap: 0;
+    height: 40px;
+    padding: 0;
+    border-radius: 8px;
+    color: #aaa;
     text-decoration: none;
-    transition: all 0.2s ease;
-    white-space: nowrap;
-    gap: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    position: relative;
+    border-left: 2px solid transparent;
 }
 
-.sidebar-menu a:hover { background-color: rgba(255, 255, 255, 0.05); }
-.sidebar-menu li.active a { color: #f47920; background-color: rgba(244, 121, 32, 0.1); }
+.sidebar-menu a:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
+}
+
+.sidebar-menu li.active a {
+    background: rgba(244, 121, 32, 0.1);
+    color: #f47920;
+    border-left-color: #f47920;
+}
+
 .sidebar-menu li.active a::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 16px;
-    height: 3px;
-    background: var(--ichtus-orange);
-    border-radius: 2px;
+    display: none;
 }
 
-.sidebar-icon { min-width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; }
+/* Icon area */
+.sidebar-icon {
+    width: 54px;
+    min-width: 54px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
 
 .sidebar-nav-icon {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
     fill: none;
     stroke: currentColor;
-    stroke-width: 2;
+    stroke-width: 1.8;
     stroke-linecap: round;
     stroke-linejoin: round;
 }
 
-.sidebar-text { font-family: 'Blockprint', sans-serif; font-size: 10px; letter-spacing: 0.3px; text-transform: uppercase; text-align: center; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; max-width: 62px; }
+/* Text */
+.sidebar-text {
+    font-family: 'PMN Caecilia', serif;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: opacity 0.2s ease, width 0.2s ease;
+    opacity: 1;
+}
 
-.sidebar-footer { display: none; }
+.ichtus-sidebar.collapsed .sidebar-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+/* Toggle button */
+.sidebar-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    height: 48px;
+    padding: 0 8px;
+    border: none;
+    border-top: 1px solid #3a3a3c;
+    background: none;
+    color: #888;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.15s ease;
+    width: 100%;
+    font-family: 'PMN Caecilia', serif;
+}
+
+.sidebar-toggle:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #aaa;
+}
+
+.sidebar-toggle-icon {
+    width: 54px;
+    min-width: 54px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.sidebar-toggle-icon svg {
+    transition: transform 0.3s ease;
+}
+
+.ichtus-sidebar:not(.collapsed) .sidebar-toggle-icon svg {
+    transform: rotate(180deg);
+}
+
+.sidebar-toggle-text {
+    font-family: 'PMN Caecilia', serif;
+    font-size: 13px;
+    white-space: nowrap;
+    transition: opacity 0.2s ease, width 0.2s ease;
+}
+
+.ichtus-sidebar.collapsed .sidebar-toggle-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+/* Body margin */
+body {
+    margin-left: 260px;
+    transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+body.sidebar-collapsed {
+    margin-left: 70px;
+}
 
 /* Main Content */
 .main-content {
     min-height: 100vh;
-    transition: all 0.3s ease;
 }
 
-/* Tablet: auto-collapse sidebar */
+/* Tablet: collapsed by default on smaller screens */
 @media (min-width: 769px) and (max-width: 1024px) {
-    body {
-        margin-left: 70px;
-    }
     .ichtus-sidebar {
         width: 70px;
     }
-    .sidebar-text {
-        font-size: 10px;
+    .ichtus-sidebar .sidebar-brand-text,
+    .ichtus-sidebar .sidebar-text,
+    .ichtus-sidebar .sidebar-toggle-text,
+    .ichtus-sidebar .sidebar-section-label {
+        opacity: 0;
+        width: 0;
+        overflow: hidden;
+    }
+    body {
+        margin-left: 70px;
     }
 }
