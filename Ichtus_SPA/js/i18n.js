@@ -48,7 +48,7 @@ const i18n = {
             nav_patchbay: 'Patchbay',
             nav_analytics: 'Analytics',
             nav_setlist: 'Setlist',
-            nav_ndi: 'NDI',
+                        nav_ndi: 'NDI',
             nav_settings: 'Instellingen',
 
             // ==================== CHECKLIST MODULE ====================

@@ -807,6 +807,9 @@ canvas { display: block; max-width: 100%; height: auto; }
     flex-shrink: 0;
 }
 .cl-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
     background: #333;
     border: 1px solid #444;
     border-radius: 8px;
@@ -822,14 +825,6 @@ canvas { display: block; max-width: 100%; height: auto; }
     line-height: 1;
 }
 .cl-btn:hover { background: #444; color: white; }
-.cl-btn-add {
-    background: var(--ichtus-orange);
-    border-color: var(--ichtus-orange);
-    color: white;
-    font-size: 1.3rem;
-    padding: 5px 13px;
-}
-.cl-btn-add:hover { filter: brightness(1.15); }
 .btn-switch-role {
     background: transparent;
     border: 1px solid #444;

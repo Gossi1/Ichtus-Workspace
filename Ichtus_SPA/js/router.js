@@ -7,46 +7,7 @@ const router = {
         if (this.initialized) return;
         this.initialized = true;
 
-        // Sidebar element (used by mobile hamburger; desktop toggle is handled by shared-assets/js/sidebar.js)
-        const sidebar = document.getElementById('ichtus-sidebar');
-
-        // Mobile hamburger menu toggle - set up BEFORE navigate() for robustness
-        const hamburger = document.getElementById('mobile-hamburger');
-        const backdrop = document.getElementById('sidebar-backdrop');
-        if (hamburger && backdrop && sidebar) {
-            const openMobileSidebar = () => {
-                sidebar.classList.add('mobile-open');
-                sidebar.classList.add('collapsed');
-                hamburger.classList.add('open');
-                backdrop.classList.add('visible');
-                document.body.style.overflow = 'hidden';
-            };
-            const closeMobileSidebar = () => {
-                sidebar.classList.remove('mobile-open');
-                hamburger.classList.remove('open');
-                backdrop.classList.remove('visible');
-                document.body.style.overflow = '';
-            };
-
-            hamburger.addEventListener('click', () => {
-                if (sidebar.classList.contains('mobile-open')) {
-                    closeMobileSidebar();
-                } else {
-                    openMobileSidebar();
-                }
-            });
-
-            backdrop.addEventListener('click', closeMobileSidebar);
-
-            // Close mobile sidebar when a nav link is clicked
-            sidebar.querySelectorAll('.sidebar-menu a').forEach(link => {
-                link.addEventListener('click', () => {
-                    if (window.innerWidth <= 768) {
-                        closeMobileSidebar();
-                    }
-                });
-            });
-        }
+        // Sidebar mobile hamburger handling is now in shared-assets/js/sidebar.js
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
