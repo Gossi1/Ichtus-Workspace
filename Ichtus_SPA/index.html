@@ -7,6 +7,7 @@
     <title>Ichtus Workspace</title>
     <link rel='stylesheet' href='../shared-assets/css/branding.css'>
     <link rel='stylesheet' href='css/style.css?v=2'>
+    <link rel='stylesheet' href='css/checklist-modern.css'>
     <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
 </head>
 <body data-app='workspace'>
@@ -252,18 +253,6 @@
                             </div>
                         </div>
                     </div>
-                    <div class='form-group form-group-divider'>
-                        <h3 class='section-subheader'>Bericht aan US</h3>
-                        <textarea id='inp-note' rows='3' class='form-textarea' placeholder='Typ bericht...'></textarea>
-                        <div class='checkbox-row'>
-                            <input type='checkbox' id='inp-popup' class='form-checkbox'>
-                            <label for='inp-popup' class='checkbox-label'>Belangrijke Pop-up</label>
-                        </div>
-                        <div class='form-row mt-4'>
-                            <button id='btn-send-note' class='btn-broadcast'>Broadcast</button>
-                            <button id='btn-clear-note' class='btn-clear' title='Verwijder huidige broadcast'>&#10005;</button>
-                        </div>
-                    </div>
                 </div>
                 <div class='panel-footer'>
                     <button id='btn-reset' class='btn-reset'>Reset &amp; Archiveer</button>
@@ -280,7 +269,7 @@
                     </div>
                     <div class='cl-header-right'>
                         <button id='btn-add-checklist' class='cl-btn cl-btn-add' title='Nieuwe checklist toevoegen' onclick='checklistModule.showCreateChecklistModal()'>+</button>
-                        <button id='btn-settings' class='cl-btn cl-btn-settings' title='Instellingen' onclick="checklistModule.toggleAdminSidebar()">&nbsp;&#9881;&nbsp;</button>
+                        <button id='btn-settings' class='cl-btn cl-btn-settings' title='Instellingen' onclick="checklistModule.toggleAdminSidebar()">&#9881;</button>
                         <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
                     </div>
                 </div>
@@ -321,9 +310,7 @@
             <!-- Add Item Modal -->
             <div id='cl-add-item-modal' class='cl-local-modal hidden'>
                 <div class='task-modal-dialog'>
-                    <div class='modal-header'>
-                        <h3 class='task-modal-title'>Nieuw Item</h3>
-                    </div>
+                    <h3 class='task-modal-title'>Nieuw Item</h3>
                     <div class='modal-form-content'>
                         <div class='form-group'>
                             <label for='cl-add-item-name'>Taak naam</label>
@@ -463,19 +450,7 @@
                     <h2 class='task-modal-title heading-font'>Taken Aanpassen</h2>
                     <div id='task-manage-list' class='task-manage-list'></div>
                     <div class='modal-footer'>
-                        <h3 class='modal-subheader'>Nieuwe Taak Toevoegen</h3>
-                        <div class='modal-input-row'>
-                            <input type='text' id='new-task-name' placeholder='Taak omschrijving' class='modal-input'>
-                            <input type='number' id='new-task-time' placeholder='Min. voor' class='modal-input time'>
-                            <select id='new-task-team' class='modal-input team'>
-                                <option value='Beamer'>Beamer</option>
-                                <option value='Worship'>Worship</option>
-                            </select>
-                        </div>
-                        <div class='modal-button-row'>
-                            <button id='btn-add-task' class='btn-modal btn-modal-confirm'>Toevoegen</button>
-                            <button id='btn-close-task-modal' class='btn-modal btn-modal-close'>Sluiten</button>
-                        </div>
+                        <button id='btn-close-task-modal' class='btn-modal btn-modal-close'>Sluiten</button>
                     </div>
                 </div>
             </div>
