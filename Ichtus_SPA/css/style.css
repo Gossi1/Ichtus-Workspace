@@ -21,15 +21,6 @@
     display: none;
 }
 
-/* Role selector: overlay onder de sidebar (z-index 100) maar boven de content */
-#role-selector {
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 50;
-}
-
 .auth-container, .setup-container {
     background: rgba(255, 255, 255, 0.95);
     border-radius: 20px;
