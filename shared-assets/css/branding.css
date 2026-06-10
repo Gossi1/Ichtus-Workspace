@@ -40,6 +40,10 @@
     --bg-card: #333333;
     --text-main: #f9f9f7;
     --border-light: #4d4d4f;
+    --text-muted: #9ca3af;
+    --text-dim: #666;
+    --text-muted: #888;
+    --text-dim: #666;
 }
 
 /* Global Reset & Typography */

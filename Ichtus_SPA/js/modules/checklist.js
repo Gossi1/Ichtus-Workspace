@@ -746,18 +746,17 @@ const checklistModule = {
         let html = '<div class="cl-detail-header">';
         html += '  <div class="cl-detail-header-left">';
         html += '    <span class="cl-detail-name">' + this._escapeHtml(cl.name) + '</span>';
-        html += '    <span style="font-size:0.78rem;color:var(--text-dim,#666);">' + done + '/' + total + (dueStr || repeatStr ? dueStr + repeatStr : '') + '</span>';
+        html += '    <span style="font-size:0.8rem;color:var(--text-muted);">' + done + '/' + total + (dueStr || repeatStr ? dueStr + repeatStr : '') + '</span>';
         html += '  </div>';
-        html += '  <button class="cl-detail-add-btn" id="cl-detail-add-item" title="Item toevoegen">+</button>';
+        html += '  <button class="cl-btn cl-btn-add" id="cl-detail-add-item" title="Item toevoegen">+</button>';
         html += '</div>';
 
         if (total > 0) {
             html += '<div class="cl-detail-progress-wrap">';
-            html += '  <div class="cl-detail-progress-header">';
-            html += '    <span class="cl-detail-progress-label">' + (done < total ? (total - done) + ' openstaand' + ((total - done) !== 1 ? 'e' : '') : 'Alles afgerond') + '</span>';
-            html += '    <span class="cl-detail-progress-count">' + pct + '%</span>';
+            html += '  <div class="cl-checklist-progress-row">';
+            html += '    <div class="cl-checklist-progress-bar"><div class="cl-checklist-progress-fill" style="width:' + pct + '%;"></div></div>';
+            html += '    <span class="cl-checklist-progress-pct">' + pct + '%</span>';
             html += '  </div>';
-            html += '  <div class="cl-detail-progress-bar"><div class="cl-detail-progress-fill" style="width:' + pct + '%;"></div></div>';
             html += '</div>';
         }
 
