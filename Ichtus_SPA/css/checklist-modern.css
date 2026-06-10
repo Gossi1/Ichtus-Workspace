@@ -8,10 +8,8 @@
   --glass-edge-bright: rgba(255, 255, 255, 0.38);
   --fluid-blur: blur(20px) saturate(130%);
   
-  /* Luminous Accent Tints */
-  --accent-cyan: #00f2fe;
-  --accent-blue: #4facfe;
-  --accent-sky: #38bdf8;
+  /* Ichtus Brand Accents */
+  --ichtus-orange: #f47920;
   --text-primary: #ffffff;
   --text-muted: rgba(255, 255, 255, 0.55);
 }
@@ -66,7 +64,7 @@
 .cl-back-btn {
   font-size: 0.9rem;
   font-weight: 500;
-  color: var(--accent-sky);
+  color: var(--ichtus-orange);
   cursor: pointer;
   transition: opacity 0.2s ease, transform 0.2s ease;
   display: inline-flex;
@@ -179,8 +177,8 @@
   transition: color 0.3s;
 }
 .cl-checklist-card:hover .cl-repeat-icon {
-  color: var(--accent-sky);
-  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6));
+  color: var(--ichtus-orange);
+  filter: drop-shadow(0 0 6px rgba(244, 121, 32, 0.6));
 }
 
 .cl-checklist-progress {
@@ -234,8 +232,8 @@
 .cl-checklist-progress-fill {
   height: 100%;
   border-radius: 100px;
-  background: linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-blue) 100%);
-  box-shadow: 0 0 14px rgba(79, 172, 254, 0.7);
+  background: var(--ichtus-orange);
+  box-shadow: 0 0 14px rgba(244, 121, 32, 0.6);
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .cl-checklist-progress-pct {
@@ -367,14 +365,14 @@
   transition: all 0.2s;
 }
 .cl-item-checkbox:checked {
-  background: var(--accent-sky);
-  border-color: var(--accent-sky);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.5);
+  background: var(--ichtus-orange);
+  border-color: var(--ichtus-orange);
+  box-shadow: 0 0 10px rgba(244, 121, 32, 0.5);
 }
 .cl-item-checkbox:checked::after {
   content: "✓";
   position: absolute;
-  color: #000000;
+  color: #ffffff;
   font-size: 14px;
   font-weight: 800;
   top: 50%;
@@ -404,7 +402,7 @@
   background: rgba(255,255,255,0.08);
   padding: 3px 8px;
   border-radius: 6px;
-  color: var(--accent-sky);
+  color: var(--ichtus-orange);
 }
 .cl-item-card-time {
   font-size: 0.85rem;
@@ -421,7 +419,7 @@
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(15, 23, 42, 0.4);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   z-index: 1000;
@@ -432,7 +430,7 @@
 
 /* Float Glass Modals Sheets */
 .task-modal-dialog, .modal-dialog {
-  background: linear-gradient(145deg, rgba(30, 41, 59, 0.75) 0%, rgba(15, 23, 42, 0.45) 100%);
+  background: linear-gradient(145deg, rgba(45, 45, 45, 0.75) 0%, rgba(30, 30, 30, 0.45) 100%);
   border: 1px solid rgba(255,255,255,0.15);
   border-top: 1px solid rgba(255,255,255,0.3);
   border-left: 1px solid rgba(255,255,255,0.3);
@@ -479,8 +477,8 @@
   transition: all 0.2s;
 }
 .form-input:focus, .modal-input:focus, .manage-input:focus {
-  border-color: var(--accent-sky);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
+  border-color: var(--ichtus-orange);
+  box-shadow: 0 0 10px rgba(244, 121, 32, 0.3);
   background: rgba(0, 0, 0, 0.4);
 }
 
@@ -511,9 +509,9 @@
   color: #ffffff;
 }
 .btn-modal-confirm {
-  background: linear-gradient(90deg, #00f2fe 0%, #4facfe 100%);
+  background: var(--ichtus-orange);
   border: none;
-  color: #000000;
+  color: #ffffff;
   font-weight: 700;
 }
 .btn-secondary, .btn-setlist-primary, .btn-modal-confirm, .btn-modal-close {
@@ -632,10 +630,10 @@
 
 .form-input:focus {
   background: rgba(0, 0, 0, 0.45);
-  border-color: #38bdf8;
+  border-color: var(--ichtus-orange);
   box-shadow: 
-    0 0 0 1px #38bdf8,
-    0 0 14px rgba(56, 189, 248, 0.35);
+    0 0 0 1px var(--ichtus-orange),
+    0 0 14px rgba(244, 121, 32, 0.35);
 }
 
 /* 4. Specifieke overschrijvingen voor Native WebKit elementen (Chrome, Edge, Safari) */
@@ -652,8 +650,8 @@
 }
 
 .form-input::-webkit-calendar-picker-indicator:hover {
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%2338bdf8' opacity='1' viewBox='0 0 16 16'%3E%3Cpath d='M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-5 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z'/%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z'/%3E%3C/svg%3E");
-  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' fill='%23f47920' opacity='1' viewBox='0 0 16 16'%3E%3Cpath d='M11 6.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm-5 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5zm3 0a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5z'/%3E%3Cpath d='M3.5 0a.5.5 0 0 1 .5.5V1h8V.5a.5.5 0 0 1 1 0V1h1a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2V3a2 2 0 0 1 2-2h1V.5a.5.5 0 0 1 .5-.5M1 4v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V4z'/%3E%3C/svg%3E");
+  filter: drop-shadow(0 0 4px rgba(244, 121, 32, 0.5));
 }
 
 /* 5. Select Dropdown & Context Menu elementen */
@@ -666,7 +664,7 @@ select.form-input {
   background-position: calc(100% - 14px) center;
   cursor: pointer;
 }
-select.form-input option { background-color: #1e293b; color: #ffffff; }
+select.form-input option { background-color: #2d2d2d; color: #ffffff; }
 
 .btn-menu {
   background: rgba(255, 255, 255, 0.06); 
@@ -691,7 +689,7 @@ select.form-input option { background-color: #1e293b; color: #ffffff; }
   top: calc(100% + 6px); 
   right: 0; 
   width: 200px;
-  background: linear-gradient(135deg, rgba(30, 41, 59, 0.92) 0%, rgba(15, 23, 42, 0.85) 100%);
+  background: linear-gradient(135deg, rgba(45, 45, 45, 0.92) 0%, rgba(30, 30, 30, 0.85) 100%);
   backdrop-filter: blur(16px); 
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid rgba(255, 255, 255, 0.2); 
@@ -708,7 +706,7 @@ select.form-input option { background-color: #1e293b; color: #ffffff; }
 }
 .dropdown-item:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
 .dropdown-item.border-bottom { border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
-.dropdown-item.text-blue { color: #38bdf8; }
+.dropdown-item.text-orange { color: var(--ichtus-orange); }
 .dropdown-item.text-red { color: #f87171; }
 
 /* 6. Footer van het panel */
