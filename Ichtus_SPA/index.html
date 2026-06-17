@@ -523,64 +523,86 @@
 
         <!-- ANALYTICS VIEW -->
         <div id='view-analytics' class='app-view hidden'>
-            <div class="header-container-an">
-                <div class="header-text">
+            <div class="dashboard">
+
+                <!-- Minimalist Header with Brand Accent Line -->
+                <div class="simple-header">
                     <h1>Service Tracking</h1>
-                    <p class="subtitle">Automatic Service Duration & SPL Tracking via ProPresenter</p>
+                    <div class="header-divider"></div>
                 </div>
-                <button id="fullscreen-btn" class="btn-fullscreen" onclick="analyticsModule.toggleFullScreen()" title="Toggle Fullscreen">
-                    <svg id="fs-enter" xmlns="http://www.w3.org/2000/svg" class="sidebar-nav-icon" style="width: 20px; height: 20px;"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
-                    <svg id="fs-exit" xmlns="http://www.w3.org/2000/svg" class="sidebar-nav-icon" style="width: 20px; height: 20px;"><path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path></svg>
-                </button>
-            </div>
-            <div class="dashboard-an">
-                <div class="panel">
-                    <div class="stat-box neutral">
+
+                <!-- ========== KPI LIVE METRICS ========== -->
+                <div class="metrics-grid">
+                    <div class="action-bar metric-card">
+                        <strong class="metric-label">Total Service Time</strong>
                         <div class="value" id="total-service-time">00:00:00</div>
-                        <div class="label">Total Service Time</div>
                     </div>
-                    <div class="stat-box highlight">
-                        <div class="value" id="total-overage">+00:00</div>
-                        <div class="label">Total Overage</div>
+                    <div class="action-bar metric-card orange-edge">
+                        <strong class="metric-label orange-text">Total Overage</strong>
+                        <div class="value orange-text" id="total-overage">+00:00</div>
                     </div>
-                    <div class="stat-box secondary">
-                        <div class="value" id="items-tracked">0</div>
-                        <div class="label">Items Tracked</div>
+                    <div class="action-bar metric-card blue-edge">
+                        <strong class="metric-label blue-text">Items Tracked</strong>
+                        <div class="value blue-text" id="items-tracked">0</div>
                     </div>
-                    <div class="stat-box neutral stat-box-auto-start">
-                        <div class="label auto-start-label">Auto-Start ('Welkom' Look)</div>
-                        <div class="auto-start-controls">
-                            <input type="time" id="auto-start-time" class="input-time">
-                            <button id="auto-start-btn" class="btn-set" onclick="analyticsModule.scheduleAutoStart()">Set</button>
-                        </div>
+                </div>
+
+                <!-- ========== QUICK ACTIONS & RUN-TIME CONTROLS ========== -->
+                <div class="action-bar controls-row">
+                    <div class="sunday-controls">
+                        <span class="control-label">Auto-Start Look:</span>
+                        <input type="time" id="auto-start-time" class="form-input">
+                        <button id="auto-start-btn" class="btn-upload btn-label" onclick="analyticsModule.scheduleAutoStart()">Set</button>
                         <div id="auto-start-status"></div>
                     </div>
-                    <button id="toggle-service-btn" onclick="analyticsModule.toggleService()">Start Tracking</button>
-                    <button class="btn-secondary-an" onclick="analyticsModule.exportCSV()">Export to CSV</button>
-                    <button class="btn-secondary-an btn-import-an" onclick="document.getElementById('csv-importer').click()">Import from CSV</button>
-                    <input type="file" id="csv-importer" accept=".csv" onchange="analyticsModule.importFromCSV(event)">
+                    <div class="button-group">
+                        <button id="toggle-service-btn" class="btn-upload btn-label" onclick="analyticsModule.toggleService()">Start Tracking</button>
+                        <button class="btn-dl" onclick="analyticsModule.exportCSV()">Export CSV</button>
+                        <button class="btn-load" onclick="document.getElementById('csv-importer').click()">Import CSV</button>
+                        <input type="file" id="csv-importer" accept=".csv" onchange="analyticsModule.importFromCSV(event)">
+                    </div>
                 </div>
-                <div class="panel">
-                    <div class="sequence-config-container">
-                        <h2 class="sequence-config-header">Service Sequence Configuration</h2>
-                        <div id="service-sequence-display"></div>
-                        <div class="sequence-inputs-row">
-                            <input type="text" id="new-sequence-look-name" class="input-sequence" placeholder="Look Name (e.g., Worship)">
-                            <input type="text" id="new-sequence-display-name" class="input-sequence" placeholder="Display Name (e.g., Openingslied)">
-                            <input type="number" id="new-sequence-planned-duration" class="input-sequence duration-input" placeholder="Planned Duration (seconds)">
-                            <button class="btn-add-sequence" onclick="analyticsModule.addSequenceItem()">Add</button>
+
+                <!-- ========== SEQUENCE CONFIGURATION ========== -->
+                <div class="action-bar configuration-panel">
+                    <strong class="section-title">Service Sequence Configuration</strong>
+                    <div id="service-sequence-display"></div>
+                    <div class="input-grid">
+                        <input type="text" id="new-sequence-look-name" class="form-input flex-grow" placeholder="Look Name (e.g., Worship)">
+                        <input type="text" id="new-sequence-display-name" class="form-input flex-grow" placeholder="Display Name (e.g., Openingslied)">
+                        <input type="number" id="new-sequence-planned-duration" class="form-input duration-width" placeholder="Secs">
+                        <button class="btn-nav submit-button" onclick="analyticsModule.addSequenceItem()">Add Item</button>
+                    </div>
+                </div>
+
+                <!-- ========== SESSION TRACKING LOG ========== -->
+                <div class="canvas-wrapper table-container-wrapper">
+                    <div class="table-card-inner">
+                        <strong class="section-title">Live Session Log Matrix</strong>
+                        <div class="responsive-table-scroll">
+                            <table class="session-log-table">
+                                <thead>
+                                    <tr>
+                                        <th>Look Name</th>
+                                        <th>Planned</th>
+                                        <th>Actual</th>
+                                        <th>Diff +/-</th>
+                                        <th>Avg SPL</th>
+                                        <th>Peak SPL</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="log-body">
+                                    <tr>
+                                        <td colspan="6" class="empty-state">
+                                            Waiting for first Look to be activated...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
-                    <h2 class="session-log-header">Session Log</h2>
-                    <table>
-                        <thead>
-                            <tr><th>Look Name</th><th>Planned</th><th>Actual</th><th>Diff +/-</th><th>Avg SPL</th><th>Peak SPL</th></tr>
-                        </thead>
-                        <tbody id="log-body">
-                            <tr><td colspan="6" class="empty-log-message">Click 'Start Tracking' to begin monitoring Looks...</td></tr>
-                        </tbody>
-                    </table>
                 </div>
+
             </div>
         </div>
 

@@ -311,15 +311,10 @@ const analyticsModule = {
         container.innerHTML = '';
         this.SERVICE_SEQUENCE.forEach((item, index) => {
             const itemDiv = document.createElement('div');
-            itemDiv.className = 'sequence-item';
-            itemDiv.style.cssText = `
-                background: #4d4d4f; padding: 8px 12px; border-radius: 6px;
-                font-size: 13px; color: #f9f9f7; display: flex; align-items: center;
-                gap: 8px; border: 1px solid #5c5c5e;
-            `;
+            itemDiv.className = 'toggle-item sequence-row';
             itemDiv.innerHTML = `
                 <span>${index + 1}. <strong>${item.displayName}</strong> (${item.name}) - ${item.plannedDuration !== undefined ? analyticsModule.formatTime(item.plannedDuration) : 'Auto'}</span>
-                <button onclick="analyticsModule.removeSequenceItem(${index})" style="background: none; border: none; color: #ed1c24; font-size: 16px; cursor: pointer; padding: 0; margin: 0; line-height: 1;">&times;</button>
+                <button class="btn-delete" onclick="analyticsModule.removeSequenceItem(${index})">&times;</button>
             `;
             container.appendChild(itemDiv);
         });
@@ -343,7 +338,7 @@ const analyticsModule = {
         if (itemsTrackedEl) itemsTrackedEl.innerText = allItems.length;
 
         if (allItems.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:#666;">Waiting for first Look to be activated...</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="6" class="empty-state">Waiting for first Look to be activated...</td></tr>`;
             return;
         }
 
@@ -375,7 +370,6 @@ const analyticsModule = {
         const overageEl = document.getElementById('total-overage');
         if (overageEl) {
             overageEl.innerText = (totalOverageSecs > 0 ? '+' : '') + analyticsModule.formatTime(totalOverageSecs);
-            overageEl.parentElement.className = totalOverageSecs > 0 ? 'stat-box highlight' : 'stat-box neutral';
         }
     },
 
@@ -467,27 +461,7 @@ const analyticsModule = {
         reader.onerror = () => alert("Failed to read the file.");
         reader.readAsText(file);
         event.target.value = '';
-    },
-
-    toggleFullScreen() {
-        if (!document.fullscreenElement) {
-            document.documentElement.requestFullscreen().catch(err => {
-                console.log(`Error attempting to enable fullscreen: ${err.message}`);
-            });
-        } else {
-            if (document.exitFullscreen) document.exitFullscreen();
-        }
     }
 };
-
-// Fullscreen change handler
-document.addEventListener('fullscreenchange', () => {
-    const enterIcon = document.getElementById('fs-enter');
-    const exitIcon = document.getElementById('fs-exit');
-    if (enterIcon && exitIcon) {
-        enterIcon.style.display = document.fullscreenElement ? 'none' : 'block';
-        exitIcon.style.display = document.fullscreenElement ? 'block' : 'none';
-    }
-});
 
 // Auto-initialize when view is shown - handled by router

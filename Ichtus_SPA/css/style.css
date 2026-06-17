@@ -260,6 +260,152 @@ button:hover, .btn-label:hover {
 }
 
 /* ==========================================================================
+   GLOBAL GLASS COMPONENT STYLES (cross-view: agenda, analytics, etc.)
+   ========================================================================== */
+.action-bar, .toolbar {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(20px) saturate(130%);
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.38);
+    border-left: 1px solid rgba(255, 255, 255, 0.38);
+    border-radius: 14px;
+    padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 20px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+}
+
+.toolbar {
+    flex-direction: column;
+    align-items: stretch;
+}
+
+.tool-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+}
+
+.sunday-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.event-selector {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px 16px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.toggle-item:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+.canvas-wrapper {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    width: 100%;
+}
+
+/* ==========================================================================
+   GLOBAL GLASS BUTTON COLOR STYLES (cross-view: agenda, analytics, etc.)
+   ========================================================================== */
+.btn-load, .btn-dl, .btn-nav, .btn-upload {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.38);
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    font-family: inherit;
+    text-transform: none;
+}
+
+/* Orange — Start Tracking, Upload, Primary Actions */
+.btn-upload,
+.btn-upload.btn-label {
+    border-color: rgba(244, 121, 32, 0.4) !important;
+    color: #f47920 !important;
+}
+.btn-upload:hover,
+.btn-upload.btn-label:hover {
+    background: linear-gradient(135deg, rgba(244, 121, 32, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #f47920 !important;
+    box-shadow: 0 4px 15px rgba(244, 121, 32, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* Blue — Import, Load */
+.btn-load {
+    border-color: rgba(52, 152, 219, 0.4) !important;
+    color: #3498db !important;
+}
+.btn-load:hover {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #3498db !important;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* Green — Export, Download */
+.btn-dl {
+    border-color: rgba(39, 174, 96, 0.4) !important;
+    color: #27ae60 !important;
+}
+.btn-dl:hover {
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #27ae60 !important;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* Navigation (Neutral) */
+.btn-nav {
+    color: #f9f9f7;
+}
+.btn-nav:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-color: rgba(255, 255, 255, 0.45);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
    AGENDA STYLES — LIQUID GLASS MODERN DESIGN
    ========================================================================== */
 
@@ -1540,103 +1686,253 @@ input:checked + .slider::before { transform: translateX(20px); }
 .canvas-container[data-tool="select"] { cursor: crosshair; }
 .canvas-container[data-tool="select"] .node { cursor: move; }
 
-/* ==================== ANALYTICS STYLES ==================== */
+/* ==========================================================================
+   ANALYTICS STYLES — LIQUID GLASS MODERN DESIGN (v2)
+   ========================================================================== */
 
 #view-analytics {
     display: none;
-    width: 100%;
-    min-height: 100vh;
-    overflow-x: hidden;
     background: var(--bg-main);
 }
+
 #view-analytics.active {
-    display: block;
-    padding: 30px;
+    display: flex;
+    justify-content: center;
+    padding: 30px 24px;
+    width: 100%;
     box-sizing: border-box;
 }
 
-#view-analytics .value { font-family: 'Blockprint', sans-serif; letter-spacing: 1px; }
-
-.header-container-an {
+#view-analytics .dashboard {
     display: flex;
-    align-items: center;
-    margin-bottom: 30px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+    max-width: 1000px;
 }
-.header-container-an .header-text h1 { color: #f47920; margin-bottom: 5px; text-transform: uppercase; font-size: 36px; font-family: 'Blockprint', sans-serif; }
-.header-container-an .header-text p.subtitle { color: #ccc; margin-bottom: 0; font-size: 16px; }
 
-.dashboard-an {
+/* ── Minimalist Header ── */
+#view-analytics .simple-header {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#view-analytics .simple-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+}
+
+#view-analytics .header-divider {
+    width: 100%;
+    height: 2px;
+    background: var(--ichtus-orange);
+    border-radius: 2px;
+    opacity: 0.8;
+}
+
+/* ── KPI Value numerals ── */
+#view-analytics .value {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Metrics Grid (KPI Cards) ── */
+#view-analytics .metrics-grid {
     display: grid;
-    grid-template-columns: 250px 1fr;
-    gap: 20px;
-    align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    width: 100%;
 }
 
-#view-analytics .panel {
-    background: #2a2a2a;
-    border: 1px solid #333;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+#view-analytics .metric-card {
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px;
+    min-height: 110px;
 }
 
-#view-analytics .stat-box {
-    padding: 20px 15px; border-radius: 8px; text-align: center; margin-bottom: 15px; color: white;
+#view-analytics .metric-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
 }
-#view-analytics .stat-box.neutral { background: linear-gradient(135deg, #0061af, #00a79d); }
-#view-analytics .stat-box.secondary { background: linear-gradient(135deg, #00a651, #8dc63f); }
-#view-analytics .stat-box.highlight { background: linear-gradient(135deg, #ed1c24, #f47920); }
-#view-analytics .stat-box .value { font-size: 42px; font-weight: normal; margin-bottom: 5px; font-variant-numeric: tabular-nums; }
-#view-analytics .stat-box .label { font-size: 12px; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; }
 
-#view-analytics button {
-    background: #f47920; color: white; border: none; padding: 15px; border-radius: 8px;
-    cursor: pointer; font-weight: bold; width: 100%; margin-bottom: 10px;
-    transition: 0.2s ease; text-transform: uppercase; font-size: 16px; font-family: 'Blockprint', sans-serif;
+#view-analytics .metric-card .value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
 }
-#view-analytics button:hover { filter: brightness(1.1); }
-#view-analytics .btn-secondary-an { background: #0061af; }
-#view-analytics .btn-import-an { background-color: #00a79d; }
 
-#view-analytics table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #1e1e1e; border-radius: 8px; overflow: hidden; }
-#view-analytics th, #view-analytics td { padding: 15px; text-align: left; border-bottom: 1px solid #333; font-variant-numeric: tabular-nums; }
-#view-analytics th { color: #aaa; text-transform: uppercase; letter-spacing: 1px; background: #121212; font-family: 'Blockprint', sans-serif; font-size: 16px; }
-#view-analytics .overage { color: #ed1c24; font-weight: bold; }
-#view-analytics .under { color: #00a651; font-weight: bold; }
-#view-analytics .active-row { background: rgba(244, 121, 32, 0.15); border-left: 4px solid #f47920; }
-#view-analytics .active-row td { color: #fff; }
-#view-analytics .highlight-us { color: #f47920; font-weight: bold; }
-#view-analytics .status-complete { color: #00a79d; font-weight: bold; }
+/* Color-coded edges */
+#view-analytics .metric-card.orange-edge { border-color: rgba(244, 121, 32, 0.25); }
+#view-analytics .metric-card.blue-edge   { border-color: rgba(52, 152, 219, 0.25); }
 
-#view-analytics .btn-fullscreen {
-    margin-left: auto; margin-bottom: 0; width: 48px; height: 48px;
-    background: #2a2a2a; border: 1px solid #333; color: #aaa;
-    display: flex; align-items: center; justify-content: center; padding: 0;
+/* ── Controls Row ── */
+#view-analytics .controls-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
 }
-#view-analytics #fs-exit { display: none; }
 
-#view-analytics .stat-box-auto-start { flex-direction: column; align-items: flex-start; padding: 15px; gap: 8px; text-align: left; }
-#view-analytics .auto-start-label { font-size: 12px; width: 100%; }
-#view-analytics .auto-start-controls { display: flex; gap: 8px; width: 100%; }
-#view-analytics .input-time, #view-analytics .input-sequence {
-    background: #1e1e1e; border: 1px solid #4d4d4f; color: #fff;
-    padding: 6px; border-radius: 4px; outline: none;
+#view-analytics .configuration-panel {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
 }
-#view-analytics .input-time { flex: 1; font-family: sans-serif; }
-#view-analytics .input-sequence { flex: 1; }
-#view-analytics .input-sequence.duration-input { flex: none; width: 180px; }
 
-#view-analytics .btn-set, #view-analytics .btn-add-sequence {
-    margin: 0; padding: 6px 12px; font-size: 12px; width: auto; min-width: 60px;
+#view-analytics .button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
 }
-#view-analytics #auto-start-status { font-size: 11px; color: #00a651; display: none; font-weight: bold; width: 100%; text-align: center; }
+
+#view-analytics .control-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ── Sequence Configuration ── */
+#view-analytics .section-title {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+#view-analytics #service-sequence-display {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#view-analytics .sequence-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+#view-analytics .sequence-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+#view-analytics .btn-delete {
+    background: none;
+    border: none;
+    color: var(--ichtus-red);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#view-analytics .input-grid {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+#view-analytics .flex-grow { flex: 2; min-width: 150px; }
+#view-analytics .duration-width { flex: 1; min-width: 80px; }
+
+#view-analytics .submit-button {
+    border-radius: 6px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+}
+
+/* ── Table / Session Log ── */
+#view-analytics .table-container-wrapper {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 4px;
+    overflow: hidden;
+    width: 100%;
+}
+
+#view-analytics .table-card-inner {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 16px;
+    border-radius: 10px;
+}
+
+#view-analytics .responsive-table-scroll {
+    overflow-x: auto;
+}
+
+#view-analytics .session-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+#view-analytics .session-log-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--glass-edge);
+    color: var(--text-muted);
+}
+
+#view-analytics .session-log-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    transition: background-color 0.15s ease;
+}
+
+#view-analytics .session-log-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#view-analytics .session-log-table td {
+    padding: 10px 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+#view-analytics .empty-state {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ── Row helpers ── */
+#view-analytics .overage { color: var(--ichtus-red); font-weight: 600; }
+#view-analytics .under { color: var(--ichtus-green); font-weight: 600; }
+#view-analytics .active-row { background: rgba(244, 121, 32, 0.12); }
+#view-analytics .active-row td { color: #fff; font-weight: 600; }
+#view-analytics .highlight-us { color: var(--ichtus-orange); font-weight: 700; }
+#view-analytics .status-complete { color: var(--ichtus-green); font-weight: 700; }
+
+/* ── Color Utilities ── */
+#view-analytics .orange-text { color: var(--ichtus-orange) !important; }
+#view-analytics .blue-text   { color: var(--ichtus-blue) !important; }
+#view-analytics .muted-text  { color: var(--text-muted); }
+
+/* ── Auto-Start ── */
+#view-analytics #auto-start-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: none;
+}
+
+/* ── CSV Importer ── */
 #view-analytics #csv-importer { display: none; }
-
-#view-analytics .sequence-config-container { margin-bottom: 30px; padding-bottom: 20px; border-bottom: 1px solid #4d4d4f; }
-#view-analytics .sequence-config-header, #view-analytics .session-log-header { color: #fff; font-size: 18px; margin-bottom: 15px; }
-#view-analytics #service-sequence-display { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; }
-#view-analytics .sequence-inputs-row { display: flex; gap: 10px; }
-#view-analytics .empty-log-message { text-align: center; color: #666; }
 
 /* ==================== NDI SOURCES STYLES ==================== */
 
