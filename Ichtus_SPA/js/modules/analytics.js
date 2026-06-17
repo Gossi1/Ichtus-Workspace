@@ -1,26 +1,25 @@
 /* ============================================
    ANALYTICS MODULE
-   Service Tracking Analytics - merged from ProPresenter
+   Service Tracking Analytics - Dynamic Look Tracking
    ============================================ */
 
 const analyticsModule = {
     PP_IP: "100.113.22.22",
     PP_PORT: "51253",
     BASE_URL: null,
-    SERVICE_SEQUENCE: null,
+    lookDurations: {},        // { "Welkom": 300, "Openingslied": 120, ... }
     isServiceRunning: false,
     serviceStartTime: null,
-    sectionTimerId: null,
+    previousLookName: null,   // track the last active look name
     currentItem: null,
     serviceLog: [],
-    sequenceIndex: 0,
     autoStartTimeout: null,
     initialized: false,
+    _availableLooks: [],
 
     init() {
         if (this.initialized && this._lastView === 'analytics') return;
 
-        // Clean up any previous poll interval before reinitializing
         if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
 
         this.initialized = true;
@@ -28,28 +27,15 @@ const analyticsModule = {
 
         this.BASE_URL = `http://${this.PP_IP}:${this.PP_PORT}/v1`;
 
-        // Load sequence
-        this.SERVICE_SEQUENCE = JSON.parse(localStorage.getItem('serviceSequence')) || [
-            { name: "Welkom", displayName: "Welkom" },
-            { name: "Worship", plannedDuration: 300, displayName: "Openingslied" },
-            { name: "Mededelingen", displayName: "Mededelingen" },
-            { name: "Worship", plannedDuration: 1800, displayName: "Worship" },
-            { name: "Scripture", displayName: "Preek" },
-            { name: "Worship", plannedDuration: 480, displayName: "Eindlied" },
-            { name: "Einde", plannedDuration: 0, displayName: "Einde" }
-        ];
+        // Load look durations from localStorage
+        this.lookDurations = JSON.parse(localStorage.getItem('lookDurations')) || {};
 
-        this.renderServiceSequence();
+        // Fetch available looks from ProPresenter and render the config UI
+        this.refreshLooks();
         this.renderDashboard();
+        this.renderAutoStartStatus();
 
-        // Find Section_Timer ID
-        this.initializeTracker().then(id => {
-            if (id) {
-                this.sectionTimerId = id;
-            }
-        });
-
-        // Poll ProPresenter
+        // Poll ProPresenter for look changes
         this._pollInterval = setInterval(() => this.pollProPresenter(), 1000);
     },
 
@@ -65,14 +51,22 @@ const analyticsModule = {
         return null;
     },
 
-    async fetchSectionTimerDuration(sectionTimerId) {
+    async fetchAllLooks() {
         try {
-            const timerResponse = await fetch(`${this.BASE_URL}/timer/${sectionTimerId}`);
-            if (timerResponse.ok) return await timerResponse.json();
+            const response = await fetch(`${this.BASE_URL}/looks`);
+            if (response.ok) {
+                const looks = await response.json();
+                return looks.map(l => {
+                    if (typeof l === 'string') return l;
+                    if (l.id && l.id.name) return l.id.name;
+                    if (l.name) return l.name;
+                    return null;
+                }).filter(Boolean);
+            }
         } catch (err) {
-            console.error("Failed to fetch Section_Timer duration:", err);
+            console.error("Failed to fetch looks from ProPresenter:", err);
         }
-        return null;
+        return [];
     },
 
     async triggerWelkomMacro() {
@@ -91,60 +85,75 @@ const analyticsModule = {
         }
     },
 
-    async initializeTracker() {
-        try {
-            const response = await fetch(`${this.BASE_URL}/timers`);
-            if (response.ok) {
-                const timers = await response.json();
-                const sectionTimer = timers.find(t => t.id && t.id.name && t.id.name.toLowerCase() === 'section_timer');
-                if (sectionTimer) return sectionTimer.id.uuid;
-            }
-        } catch (err) {
-            console.error("Failed to initialize timers:", err);
-        }
-        return null;
+    // --- Look Duration Management ---
+
+    async refreshLooks() {
+        const looks = await this.fetchAllLooks();
+        this._availableLooks = looks;
+        this.renderLookDurations();
     },
 
-    // --- Tracker Functions ---
+    renderLookDurations() {
+        const container = document.getElementById('look-durations-list');
+        if (!container) return;
 
-    saveServiceSequence() {
-        localStorage.setItem('serviceSequence', JSON.stringify(this.SERVICE_SEQUENCE));
-        this.renderServiceSequence();
-    },
+        container.innerHTML = '';
 
-    addSequenceItem() {
-        const lookNameInput = document.getElementById('new-sequence-look-name');
-        const displayNameInput = document.getElementById('new-sequence-display-name');
-        const plannedDurationInput = document.getElementById('new-sequence-planned-duration');
-
-        const lookName = lookNameInput.value.trim();
-        const displayName = displayNameInput.value.trim();
-        const plannedDuration = parseInt(plannedDurationInput.value, 10);
-
-        if (!lookName || !displayName) {
-            alert('Please enter a valid Look Name and Display Name.');
+        if (!this._availableLooks || this._availableLooks.length === 0) {
+            container.innerHTML = `
+                <div style="text-align:center; padding:12px 0; color:var(--text-muted); font-style:italic;">
+                    Geen Looks gevonden. Zorg dat ProPresenter draait en klik op "Ververs Looks".
+                </div>
+            `;
             return;
         }
 
-        const newItem = { name: lookName, displayName: displayName };
-        if (!isNaN(plannedDuration) && plannedDuration >= 0) {
-            newItem.plannedDuration = plannedDuration;
-        }
+        this._availableLooks.forEach(lookName => {
+            const row = document.createElement('div');
+            row.className = 'toggle-item look-duration-row';
 
-        this.SERVICE_SEQUENCE.push(newItem);
-        this.saveServiceSequence();
+            const currentDuration = this.lookDurations[lookName] || '';
+            const displayTime = currentDuration ? analyticsModule.formatTime(parseInt(currentDuration)) : '—';
 
-        lookNameInput.value = '';
-        displayNameInput.value = '';
-        plannedDurationInput.value = '';
+            row.innerHTML = `
+                <span style="font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${lookName}</span>
+                <span style="font-size:0.8rem; color:var(--text-muted); margin:0 8px; min-width:50px; text-align:right; flex-shrink:0;">${displayTime}</span>
+                <input type="number" class="form-input" value="${currentDuration}" placeholder="Sec" style="width:80px; padding:4px 8px; font-size:0.8rem; flex-shrink:0;" data-look="${lookName}">
+                <button class="btn-nav" style="padding:4px 10px; font-size:0.75rem; border-radius:6px; flex-shrink:0;" data-look="${lookName}">Opslaan</button>
+            `;
+
+            const saveBtn = row.querySelector('button');
+            const input = row.querySelector('input');
+
+            saveBtn.addEventListener('click', () => {
+                const val = parseInt(input.value, 10);
+                if (!isNaN(val) && val >= 0) {
+                    this.saveLookDuration(lookName, val);
+                } else {
+                    delete this.lookDurations[lookName];
+                    this.saveLookDurations();
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') saveBtn.click();
+            });
+
+            container.appendChild(row);
+        });
     },
 
-    removeSequenceItem(index) {
-        if (confirm(`Are you sure you want to remove "${this.SERVICE_SEQUENCE[index].displayName}" from the sequence?`)) {
-            this.SERVICE_SEQUENCE.splice(index, 1);
-            this.saveServiceSequence();
-        }
+    saveLookDuration(lookName, seconds) {
+        this.lookDurations[lookName] = seconds;
+        this.saveLookDurations();
     },
+
+    saveLookDurations() {
+        localStorage.setItem('lookDurations', JSON.stringify(this.lookDurations));
+        this.renderLookDurations();
+    },
+
+    // --- Tracker Functions ---
 
     async pollProPresenter() {
         if (!this.isServiceRunning) return;
@@ -153,77 +162,48 @@ const analyticsModule = {
         if (data && data.id && data.id.name) {
             const activeName = data.id.name;
 
+            // Auto-stop on "Einde" look
             if (activeName.toLowerCase() === 'einde' && this.isServiceRunning) {
                 this.toggleService();
                 return;
             }
 
-            if (!this.currentItem || activeName.toLowerCase() !== this.currentItem.name.toLowerCase()) {
-                let foundNewSequenceIndex = -1;
-                for (let i = this.sequenceIndex; i < this.SERVICE_SEQUENCE.length; i++) {
-                    if (this.SERVICE_SEQUENCE[i].name.trim().toLowerCase() === activeName.trim().toLowerCase()) {
-                        foundNewSequenceIndex = i;
-                        break;
-                    }
+            // Check if look changed (only start tracking after first look is established)
+            if (this.previousLookName !== null && activeName !== this.previousLookName) {
+                // Close the previous item
+                if (this.currentItem) {
+                    this.currentItem.actualDuration = Math.floor((Date.now() - this.currentItem.startTime) / 1000);
+                    this.serviceLog.push(this.currentItem);
                 }
 
-                if (foundNewSequenceIndex !== -1) {
-                    if (this.currentItem) {
-                        this.currentItem.actualDuration = Math.floor((Date.now() - this.currentItem.startTime) / 1000);
-                        this.serviceLog.push(this.currentItem);
-                    }
+                // Start a new item for the current look
+                const plannedDuration = this.lookDurations[activeName] || 0;
 
-                    this.sequenceIndex = foundNewSequenceIndex;
-                    const currentSequenceItemDefinition = this.SERVICE_SEQUENCE[this.sequenceIndex];
-
-                    let plannedDuration = currentSequenceItemDefinition.plannedDuration;
-
-                    if (plannedDuration === undefined && this.sectionTimerId) {
-                        const timerData = await this.fetchSectionTimerDuration(this.sectionTimerId);
-                        if (timerData) {
-                            let fetchedDuration = 0;
-                            if (timerData.countdown && typeof timerData.countdown.duration === 'number') {
-                                fetchedDuration = timerData.countdown.duration;
-                            } else if (timerData.elapsed && timerData.elapsed.has_end_time && typeof timerData.elapsed.end_time === 'number') {
-                                fetchedDuration = timerData.elapsed.end_time;
-                            } else if (typeof timerData.clockDuration === 'string') {
-                                fetchedDuration = analyticsModule.parseTimeStringToSeconds(timerData.clockDuration);
-                            } else if (typeof timerData.duration === 'string') {
-                                fetchedDuration = analyticsModule.parseTimeStringToSeconds(timerData.duration);
-                            } else if (typeof timerData.duration === 'number') {
-                                fetchedDuration = timerData.duration;
-                            } else if (timerData.duration && typeof timerData.duration.time === 'number') {
-                                fetchedDuration = timerData.duration.time;
-                            }
-                            plannedDuration = fetchedDuration > 0 ? fetchedDuration : 0;
-                        } else {
-                            plannedDuration = 0;
-                        }
-                    } else if (plannedDuration === undefined) {
-                        plannedDuration = 0;
-                    }
-
-                    this.currentItem = {
-                        name: activeName,
-                        displayName: currentSequenceItemDefinition.displayName,
-                        plannedDuration: plannedDuration,
-                        startTime: Date.now(),
-                        actualDuration: 0,
-                        avgSPL: '--',
-                        peakSPL: '--',
-                        sequenceIndex: this.sequenceIndex
-                    };
-                    if (this.sequenceIndex < this.SERVICE_SEQUENCE.length - 1) {
-                        this.sequenceIndex++;
-                    }
-                } else {
-                    if (this.currentItem) {
-                        this.currentItem.actualDuration = Math.floor((Date.now() - this.currentItem.startTime) / 1000);
-                    }
-                }
-            } else if (this.currentItem) {
+                this.currentItem = {
+                    name: activeName,
+                    plannedDuration: plannedDuration,
+                    startTime: Date.now(),
+                    actualDuration: 0,
+                    avgSPL: '--',
+                    peakSPL: '--'
+                };
+            } else if (this.previousLookName === null && activeName) {
+                // First look detected — start tracking it
+                const plannedDuration = this.lookDurations[activeName] || 0;
+                this.currentItem = {
+                    name: activeName,
+                    plannedDuration: plannedDuration,
+                    startTime: Date.now(),
+                    actualDuration: 0,
+                    avgSPL: '--',
+                    peakSPL: '--'
+                };
+            } else if (this.currentItem && activeName === this.previousLookName) {
+                // Update running duration of current item
                 this.currentItem.actualDuration = Math.floor((Date.now() - this.currentItem.startTime) / 1000);
             }
+
+            this.previousLookName = activeName;
         }
 
         this.renderDashboard();
@@ -242,14 +222,14 @@ const analyticsModule = {
                 this.serviceLog.push(this.currentItem);
                 this.currentItem = null;
             }
+            this.previousLookName = null;
             this.renderDashboard();
-            this.sequenceIndex = 0;
         } else {
             this.isServiceRunning = true;
             this.serviceStartTime = Date.now();
             this.serviceLog = [];
             this.currentItem = null;
-            this.sequenceIndex = 0;
+            this.previousLookName = null;
             if (btn) {
                 btn.innerText = __('analytics_end_session');
                 btn.style.backgroundColor = "#ed1c24";
@@ -303,22 +283,12 @@ const analyticsModule = {
         }
     },
 
-    // --- UI Functions ---
-
-    renderServiceSequence() {
-        const container = document.getElementById('service-sequence-display');
-        if (!container) return;
-        container.innerHTML = '';
-        this.SERVICE_SEQUENCE.forEach((item, index) => {
-            const itemDiv = document.createElement('div');
-            itemDiv.className = 'toggle-item sequence-row';
-            itemDiv.innerHTML = `
-                <span>${index + 1}. <strong>${item.displayName}</strong> (${item.name}) - ${item.plannedDuration !== undefined ? analyticsModule.formatTime(item.plannedDuration) : 'Auto'}</span>
-                <button class="btn-delete" onclick="analyticsModule.removeSequenceItem(${index})">&times;</button>
-            `;
-            container.appendChild(itemDiv);
-        });
+    renderAutoStartStatus() {
+        const statusEl = document.getElementById('auto-start-status');
+        if (statusEl) statusEl.style.display = 'none';
     },
+
+    // --- UI Functions ---
 
     renderDashboard() {
         let totalOverageSecs = 0;
@@ -352,11 +322,10 @@ const analyticsModule = {
             const diffText = (diff > 0 ? '+' : '') + analyticsModule.formatTime(diff);
             const rowClass = isActive ? 'class="active-row"' : '';
             const namePrefix = isActive ? '▶ ' : '<span class="status-complete">✔ </span>';
-            const displayText = item.displayName || item.name;
-            const formattedName = displayText.replace(/US/g, '<span class="highlight-us">US</span>').replace(/us/g, '<span class="highlight-us">us</span>');
+            const formattedName = item.name.replace(/US/g, '<span class="highlight-us">US</span>').replace(/us/g, '<span class="highlight-us">us</span>');
 
             tbody.innerHTML += `
-                <tr ${rowClass} data-sequence-index="${item.sequenceIndex}">
+                <tr ${rowClass}>
                     <td style="font-weight: ${isActive ? 'bold' : 'normal'}">${namePrefix}${formattedName}</td>
                     <td>${analyticsModule.formatTime(item.plannedDuration)}</td>
                     <td>${analyticsModule.formatTime(item.actualDuration)}</td>
@@ -423,7 +392,7 @@ const analyticsModule = {
         const reader = new FileReader();
         reader.onload = function(e) {
             const text = e.target.result;
-            const lines = text.trim().replace(/\\n/g, '\n').split('\n');
+            const lines = text.trim().replace(/\\\\n/g, '\n').split('\n');
             if (lines.length <= 1) return alert("CSV file is empty or invalid.");
 
             const newLog = [];
