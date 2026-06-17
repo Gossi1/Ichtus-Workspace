@@ -639,103 +639,454 @@
 
         <!-- SETTINGS VIEW -->
         <div id='view-settings' class='app-view hidden'>
-            <!-- Content rendered by settingsModule -->
+            <div class="dashboard">
+
+                <!-- Minimalist Header with Brand Accent Line -->
+                <div class="simple-header">
+                    <h1>Instellingen</h1>
+                    <div class="header-divider"></div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 1: LANGUAGE CONFIGURATION
+                     ========================================== -->
+                <div class="action-bar settings-panel-block">
+                    <strong class="section-title">🌐 Taal</strong>
+                    <div class="settings-control-grid">
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Taal</label>
+                                <span class="control-desc">Selecteer de weergavetaal van de applicatie</span>
+                            </div>
+                            <select id="settings-language-select" class="form-input select-clean" onchange="settingsModule.setSetting('language', this.value)">
+                                <option value="nl">Nederlands</option>
+                                <option value="en">English</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 2: FIREBASE METRICS & CONTROL
+                     ========================================== -->
+                <div id="settings-firebase-section" class="action-bar settings-panel-block">
+                    <strong class="section-title">Firebase Configuration</strong>
+                    <div id="settings-firebase-grid" class="settings-info-grid">
+                        <div class="settings-info-item">
+                            <label>API Key</label>
+                            <div class="settings-info-value">
+                                <code id="fb-apiKey">---</code>
+                                <button id="btn-copy-apikey" class="btn-nav icon-pad-small" title="Copy">📋</button>
+                            </div>
+                        </div>
+                        <div class="settings-info-item">
+                            <label>Auth Domain</label>
+                            <div class="settings-info-value">
+                                <code id="fb-authDomain">---</code>
+                            </div>
+                        </div>
+                        <div class="settings-info-item">
+                            <label>Project ID</label>
+                            <div class="settings-info-value">
+                                <code id="fb-projectId">---</code>
+                            </div>
+                        </div>
+                        <div class="settings-info-item">
+                            <label>Storage Bucket</label>
+                            <div class="settings-info-value">
+                                <code id="fb-storageBucket">---</code>
+                            </div>
+                        </div>
+                        <div class="settings-info-item">
+                            <label>Messaging Sender ID</label>
+                            <div class="settings-info-value">
+                                <code id="fb-messagingSenderId">---</code>
+                            </div>
+                        </div>
+                        <div class="settings-info-item">
+                            <label>App ID</label>
+                            <div class="settings-info-value">
+                                <code id="fb-appId">---</code>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="settings-firebase-empty" class="settings-empty" style="display:none;">
+                        <p>Firebase is nog niet geconfigureerd</p>
+                    </div>
+                    <div class="settings-actions-row">
+                        <button class="btn-load" onclick="settingsModule.editFirebaseConfig()">✏️ Bewerk Firebase Config</button>
+                        <button class="btn-nav danger-outline" onclick="settingsModule.resetFirebaseConfig()">🗑️ Reset Firebase Config</button>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 3: NETWORK & SYNCHRONIZATION
+                     ========================================== -->
+                <div class="action-bar settings-panel-block blue-edge">
+                    <strong class="section-title blue-text">🌐 Netwerk &amp; Sync</strong>
+                    <div class="settings-control-grid">
+
+                        <!-- ProPresenter Core Inputs -->
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>ProPresenter IP</label>
+                                <span class="control-desc">IP-adres en poort van de ProPresenter API</span>
+                            </div>
+                            <div class="inline-ip-wrapper">
+                                <input id="settings-pro-ip" type="text" class="form-input text-center" value="127.0.0.1" placeholder="127.0.0.1" onchange="settingsModule.setSetting('proPresenterIp', this.value.trim())" style="width: 140px;">
+                                <span class="ip-separator">:</span>
+                                <input id="settings-pro-port" type="text" class="form-input text-center" value="50001" placeholder="50001" onchange="settingsModule.setSetting('proPresenterPort', this.value.trim())" style="width: 85px;">
+                            </div>
+                        </div>
+
+                        <!-- Offline Modus Toggle Switch -->
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Offline Modus</label>
+                                <span class="control-desc">Sta toe dat de app werkt zonder internet verbinding</span>
+                            </div>
+                            <label class="toggle-item-switch">
+                                <input id="settings-offline-mode" type="checkbox" onchange="settingsModule.setSetting('offlineMode', this.checked)">
+                                <span class="toggle-slider-engine"></span>
+                            </label>
+                        </div>
+
+                        <!-- Debug Mode Toggle Switch -->
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Toon Debug Panel</label>
+                                <span class="control-desc">Toon Firebase status en sync logs</span>
+                            </div>
+                            <label class="toggle-item-switch">
+                                <input id="settings-debug-panel" type="checkbox" onchange="settingsModule.setSetting('showDebugPanel', this.checked)">
+                                <span class="toggle-slider-engine"></span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 4: NDI STREAM OVERLAYS
+                     ========================================== -->
+                <div class="action-bar settings-panel-block">
+                    <strong class="section-title">📡 NDI Video</strong>
+                    <div class="settings-control-grid">
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Auto-Discovery</label>
+                                <span class="control-desc">Automatisch zoeken naar NDI bronnen</span>
+                            </div>
+                            <label class="toggle-item-switch">
+                                <input id="settings-ndi-auto-discovery" type="checkbox" onchange="settingsModule.setSetting('ndiAutoDiscovery', this.checked)">
+                                <span class="toggle-slider-engine"></span>
+                            </label>
+                        </div>
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Preview Kwaliteit</label>
+                                <span class="control-desc">Beeldkwaliteit voor NDI preview (performance impact)</span>
+                            </div>
+                            <select id="settings-ndi-quality" class="form-input select-clean" onchange="settingsModule.setSetting('ndiPreviewQuality', this.value)">
+                                <option value="low">Laag</option>
+                                <option value="medium">Middel</option>
+                                <option value="high">Hoog</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 5: DISPLAY ARCHITECTURE
+                     ========================================== -->
+                <div class="action-bar settings-panel-block">
+                    <strong class="section-title">🕐 Weergave</strong>
+                    <div class="settings-control-grid">
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Tijd Formaat</label>
+                                <span id="settings-clock-desc" class="control-desc">Hoe tijden worden weergegeven: 14:30</span>
+                            </div>
+                            <select id="settings-clock-format" class="form-input select-clean" onchange="settingsModule.setSetting('clockFormat', this.value)">
+                                <option value="12h">12-uur (2:30 PM)</option>
+                                <option value="24h">24-uur (14:30)</option>
+                            </select>
+                        </div>
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Datum Formaat</label>
+                                <span id="settings-date-desc" class="control-desc">Hoe datums worden weergegeven: 25-12-2024</span>
+                            </div>
+                            <select id="settings-date-format" class="form-input select-clean" onchange="settingsModule.setSetting('dateFormat', this.value)">
+                                <option value="DD-MM-YYYY">DD-MM-YYYY (25-12-2024)</option>
+                                <option value="MM-DD-YYYY">MM-DD-YYYY (12-25-2024)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 6: LOCAL STORAGE MANAGEMENT
+                     ========================================== -->
+                <div class="action-bar settings-panel-block orange-edge">
+                    <strong class="section-title orange-text">💾 Data Beheer</strong>
+                    <div class="settings-control-grid">
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Firebase Cache Legen</label>
+                                <span class="control-desc">Verwijder lokaal gecachte Firebase data</span>
+                            </div>
+                            <button class="btn-dl" onclick="settingsModule.clearFirebaseCache()">🧹 Cache Legen</button>
+                        </div>
+                        <div class="settings-control-item">
+                            <div class="settings-control-info">
+                                <label>Alle Lokale Data Wissen</label>
+                                <span class="control-desc">Reset alle instellingen en lokale data</span>
+                            </div>
+                            <button class="btn-nav danger-outline" onclick="settingsModule.clearAllLocalData()">🗑️ Alles Wissen</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 7: METRIC SYSTEM APPLICATION INFO
+                     ========================================== -->
+                <div id="settings-app-info-wrapper" class="canvas-wrapper settings-wrapper-info">
+                    <div class="table-card-inner">
+                        <strong class="section-title">ℹ️ App Info</strong>
+                        <div class="app-info-grid-matrix">
+                            <div class="info-matrix-row">
+                                <span class="matrix-label">App Versie</span>
+                                <div class="matrix-value">
+                                    <code id="settings-app-version">1.0.0</code>
+                                    <div id="settings-update-notification" class="update-notification-tag" style="display:none;">
+                                        <span id="settings-update-text"></span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label">Firebase Status</span>
+                                <span id="settings-fb-status-badge" class="status-badge status-off">✗ Niet geconfigureerd</span>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label">Firebase Config Bron</span>
+                                <code id="settings-config-source">---</code>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label">Offline Modus</span>
+                                <span id="settings-offline-badge" class="status-badge status-off">✗ Uit</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Firebase Edit Modal Dialog -->
+            <div id="settings-firebase-modal" class="overlay-screen overlay-task-modal hidden">
+                <div class="task-modal-dialog">
+                    <div class="modal-header-row">
+                        <h3 class="modal-dialog-title">Firebase Config Bewerken</h3>
+                        <button type="button" onclick="settingsModule.closeEditModal()" class="btn-close-modal" title="Sluiten">✖</button>
+                    </div>
+                    <form id="firebase-edit-form" onsubmit="settingsModule.saveFirebaseConfig(event)">
+                        <div class="modal-content-scroll form-flex-container">
+                            <div class="form-input-group">
+                                <label for="edit-apiKey">API Key *</label>
+                                <input type="text" id="edit-apiKey" class="form-input style-fullwidth" required="">
+                            </div>
+                            <div class="form-input-group">
+                                <label for="edit-authDomain">Auth Domain</label>
+                                <input type="text" id="edit-authDomain" class="form-input style-fullwidth">
+                            </div>
+                            <div class="form-input-group">
+                                <label for="edit-projectId">Project ID *</label>
+                                <input type="text" id="edit-projectId" class="form-input style-fullwidth" required="">
+                            </div>
+                            <div class="form-input-group">
+                                <label for="edit-storageBucket">Storage Bucket</label>
+                                <input type="text" id="edit-storageBucket" class="form-input style-fullwidth">
+                            </div>
+                            <div class="form-input-group">
+                                <label for="edit-messagingSenderId">Messaging Sender ID</label>
+                                <input type="text" id="edit-messagingSenderId" class="form-input style-fullwidth">
+                            </div>
+                            <div class="form-input-group">
+                                <label for="edit-appId">App ID *</label>
+                                <input type="text" id="edit-appId" class="form-input style-fullwidth" required="">
+                            </div>
+                        </div>
+                        <div class="modal-footer-row layout-right">
+                            <button type="button" onclick="settingsModule.closeEditModal()" class="btn-nav">Annuleren</button>
+                            <button type="submit" class="btn-upload btn-label">Opslaan</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
         </div>
 
         <!-- SETLIST VIEW -->
         <div id='view-setlist' class='app-view hidden'>
-            <div class='setlist-layout'>
-                <!-- Connection Status Panel (Left) -->
-                <aside class='setlist-sidebar'>
-                    <div class='setlist-sidebar-header'>
-                        <h3 class='widget-title'>WorshipTools</h3>
-                    </div>
-                    <div class='setlist-sidebar-body'>
-                        <div class='connection-card'>
-                            <div class='connection-status-row'>
-                                <span id='setlist-status-dot' class='status-dot warning'></span>
-                                <span id='setlist-connection-status'>Wachten op setlist van WorshipTools...</span>
+            <div class="dashboard">
+
+                <!-- Clean Minimalist Header with Brand Accent Line -->
+                <div class="simple-header">
+                    <h1>Setlist Synchronization</h1>
+                    <div class="header-divider"></div>
+                </div>
+
+                <!-- Main Fluid Flex Architecture Layout -->
+                <div class="setlist-layout">
+
+                    <!-- ==========================================
+                         LEFT PANEL: INTEGRATION INTERFACES
+                         ========================================== -->
+                    <aside class="setlist-sidebar">
+
+                        <!-- WorshipTools Connection Capsule -->
+                        <div class="action-bar sidebar-card">
+                            <div class="card-header-row">
+                                <strong class="section-title">WorshipTools</strong>
+                                <div class="connection-status-row">
+                                    <span id="setlist-status-dot" class="status-dot online"></span>
+                                    <span id="setlist-connection-status">Setlist ontvangen</span>
+                                </div>
                             </div>
-                            <p id='setlist-received-time' class='received-time'></p>
-                            <p class='connection-hint'>Open WorshipTools in een nieuw tabblad, ga naar Planning, en klik op "Extract Setlist" in de Chrome extensie. De setlist verschijnt dan automatisch hier.</p>
-                            <button id='btn-open-worshiptools' class='btn-setlist-secondary'>Open WorshipTools ↗</button>
+                            <p id="setlist-received-time" class="received-time">Ontvangen: 13:49:05</p>
+                            <p class="connection-hint">Open Planning in WorshipTools, klik op "Extract Setlist" in de Chrome extensie. De data verschijnt automatisch hier.</p>
+                            <button id="btn-open-worshiptools" class="btn-nav style-fullwidth">Open WorshipTools ↗</button>
                         </div>
 
-                        <div class='connection-card'>
-                            <h4 class='card-subtitle'>ProPresenter</h4>
-                            <div class='connection-status-row'>
-                                <span id='pro-status-dot' class='status-dot offline'></span>
-                                <span id='pro-connection-status'>Niet verbonden</span>
+                        <!-- ProPresenter Remote Link Capsule -->
+                        <div class="action-bar sidebar-card blue-edge">
+                            <div class="card-header-row">
+                                <strong class="section-title blue-text">ProPresenter</strong>
+                                <div class="connection-status-row">
+                                    <span id="pro-status-dot" class="status-dot online"></span>
+                                    <span id="pro-connection-status">Verbonden ✓</span>
+                                </div>
                             </div>
-                            <input type='text' id='pro-ip-display' class='pro-ip-display' value='100.113.22.22' placeholder='IP:Poort' title='ProPresenter IP en Poort'>
-                            <button id='btn-test-proconnection' class='btn-setlist-secondary' onclick='setlistModule.testProPresenterConnection()'>🔍 Test Verbinding</button>
+                            <input type="text" id="pro-ip-display" class="form-input pro-ip-display style-fullwidth" value="100.113.22.22" placeholder="IP:Poort" title="ProPresenter IP en Poort">
+                            <button id="btn-test-proconnection" class="btn-load style-fullwidth" onclick="setlistModule.testProPresenterConnection()">🔍 Test Verbinding</button>
+                        </div>
+                    </aside>
+
+                    <!-- ==========================================
+                         RIGHT PANEL: WORKSPACE CONTROL & PREVIEW
+                         ========================================== -->
+                    <div class="setlist-main">
+
+                        <!-- Layout Action Controls Capsule -->
+                        <div class="action-bar toolbar-row">
+                            <!-- Template Management Options -->
+                            <div class="template-selector-row">
+                                <select id="setlist-service-type" class="form-input select-clean">
+                                    <option value="zondagDienst">ZondagDienst</option>
+                                    <option value="worshipAvond">Worship Avond</option>
+                                    <option value="doopDienst">DoopDienst</option>
+                                    <option value="delightedYouth">Delighted Youth</option>
+                                </select>
+                                <button id="btn-setlist-template-edit" class="btn-nav icon-pad" title="Template bewerken">⚙️</button>
+                                <button id="btn-setlist-template-new" class="btn-nav icon-pad" title="Nieuwe template">➕</button>
+                            </div>
+
+                            <!-- Global Dispatches -->
+                            <div class="setlist-actions">
+                                <button id="btn-setlist-sync" class="btn-upload btn-label">Sync naar ProPresenter</button>
+                                <button id="btn-setlist-clear" class="btn-nav">Wis Setlist</button>
+                            </div>
                         </div>
 
+                        <!-- Live Notification Feeds -->
+                        <div id="setlist-status-box" class="toggle-item status-alert-box green-alert" style="display: block;">
+                            ✅ ProPresenter API is bereikbaar op 100.113.22.22:51253
+                        </div>
+                        <div id="setlist-date-display" class="toggle-item status-alert-box orange-alert" style="display: block;">
+                            Dienst datum: 31-05-2026
+                        </div>
+
+                        <!-- Live Content Target Preview Container (Separated Capsule) -->
+                        <div class="canvas-wrapper preview-wrapper">
+                            <div class="preview-card-inner">
+                                <strong class="section-title">Setlist Voorvertoning</strong>
+
+                                <div id="setlist-preview" class="bucket-container">
+                                    <div class="song-bucket">
+                                        <h4 class="bucket-title bucket-opening">Openingsliederen (1)</h4>
+                                        <ul class="song-link-list">
+                                            <li>Joy (What The World Calls Foolish)</li>
+                                        </ul>
+                                    </div>
+                                    <div class="song-bucket">
+                                        <h4 class="bucket-title bucket-praise">Praise &amp; Worship (6)</h4>
+                                        <ul class="song-link-list">
+                                            <li>O586 Hij is Heer</li>
+                                            <li>O813 Uw liefde wint elke strijd</li>
+                                            <li>O773 De enige die redt</li>
+                                            <li>D013 Majesty</li>
+                                            <li>D131 Holy Forever</li>
+                                            <li>D143 Gratitude</li>
+                                        </ul>
+                                    </div>
+                                    <div class="song-bucket">
+                                        <h4 class="bucket-title bucket-closing">Eindliederen (3)</h4>
+                                        <ul class="song-link-list">
+                                            <li>D014 How Great Is Our God</li>
+                                            <li>Washed</li>
+                                            <li>River</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                     </div>
-                </aside>
+                </div>
+            </div>
 
-                <!-- Main Editor (Right) -->
-                <div class='setlist-main'>
-                    <div class='setlist-toolbar'>
-                        <div class='template-selector-row'>
-                            <select id='setlist-service-type' class='form-select'></select>
-                            <button id='btn-setlist-template-edit' class='btn-setlist-secondary' title='Template bewerken'>⚙️</button>
-                            <button id='btn-setlist-template-new' class='btn-setlist-secondary' title='Nieuwe template'>➕</button>
-                        </div>
-                        <div class='setlist-actions'>
-                            <button id='btn-setlist-sync' class='btn-setlist-primary'>Sync naar ProPresenter</button>
-                            <button id='btn-setlist-clear' class='btn-setlist-secondary'>Wis Setlist</button>
-                        </div>
+            <!-- ==================================================================
+                 MODAL OVERLAY LAYOUT DIALOGS
+                 ================================================================== -->
+
+            <!-- 1. Template Editor Modal Dialog Container -->
+            <div id="setlist-template-modal" class="overlay-screen overlay-task-modal hidden">
+                <div class="task-modal-dialog">
+                    <div class="modal-header-row">
+                        <h3 class="modal-dialog-title">Template Bewerken: <span id="edit-tpl-name" class="orange-text"></span></h3>
+                        <button id="btn-close-setlist-modal" class="btn-close-modal" title="Sluiten">✖</button>
                     </div>
 
-                    <div id='setlist-status-box' class='setlist-status' style='display:none;'></div>
-                    <div id='setlist-date-display' class='setlist-date-badge' style='display:none;'></div>
+                    <!-- Active items wrapper hook -->
+                    <div id="tpl-items-container" class="modal-content-scroll"></div>
 
-                    <div class='setlist-preview-panel'>
-                        <h3 class='panel-heading'>Setlist Voorvertoning</h3>
-                        <div id='setlist-preview'>
-                            <p class='setlist-empty'>Open WorshipTools, ga naar Planning, en klik op "Extract Setlist" in de Chrome extensie.</p>
+                    <div class="modal-footer-row">
+                        <div class="footer-left">
+                            <button id="btn-add-tpl-item" class="btn-nav">+ Item Toevoegen</button>
+                            <button id="btn-reset-tpl" class="btn-nav">Reset naar Standaard</button>
+                            <button id="btn-del-tpl" class="btn-nav danger-outline">Verwijder Template</button>
+                        </div>
+                        <div class="footer-right">
+                            <button id="btn-close-setlist-modal-alt" class="btn-nav" onclick="setlistModule.closeTemplateModal()">Annuleren</button>
+                            <button id="btn-save-tpl" class="btn-upload btn-label">Opslaan</button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Template Editor Modal -->
-            <div id='setlist-template-modal' class='overlay-screen overlay-task-modal hidden'>
-                <div class='task-modal-dialog'>
-                    <div class='modal-header'>
-                        <h3 class='task-modal-title'>Template Bewerken: <span id='edit-tpl-name'></span></h3>
-                        <button id='btn-close-setlist-modal' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='Sluiten'>✖</button>
+            <!-- 2. New Template Modal Generation Box -->
+            <div id="new-template-modal" class="overlay-screen overlay-task-modal hidden">
+                <div class="task-modal-dialog size-small">
+                    <div class="modal-header-row">
+                        <h3 class="modal-dialog-title">Nieuwe Template</h3>
+                        <button id="btn-close-new-tpl-modal" class="btn-close-modal" title="Sluiten">✖</button>
                     </div>
-                    <div id='tpl-items-container'></div>
-                    <div class='modal-footer'>
-                        <div>
-                            <button id='btn-add-tpl-item' class='btn-secondary'>+ Item Toevoegen</button>
-                            <button id='btn-reset-tpl' class='btn-secondary' style='margin-left:10px;'>Reset naar Standaard</button>
-                            <button id='btn-del-tpl' class='btn-secondary' style='margin-left:10px;border-color:var(--ichtus-red);color:var(--ichtus-red);'>Verwijder Template</button>
-                        </div>
-                        <div>
-                            <button id='btn-close-setlist-modal-alt' class='btn-secondary' onclick="setlistModule.closeTemplateModal()" style='margin-right:10px;'>Annuleren</button>
-                            <button id='btn-save-tpl' class='btn-setlist-primary'>Opslaan</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
-            <!-- New Template Modal -->
-            <div id='new-template-modal' class='overlay-screen overlay-task-modal hidden'>
-                <div class='task-modal-dialog' style='max-width:400px;'>
-                    <div class='modal-header'>
-                        <h3 class='task-modal-title'>Nieuwe Template</h3>
-                        <button id='btn-close-new-tpl-modal' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='Sluiten'>✖</button>
+                    <div class="modal-body-input-row">
+                        <input type="text" id="new-tpl-name-input" class="form-input style-fullwidth" placeholder="Template naam (bijv. Jeugd Dienst)" onkeydown="if(event.key==='Enter') setlistModule.confirmNewTemplate()">
                     </div>
-                    <div style='margin-bottom:20px;'>
-                        <input type='text' id='new-tpl-name-input' placeholder='Template naam (bijv. Jeugd Dienst)' onkeydown="if(event.key==='Enter') setlistModule.confirmNewTemplate()" style='width:100%;background:var(--bg-main);color:var(--text-main);border:1px solid var(--border-light);padding:12px;border-radius:8px;outline:none;font-size:16px;'>
-                    </div>
-                    <div class='modal-footer' style='margin-top:0;padding-top:0;border-top:none;justify-content:flex-end;'>
-                        <button id='btn-cancel-new-tpl' class='btn-secondary' onclick="setlistModule.closeNewTemplateModal()" style='margin-right:10px;'>Annuleren</button>
-                        <button id='btn-confirm-new-tpl' class='btn-setlist-primary'>Aanmaken</button>
+
+                    <div class="modal-footer-row layout-right">
+                        <button id="btn-cancel-new-tpl" class="btn-nav" onclick="setlistModule.closeNewTemplateModal()">Annuleren</button>
+                        <button id="btn-confirm-new-tpl" class="btn-upload btn-label">Aanmaken</button>
                     </div>
                 </div>
             </div>
