@@ -1837,20 +1837,12 @@ input:checked + .slider::before { transform: translateX(20px); }
     cursor: pointer;
 }
 
-#view-analytics .input-grid {
+#view-analytics .look-duration-row {
     display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
+    justify-content: space-between;
+    align-items: center;
     width: 100%;
-}
-
-#view-analytics .flex-grow { flex: 2; min-width: 150px; }
-#view-analytics .duration-width { flex: 1; min-width: 80px; }
-
-#view-analytics .submit-button {
-    border-radius: 6px;
-    padding: 6px 16px;
-    font-size: 0.85rem;
+    padding: 8px 12px;
 }
 
 /* ── Table / Session Log ── */

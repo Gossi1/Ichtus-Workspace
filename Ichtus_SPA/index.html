@@ -563,16 +563,13 @@
                     </div>
                 </div>
 
-                <!-- ========== SEQUENCE CONFIGURATION ========== -->
+                <!-- ========== LOOK DURATIONS ========== -->
                 <div class="action-bar configuration-panel">
-                    <strong class="section-title">Service Sequence Configuration</strong>
-                    <div id="service-sequence-display"></div>
-                    <div class="input-grid">
-                        <input type="text" id="new-sequence-look-name" class="form-input flex-grow" placeholder="Look Name (e.g., Worship)">
-                        <input type="text" id="new-sequence-display-name" class="form-input flex-grow" placeholder="Display Name (e.g., Openingslied)">
-                        <input type="number" id="new-sequence-planned-duration" class="form-input duration-width" placeholder="Secs">
-                        <button class="btn-nav submit-button" onclick="analyticsModule.addSequenceItem()">Add Item</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                        <strong class="section-title" style="margin-bottom:0;">Look Durations</strong>
+                        <button class="btn-nav" onclick="analyticsModule.refreshLooks()" style="padding:4px 12px; font-size:0.8rem;">🔄 Ververs Looks</button>
                     </div>
+                    <div id="look-durations-list"></div>
                 </div>
 
                 <!-- ========== SESSION TRACKING LOG ========== -->
