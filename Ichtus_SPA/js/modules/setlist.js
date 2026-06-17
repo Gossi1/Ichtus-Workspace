@@ -220,14 +220,14 @@ const setlistModule = {
     renderDateDisplay() {
         const el = document.getElementById('setlist-date-display');
         if (!el) return;
+        el.className = 'toggle-item status-alert-box orange-alert';
         if (this.serviceDate) {
             el.textContent = __('setlist_service_date') + this.serviceDate;
-            el.style.display = 'block';
         } else {
             el.textContent = __('setlist_no_date');
-            el.style.display = 'block';
             el.style.color = '#f47920';
         }
+        el.style.display = 'block';
     },
 
     countSongs() {
@@ -269,17 +269,17 @@ const setlistModule = {
         let html = '';
 
         if (opening.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-opening">Openingsliederen (${opening.length})</h4><ul>`;
+            html += `<div class="song-bucket"><h4 class="bucket-title bucket-opening">Openingsliederen (${opening.length})</h4><ul class="song-link-list">`;
             opening.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
             html += '</ul></div>';
         }
         if (praise.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-praise">Praise & Worship (${praise.length})</h4><ul>`;
+            html += `<div class="song-bucket"><h4 class="bucket-title bucket-praise">Praise & Worship (${praise.length})</h4><ul class="song-link-list">`;
             praise.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
             html += '</ul></div>';
         }
         if (closing.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-closing">Eindliederen (${closing.length})</h4><ul>`;
+            html += `<div class="song-bucket"><h4 class="bucket-title bucket-closing">Eindliederen (${closing.length})</h4><ul class="song-link-list">`;
             closing.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
             html += '</ul></div>';
         }
@@ -689,8 +689,9 @@ const setlistModule = {
         const box = document.getElementById('setlist-status-box');
         if (!box) return;
         box.innerText = msg;
-        box.className = 'setlist-status';
-        if (type) box.classList.add(type);
+        box.className = 'toggle-item status-alert-box';
+        if (type === 'success') box.classList.add('green-alert');
+        else if (type === 'error') box.classList.add('orange-alert');
         box.style.display = 'block';
     },
 

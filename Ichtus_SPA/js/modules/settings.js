@@ -194,331 +194,136 @@ const settingsModule = {
     },
 
     render() {
-        const view = document.getElementById('view-settings');
         const config = this.getFirebaseConfig();
         
         // Format preview based on settings
         const sampleDate = new Date(2024, 11, 25, 14, 30); // Dec 25, 2024, 14:30
-        const dateFormatPreview = this.formatDateSample(sampleDate);
-        const timeFormatPreview = this.formatTimeSample(14, 30);
-
-        let configHtml = '';
-        if (config && config.apiKey) {
-            configHtml = `
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>${__('settings_firebase')}</h2>
-                    <div class='settings-info-grid'>
-                        <div class='settings-info-item'>
-                            <label>API Key</label>
-                            <div class='settings-info-value'>
-                                <code>${this.maskValue(config.apiKey)}</code>
-                                <button class='btn-copy' onclick='settingsModule.copyValue(\"${config.apiKey}\")' title='Copy'>📋</button>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>Auth Domain</label>
-                            <div class='settings-info-value'>
-                                <code>${config.authDomain || __('settings_not_configured_status')}</code>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>Project ID</label>
-                            <div class='settings-info-value'>
-                                <code>${config.projectId || __('settings_not_configured_status')}</code>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>Storage Bucket</label>
-                            <div class='settings-info-value'>
-                                <code>${config.storageBucket || __('settings_not_configured_status')}</code>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>Messaging Sender ID</label>
-                            <div class='settings-info-value'>
-                                <code>${config.messagingSenderId || __('settings_not_configured_status')}</code>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>App ID</label>
-                            <div class='settings-info-value'>
-                                <code>${config.appId || __('settings_not_configured_status')}</code>
-                            </div>
-                        </div>
-                    </div>
-                    <div class='settings-actions'>
-                        <button class='btn-settings-action' onclick='settingsModule.editFirebaseConfig()'>
-                            ✏️ ${__('settings_edit')}
-                        </button>
-                        <button class='btn-settings-action btn-settings-danger' onclick='settingsModule.resetFirebaseConfig()'>
-                            🗑️ ${__('settings_reset')}
-                        </button>
-                    </div>
-                </div>
-            `;
-        } else {
-            configHtml = `
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>${__('settings_firebase')}</h2>
-                    <div class='settings-empty'>
-                        <p>${__('settings_not_configured')}</p>
-                        <button class='btn-settings-action' onclick='settingsModule.setupFirebase()'>
-                            ➕ ${__('settings_configure')}
-                        </button>
-                    </div>
-                </div>
-            `;
+        
+        // ==========================================
+        // 1. Language
+        // ==========================================
+        const langSelect = document.getElementById('settings-language-select');
+        if (langSelect) {
+            langSelect.value = this.getSetting('language') || 'nl';
         }
-        
-        // Determine language selector value
-        const currentLang = this.getSetting('language') || 'nl';
 
-        view.innerHTML = `
-            <div class='settings-container'>
-                <header class='settings-header'>
-                    <h1>⚙️ ${__('settings_title')}</h1>
-                    <p class='settings-subtitle'>${__('settings_subtitle')}</p>
-                </header>
+        // ==========================================
+        // 2. Firebase config grid
+        // ==========================================
+        const fbGrid = document.getElementById('settings-firebase-grid');
+        const fbEmpty = document.getElementById('settings-firebase-empty');
+        const copyBtn = document.getElementById('btn-copy-apikey');
 
-                <!-- Language Settings -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>\ud83c\udf10 ${__('settings_language')}</h2>
-                    <div class='settings-control-grid'>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_language')}</label>
-                                <desc>${__('settings_language_desc')}</desc>
-                            </div>
-                            <select class='settings-select' onchange='settingsModule.setSetting(\"language\", this.value)'>
-                                <option value='nl' ${currentLang === 'nl' ? 'selected' : ''}>${__('settings_dutch')}</option>
-                                <option value='en' ${currentLang === 'en' ? 'selected' : ''}>${__('settings_english')}</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+        if (config && config.apiKey) {
+            if (fbGrid) fbGrid.style.display = '';
+            if (fbEmpty) fbEmpty.style.display = 'none';
+            
+            const setCode = (id, val) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = val || '---';
+            };
+            setCode('fb-apiKey', this.maskValue(config.apiKey));
+            setCode('fb-authDomain', config.authDomain || '---');
+            setCode('fb-projectId', config.projectId || '---');
+            setCode('fb-storageBucket', config.storageBucket || '---');
+            setCode('fb-messagingSenderId', config.messagingSenderId || '---');
+            setCode('fb-appId', config.appId || '---');
+            
+            if (copyBtn) {
+                copyBtn.onclick = () => this.copyValue(config.apiKey);
+            }
+        } else {
+            if (fbGrid) fbGrid.style.display = 'none';
+            if (fbEmpty) fbEmpty.style.display = '';
+            if (copyBtn) copyBtn.onclick = null;
+        }
 
-                ${configHtml}
-                
-                <!-- Network & Sync Settings -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>🌐 ${__('settings_network')}</h2>
-                    <div class='settings-control-grid'>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_pro_ip')}</label>
-                                <desc>${__('settings_pro_ip_desc')}</desc>
-                            </div>
-                            <div style='display:flex;gap:0.5rem;align-items:center;flex-shrink:0;'>
-                                <input type='text' class='settings-input-text' 
-                                    value='${this.getSetting('proPresenterIp')}' 
-                                    placeholder='127.0.0.1'
-                                    onchange='settingsModule.setSetting(\"proPresenterIp\", this.value.trim())'
-                                    style='width:130px;'>
-                                <span style='color:var(--text-secondary);'>:</span>
-                                <input type='text' class='settings-input-text' 
-                                    value='${this.getSetting('proPresenterPort')}' 
-                                    placeholder='50001'
-                                    onchange='settingsModule.setSetting(\"proPresenterPort\", this.value.trim())'
-                                    style='width:80px;'>
-                            </div>
-                        </div>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_offline')}</label>
-                                <desc>${__('settings_offline_desc')}</desc>
-                            </div>
-                            <label class='toggle-switch'>
-                                <input type='checkbox' 
-                                    ${this.getSetting('offlineMode') ? 'checked' : ''} 
-                                    onchange='settingsModule.setSetting(\"offlineMode\", this.checked)'>
-                                <span class='toggle-slider'></span>
-                            </label>
-                        </div>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_debug')}</label>
-                                <desc>${__('settings_debug_desc')}</desc>
-                            </div>
-                            <label class='toggle-switch'>
-                                <input type='checkbox' 
-                                    ${this.getSetting('showDebugPanel') ? 'checked' : ''} 
-                                    onchange='settingsModule.setSetting(\"showDebugPanel\", this.checked)'>
-                                <span class='toggle-slider'></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
+        // ==========================================
+        // 3. Network & Sync
+        // ==========================================
+        const ipInput = document.getElementById('settings-pro-ip');
+        const portInput = document.getElementById('settings-pro-port');
+        if (ipInput) ipInput.value = this.getSetting('proPresenterIp');
+        if (portInput) portInput.value = this.getSetting('proPresenterPort');
 
-                <!-- NDI Settings -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>📡 ${__('settings_ndi')}</h2>
-                    <div class='settings-control-grid'>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_ndi_auto')}</label>
-                                <desc>${__('settings_ndi_auto_desc')}</desc>
-                            </div>
-                            <label class='toggle-switch'>
-                                <input type='checkbox' 
-                                    ${this.getSetting('ndiAutoDiscovery') ? 'checked' : ''} 
-                                    onchange='settingsModule.setSetting(\"ndiAutoDiscovery\", this.checked)'>
-                                <span class='toggle-slider'></span>
-                            </label>
-                        </div>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_ndi_quality')}</label>
-                                <desc>${__('settings_ndi_quality_desc')}</desc>
-                            </div>
-                            <select class='settings-select' onchange='settingsModule.setSetting(\"ndiPreviewQuality\", this.value)'>
-                                <option value='low' ${this.getSetting('ndiPreviewQuality') === 'low' ? 'selected' : ''}>${__('settings_ndi_low')}</option>
-                                <option value='medium' ${this.getSetting('ndiPreviewQuality') === 'medium' ? 'selected' : ''}>${__('settings_ndi_medium')}</option>
-                                <option value='high' ${this.getSetting('ndiPreviewQuality') === 'high' ? 'selected' : ''}>${__('settings_ndi_high')}</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+        const offlineToggle = document.getElementById('settings-offline-mode');
+        if (offlineToggle) offlineToggle.checked = this.getSetting('offlineMode');
 
-                <!-- Display Settings -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>🕐 ${__('settings_display')}</h2>
-                    <div class='settings-control-grid'>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_clock')}</label>
-                                <desc>${__('settings_clock_desc')}: ${timeFormatPreview}</desc>
-                            </div>
-                            <select class='settings-select' onchange='settingsModule.setSetting(\"clockFormat\", this.value)'>
-                                <option value='12h' ${this.getSetting('clockFormat') === '12h' ? 'selected' : ''}>${__('settings_clock_12h')}</option>
-                                <option value='24h' ${this.getSetting('clockFormat') === '24h' ? 'selected' : ''}>${__('settings_clock_24h')}</option>
-                            </select>
-                        </div>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_date')}</label>
-                                <desc>${__('settings_date_desc')}: ${dateFormatPreview}</desc>
-                            </div>
-                            <select class='settings-select' onchange='settingsModule.setSetting(\"dateFormat\", this.value)'>
-                                <option value='DD-MM-YYYY' ${this.getSetting('dateFormat') === 'DD-MM-YYYY' ? 'selected' : ''}>${__('settings_date_dmy')}</option>
-                                <option value='MM-DD-YYYY' ${this.getSetting('dateFormat') === 'MM-DD-YYYY' ? 'selected' : ''}>${__('settings_date_mdy')}</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
+        const debugToggle = document.getElementById('settings-debug-panel');
+        if (debugToggle) debugToggle.checked = this.getSetting('showDebugPanel');
 
-                <!-- Data Management -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>💾 ${__('settings_data')}</h2>
-                    <div class='settings-control-grid'>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_clear_cache')}</label>
-                                <desc>${__('settings_clear_cache_desc')}</desc>
-                            </div>
-                            <button class='btn-settings-action btn-settings-warning' onclick='settingsModule.clearFirebaseCache()'>
-                                🧹 ${__('settings_clear_cache_btn')}
-                            </button>
-                        </div>
-                        <div class='settings-control-item'>
-                            <div class='settings-control-info'>
-                                <label>${__('settings_clear_all')}</label>
-                                <desc>${__('settings_clear_all_desc')}</desc>
-                            </div>
-                            <button class='btn-settings-action btn-settings-danger' onclick='settingsModule.clearAllLocalData()'>
-                                🗑️ ${__('settings_clear_all_btn')}
-                            </button>
-                        </div>
-                    </div>
-                </div>
+        // ==========================================
+        // 4. NDI Video
+        // ==========================================
+        const ndiToggle = document.getElementById('settings-ndi-auto-discovery');
+        if (ndiToggle) ndiToggle.checked = this.getSetting('ndiAutoDiscovery');
 
-                <!-- App Info -->
-                <div class='settings-section'>
-                    <h2 class='settings-section-title'>ℹ️ ${__('settings_app_info')}</h2>
-                    <div class='settings-info-grid'>
-                        <div class='settings-info-item'>
-                            <label>${__('settings_version')}</label>
-                            <div class='settings-info-value'>
-                                <code>${this.appVersion || '1.0.0'}</code>
-                                ${this.latestGitHubVersion ? `
-                                    <div style='margin-top: 5px; font-size: 12px;'>
-                                        ${this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0 ? 
-                                            `<span style='color: #ff9800;'>⬆️ ${__('settings_version_update_available')}: ${this.latestGitHubVersion}</span>` :
-                                            `<span style='color: #4caf50;'>✓ ${__('settings_version_latest')}</span>`
-                                        }
-                                    </div>
-                                ` : ''}
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>${__('settings_firebase_status')}</label>
-                            <div class='settings-info-value'>
-                                <span class='status-badge ${config && config.apiKey ? 'status-ok' : 'status-warning'}'>
-                                    ${config && config.apiKey ? '✓ ' + __('settings_configured') : '✗ ' + __('settings_not_configured_status')}
-                                </span>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>${__('settings_config_source')}</label>
-                            <div class='settings-info-value'>
-                                <code>${this.getConfigSource()}</code>
-                            </div>
-                        </div>
-                        <div class='settings-info-item'>
-                            <label>${__('settings_offline_status')}</label>
-                            <div class='settings-info-value'>
-                                <span class='status-badge ${this.getSetting('offlineMode') ? 'status-ok' : 'status-info'}'>
-                                    ${this.getSetting('offlineMode') ? '✓ ' + __('settings_active') : '✗ ' + __('settings_inactive')}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        const ndiQuality = document.getElementById('settings-ndi-quality');
+        if (ndiQuality) ndiQuality.value = this.getSetting('ndiPreviewQuality');
 
-            <!-- Edit Firebase Modal -->
-            <div id='settings-firebase-modal' class='overlay-screen overlay-task-modal hidden'>
-                <div class='task-modal-dialog'>
-                    <div class='modal-header'>
-                        <h3 class='task-modal-title'>${__('settings_edit_title')}</h3>
-                        <button onclick='settingsModule.closeEditModal()' class='tpl-btn-remove' style='border:none;background:transparent;color:#aaa;font-size:24px;padding:0;' title='${__('close')}'>✖</button>
-                    </div>
-                    <form id='firebase-edit-form' onsubmit='settingsModule.saveFirebaseConfig(event)'>
-                        <div class='modal-form-content'>
-                            <div class='form-group'>
-                                <label for='edit-apiKey'>API Key *</label>
-                                <input type='text' id='edit-apiKey' class='form-input' required value='${config?.apiKey || ''}'>
-                            </div>
-                            <div class='form-group'>
-                                <label for='edit-authDomain'>Auth Domain</label>
-                                <input type='text' id='edit-authDomain' class='form-input' value='${config?.authDomain || ''}'>
-                            </div>
-                            <div class='form-group'>
-                                <label for='edit-projectId'>Project ID *</label>
-                                <input type='text' id='edit-projectId' class='form-input' required value='${config?.projectId || ''}'>
-                            </div>
-                            <div class='form-group'>
-                                <label for='edit-storageBucket'>Storage Bucket</label>
-                                <input type='text' id='edit-storageBucket' class='form-input' value='${config?.storageBucket || ''}'>
-                            </div>
-                            <div class='form-group'>
-                                <label for='edit-messagingSenderId'>Messaging Sender ID</label>
-                                <input type='text' id='edit-messagingSenderId' class='form-input' value='${config?.messagingSenderId || ''}'>
-                            </div>
-                            <div class='form-group'>
-                                <label for='edit-appId'>App ID *</label>
-                                <input type='text' id='edit-appId' class='form-input' required value='${config?.appId || ''}'>
-                            </div>
-                        </div>
-                        <div class='modal-footer'>
-                            <button type='button' onclick='settingsModule.closeEditModal()' class='btn-secondary'>${__('cancel')}</button>
-                            <button type='submit' class='btn-setlist-primary'>${__('save')}</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        `;
-        
-        // Show debug panel if enabled
+        // ==========================================
+        // 5. Display
+        // ==========================================
+        const clockSelect = document.getElementById('settings-clock-format');
+        if (clockSelect) clockSelect.value = this.getSetting('clockFormat');
+
+        const dateSelect = document.getElementById('settings-date-format');
+        if (dateSelect) dateSelect.value = this.getSetting('dateFormat');
+
+        const clockDesc = document.getElementById('settings-clock-desc');
+        if (clockDesc) clockDesc.textContent = __('settings_clock_desc') + ': ' + this.formatTimeSample(14, 30);
+
+        const dateDesc = document.getElementById('settings-date-desc');
+        if (dateDesc) dateDesc.textContent = __('settings_date_desc') + ': ' + this.formatDateSample(sampleDate);
+
+        // ==========================================
+        // 6. App Info
+        // ==========================================
+        const versionEl = document.getElementById('settings-app-version');
+        if (versionEl) versionEl.textContent = this.appVersion || '1.0.0';
+
+        const updateEl = document.getElementById('settings-update-notification');
+        const updateText = document.getElementById('settings-update-text');
+        if (updateEl && updateText) {
+            if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0) {
+                updateEl.style.display = '';
+                updateText.textContent = '⬆️ ' + __('settings_version_update_available') + ': ' + this.latestGitHubVersion;
+            } else if (this.latestGitHubVersion) {
+                updateEl.style.display = '';
+                updateText.textContent = '✓ ' + __('settings_version_latest');
+            } else {
+                updateEl.style.display = 'none';
+            }
+        }
+
+        const fbStatusBadge = document.getElementById('settings-fb-status-badge');
+        if (fbStatusBadge) {
+            if (config && config.apiKey) {
+                fbStatusBadge.className = 'status-badge status-ok';
+                fbStatusBadge.textContent = '✓ ' + __('settings_configured');
+            } else {
+                fbStatusBadge.className = 'status-badge status-off';
+                fbStatusBadge.textContent = '✗ ' + __('settings_not_configured_status');
+            }
+        }
+
+        const configSource = document.getElementById('settings-config-source');
+        if (configSource) configSource.textContent = this.getConfigSource();
+
+        const offlineBadge = document.getElementById('settings-offline-badge');
+        if (offlineBadge) {
+            if (this.getSetting('offlineMode')) {
+                offlineBadge.className = 'status-badge status-ok';
+                offlineBadge.textContent = '✓ ' + __('settings_active');
+            } else {
+                offlineBadge.className = 'status-badge status-off';
+                offlineBadge.textContent = '✗ ' + __('settings_inactive');
+            }
+        }
+
+        // ==========================================
+        // 7. Debug panel
+        // ==========================================
         this.renderDebugPanel();
     },
     
@@ -623,11 +428,26 @@ const settingsModule = {
     },
 
     editFirebaseConfig() {
-        document.getElementById('settings-firebase-modal').classList.remove('hidden');
+        // Populate modal with current config values
+        const config = this.getFirebaseConfig();
+        const setVal = (id, val) => {
+            const el = document.getElementById(id);
+            if (el) el.value = val || '';
+        };
+        setVal('edit-apiKey', config?.apiKey || '');
+        setVal('edit-authDomain', config?.authDomain || '');
+        setVal('edit-projectId', config?.projectId || '');
+        setVal('edit-storageBucket', config?.storageBucket || '');
+        setVal('edit-messagingSenderId', config?.messagingSenderId || '');
+        setVal('edit-appId', config?.appId || '');
+
+        const modal = document.getElementById('settings-firebase-modal');
+        if (modal) modal.classList.remove('hidden');
     },
 
     closeEditModal() {
-        document.getElementById('settings-firebase-modal').classList.add('hidden');
+        const modal = document.getElementById('settings-firebase-modal');
+        if (modal) modal.classList.add('hidden');
     },
 
     saveFirebaseConfig(e) {
@@ -676,7 +496,6 @@ const settingsModule = {
     
     clearFirebaseCache() {
         if (confirm(__('settings_confirm_clear_cache'))) {
-            // Clear Firebase related localStorage items except settings
             const keysToRemove = [];
             for (let i = 0; i < localStorage.length; i++) {
                 const key = localStorage.key(i);
