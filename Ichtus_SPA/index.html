@@ -241,15 +241,28 @@
                     </div>
                     <div class='form-group'>
                         <label class='form-label'>Service Preset</label>
-                        <div class='form-row relative-row'>
-                            <select id='inp-preset' class='form-input'></select>
-                            <button id='btn-preset-menu' class='btn-menu' title='Menu'>&#8942;</button>
-                            
-                            <div id='preset-dropdown' class='dropdown-menu hidden'>
-                                <button id='btn-add-preset' class='dropdown-item border-bottom'>Nieuwe lijst (Leeg)</button>
-                                <button id='btn-dup-preset' class='dropdown-item border-bottom'>Dupliceer lijst</button>
-                                <button id='btn-rename-preset' class='dropdown-item border-bottom text-orange'>Hernoem lijst</button>
-                                <button id='btn-del-preset' class='dropdown-item text-red'>Verwijder lijst</button>
+                        <div class='form-row'>
+                            <div class='modern-dropdown-wrapper' id='preset-dropdown-wrapper'>
+                                <button type='button' id='btn-preset-trigger' class='btn-dropdown-trigger'>
+                                    <span id='preset-trigger-text'>Selecteer...</span>
+                                    <svg class='dropdown-caret' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3'/></svg>
+                                </button>
+                                <div class='modern-dropdown-menu' id='preset-menu-dropdown'>
+                                    <div id='preset-list-items'></div>
+                                    <div class='modern-dropdown-divider'></div>
+                                    <button type='button' class='modern-dropdown-item' id='btn-add-preset-modern'>
+                                        <span>➕ Nieuwe lijst (Leeg)</span>
+                                    </button>
+                                    <button type='button' class='modern-dropdown-item' id='btn-dup-preset-modern'>
+                                        <span>📋 Dupliceer lijst</span>
+                                    </button>
+                                    <button type='button' class='modern-dropdown-item text-orange' id='btn-rename-preset-modern'>
+                                        <span>✏️ Hernoem lijst</span>
+                                    </button>
+                                    <button type='button' class='modern-dropdown-item text-red' id='btn-del-preset-modern'>
+                                        <span>✕ Verwijder lijst</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </div>
