@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html>
+<head>
+                <style>/* ==========================================================================
+   1. GLOBAL RESETS & BASE LAYOUT (PRESERVATION ENGINE)
+   ========================================================================== */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #1e1e1e; /* --bg-main */
+    color: #f9f9f7; /* --text-main */
+    font-family: 'PMN Caecilia', serif;
+    line-height: 1.5;
+    margin-left: 70px; /* Exact spacing preserved for your application canvas sidebar */
+}
+
+/* App View Architecture */
+.app-view {
+    display: none;
+    width: 100%;
+    min-height: 100vh;
+    overflow-x: hidden;
+}
+
+#view-agenda {
+    display: none;
+    background: #1e1e1e; /* --bg-main */
+}
+
+#view-agenda.active {
+    display: block;
+    padding: 24px;
+}
+
+/* Custom Scrollbars with Ichtus Orange Accent Theme */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #f47920; /* --ichtus-orange */
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1e1e1e; /* --bg-main */
+}
+
+/* ==========================================================================
+   2. LIQUID GLASS COMPONENTS & TOOLBAR SYSTEM
+   ========================================================================== */
+/* Gecentreerde Header Titel */
+#view-agenda header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    margin-bottom: 24px;
+    color: #ffffff;
+    text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
+    text-align: center; /* Centreert de tekst van de titel */
+}
+
+.dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center; /* Centreert alle hoofdblokken (balken en canvas) in het midden */
+    gap: 20px;
+    width: 100%;
+}
+
+/* Translucent Frosted Glass Command Slots */
+.action-bar, .toolbar {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%); /* --glass-bg */
+    backdrop-filter: blur(20px) saturate(130%); /* --fluid-blur */
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    
+    border: 1px solid rgba(255, 255, 255, 0.2); /* --glass-edge */
+    border-top: 1px solid rgba(255, 255, 255, 0.38); /* --glass-edge-bright */
+    border-left: 1px solid rgba(255, 255, 255, 0.38); /* --glass-edge-bright */
+    
+    border-radius: 14px;
+    padding: 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center; /* Centreert de knoppen horizontaal binnen de balk */
+    gap: 12px;
+    margin-bottom: 16px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    width: 100%;
+    max-width: 800px; /* Geeft de balken een mooie maximale breedte passend bij het canvas */
+}
+
+.toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+}
+
+.tool-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center; /* Centreert elementen zoals Vorige/Volgende knoppen */
+    gap: 16px;
+}
+
+.tool-group.center {
+    width: 100%;
+    justify-content: center;
+}
+
+/* ==========================================================================
+   3. BUTTON CAPSULES & INTERACTIVE INPUT OVERRIDES
+   ========================================================================== */
+.btn-load, .btn-dl, .btn-nav, .btn-upload {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.2); /* --glass-edge */
+    border-top: 1px solid rgba(255, 255, 255, 0.38); /* --glass-edge-bright */
+    padding: 10px 18px;
+    border-radius: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* --- 1. Template Laden (Oranje - Hardcoded #f47920 fallback) --- */
+#view-agenda .action-bar label.btn-upload,
+#view-agenda .action-bar .btn-label,
+label.btn-upload.btn-label,
+.btn-label,
+.btn-upload {
+    border-color: rgba(244, 121, 32, 0.4) !important;
+    color: #f47920 !important;
+}
+#view-agenda .action-bar label.btn-upload:hover,
+label.btn-upload.btn-label:hover {
+    background: linear-gradient(135deg, rgba(244, 121, 32, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #f47920 !important;
+    box-shadow: 0 4px 15px rgba(244, 121, 32, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* --- 2. Agenda Ophalen (Blauw - #3498db) --- */
+#view-agenda .action-bar .btn-load,
+.btn-load {
+    border-color: rgba(52, 152, 219, 0.4) !important;
+    color: #3498db !important;
+}
+#view-agenda .action-bar .btn-load:hover,
+.btn-load:hover {
+    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #3498db !important;
+    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* --- 3. Download PNG (Groen - #27ae60) --- */
+#view-agenda .action-bar .btn-dl,
+.btn-dl {
+    border-color: rgba(39, 174, 96, 0.4) !important;
+    color: #27ae60 !important;
+}
+#view-agenda .action-bar .btn-dl:hover,
+.btn-dl:hover {
+    background: linear-gradient(135deg, rgba(39, 174, 96, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    border-color: #27ae60 !important;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.25) !important;
+    transform: translateY(-1px);
+}
+
+/* --- 4. Navigatieknoppen (Vorige / Volgende - Neutraal Glas) --- */
+.btn-nav {
+    color: #f9f9f7; /* --text-main */
+}
+.btn-nav:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
+    border-color: rgba(255, 255, 255, 0.45);
+    transform: translateY(-1px);
+}
+
+/* Verberg de native file chooser */
+.btn-upload input[type="file"] {
+    display: none !important;
+}
+
+/* Labels & Info displays */
+.week-label {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #ffffff;
+    min-width: 100px;
+    text-align: center;
+}
+
+.info-display, .status-text {
+    font-size: 0.85rem;
+    font-weight: 500;
+    background: rgba(0, 0, 0, 0.25);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.65);
+}
+
+/* ==========================================================================
+   4. MANAGEMENT SELECTIONS & TOGGLES
+   ========================================================================== */
+.sunday-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(0, 0, 0, 0.15);
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.toggle-sunday, .toggle-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+/* The EREDIENST Glass text input */
+#customLabel {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.2); /* --glass-edge */
+    border-radius: 6px;
+    padding: 6px 10px;
+    color: #ffffff;
+    font-weight: 600;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s;
+}
+#customLabel:focus {
+    border-color: #f47920; /* --ichtus-orange */
+    box-shadow: 0 0 10px rgba(244, 121, 32, 0.35);
+}
+
+/* Matrix container loop grid space for checking system elements */
+.event-selector {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: center; /* Centreert de checkbox-capsules binnen de grid */
+}
+
+.event-selector strong {
+    width: 100%;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #888888; /* --text-muted */
+    margin-bottom: 2px;
+    text-align: center; /* Centreert de instructietekst boven de checkboxes */
+}
+
+.toggle-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 0.2s;
+}
+.toggle-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+/* Custom Checkboxes */
+.toggle-item input[type="checkbox"], .toggle-sunday input[type="checkbox"] {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.3);
+    cursor: pointer;
+    position: relative;
+    transition: all 0.2s;
+    flex-shrink: 0;
+}
+
+.toggle-item input[type="checkbox"]:checked, .toggle-sunday input[type="checkbox"]:checked {
+    background: #f47920; /* --ichtus-orange */
+    border-color: #f47920; /* --ichtus-orange */
+    box-shadow: 0 0 8px rgba(244, 121, 32, 0.4);
+}
+
+.toggle-item input[type="checkbox"]:checked::after, .toggle-sunday input[type="checkbox"]:checked::after {
+    content: "✓";
+    position: absolute;
+    color: #ffffff;
+    font-size: 11px;
+    font-weight: 900;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+/* ==========================================================================
+   5. WORKSPACE EDITOR & CANVAS BOUNDS
+   ========================================================================== */
+.canvas-wrapper {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 16px;
+    display: inline-flex;
+    justify-content: center;
+    width: 100%;
+    max-width: 800px;
+}
+
+#container {
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+#canvas {
+    display: block;
+}
+
+/* Interactive Text Matrix Editor overlays */
+.column[contenteditable="true"] {
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: all 0.2s;
+    outline: none;
+}
+
+.column[contenteditable="true"]:hover {
+    background: rgba(244, 121, 32, 0.08);
+    box-shadow: 0 0 0 1px rgba(244, 121, 32, 0.25);
+}
+
+.column[contenteditable="true"]:focus {
+    background: rgba(244, 121, 32, 0.12);
+    box-shadow: 0 0 0 1px #f47920; /* --ichtus-orange */
+}</style>
+            </head>
+            <body>
+                <div id="view-agenda" class="app-view active">
+    <header>
+        <h1>AGENDA MAKER</h1>
+    </header>
+
+    <div class="dashboard">
+        <div class="action-bar">
+            <label class="btn-upload">
+                Template laden
+                <input type="file" id="fileInput" accept="image/*">
+            </label>
+            <button class="btn-load" onclick="agendaModule.fetchTockify()">Agenda ophalen</button>
+            <button class="btn-dl" onclick="agendaModule.downloadImage()">Download PNG</button>
+        </div>
+
+        <div class="toolbar">
+            <div class="tool-group">
+                <button class="btn-nav" onclick="agendaModule.changeWeek(-1)">❮ Vorige</button>
+                <span id="week-label" class="week-label">Deze Week</span>
+                <button class="btn-nav" onclick="agendaModule.changeWeek(1)">Volgende ❯</button>
+            </div>
+
+            <div class="tool-group center">
+                <div id="px-display" class="info-display">Positie: X=110, Y=290</div>
+                <div id="status" class="status-text">10 items zichtbaar.</div>
+                
+                <div class="sunday-controls">
+                    <label class="toggle-sunday">
+                        <input type="checkbox" id="hideSpeakers" checked="" onchange="agendaModule.render()"> 
+                        Sprekers verbergen (Zondag)
+                    </label>
+                    <input type="text" id="customLabel" value="EREDIENST" oninput="agendaModule.render()">
+                </div>
+
+                <div id="event-selector" class="event-selector">
+                    <strong>Zichtbaar (Klik op titel om te hernoemen):</strong>
+                    <label class="toggle-item"><input type="checkbox"><span>Radiant</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Huis van gebed</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Huis van gebed voor Israël</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Delighted Youth</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Leiderschapsontmoeting</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Jongeren Alpha</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Ichtus Kids</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>EREDIENST</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Vrouwen met een roeping</span></label>
+                    <label class="toggle-item"><input type="checkbox"><span>Bidden met de jeugd</span></label>
+                </div>
+            </div>
+        </div>
+
+        <div class="canvas-wrapper">
+            <div id="container">
+                <canvas id="canvas"></canvas>
+                <div id="agenda-group" style="left: 110px; top: 290px; display: flex;">
+                    <div id="col-date" class="column" contenteditable="true">Ma 15 jun<br>Wo 17 jun<br>Do 18 jun<br>Vr 19 jun<br>Za 20 jun<br><br>Zo 21 jun<br><br><br></div>
+                    <div id="col-pipe" class="column">|<br>|<br>|<br>|<br>|<br>|<br>|<br>|<br>|<br>|</div>
+                    <div id="col-time" class="column" contenteditable="true">20:00 - 21:30<br>09:30 - 10:30<br>19:30 - 21:00<br>18:15 - 22:00<br>10:00 - 12:00<br>19:00 - 21:30<br>10:00 - 11:30<br>10:00 - 11:30<br>12:30 - 20:00<br>19:00 - 20:00</div>
+                    <div id="col-event" class="column" contenteditable="true">   Radiant<br>   Huis van gebed<br>   Huis van gebed voor Israël<br>   Delighted Youth<br>   Leiderschapsontmoeting<br>   Jongeren Alpha<br>   Ichtus Kids<br>  EREDIENST<br>   Vrouwen met een roeping<br>   Bidden met de jeugd</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+                <script>// Write JavaScript here</script>
+            
+        
+    </body>
