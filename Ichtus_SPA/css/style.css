@@ -245,6 +245,45 @@ html, body {
    SETTINGS SPECIFIC STYLES — LIQUID GLASS MODERN
    ========================================================================== */
 
+#view-settings.active {
+    display: flex !important;
+    justify-content: center;
+    padding: 30px 24px;
+    width: 100%;
+    background-color: var(--bg-main);
+    box-sizing: border-box;
+}
+
+.settings-control-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+}
+
+.settings-control-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 14px 18px;
+    gap: 20px;
+}
+
+.settings-control-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.settings-control-info label {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-main);
+}
+
 .settings-panel-block {
     flex-direction: column;
     align-items: stretch;
@@ -533,9 +572,14 @@ html, body {
     box-shadow: 0 0 10px rgba(244, 121, 32, 0.35) !important;
 }
 
-/* Ensure selects inside settings get proper right-padding for SVG dropdown arrow */
+/* Ensure selects inside settings get proper right-padding and SVG dropdown arrow */
 #view-settings .select-clean {
     padding: 8px 36px 8px 12px;
+    width: auto;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f47920' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: calc(100% - 12px) 50% !important;
+    background-color: rgba(0, 0, 0, 0.4);
 }
 
 @media (max-width: 680px) {
@@ -637,6 +681,7 @@ button:hover, .btn-label:hover {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 14px;
+    padding: 4px;
     width: 100%;
 }
 
@@ -905,14 +950,16 @@ button:hover, .btn-label:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 16px;
+    margin-bottom: 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     padding-bottom: 12px;
+    width: 100%;
 }
 
 .modal-dialog-title {
-    font-size: 1.2rem;
+    font-size: 1.25rem;
     font-weight: 800;
+    color: var(--text-main);
 }
 
 .btn-close-modal {
@@ -921,6 +968,11 @@ button:hover, .btn-label:hover {
     color: var(--text-muted);
     font-size: 1.2rem;
     cursor: pointer;
+    padding: 4px;
+}
+
+.btn-close-modal:hover {
+    color: var(--ichtus-red);
 }
 
 .modal-footer-row {
@@ -929,6 +981,7 @@ button:hover, .btn-label:hover {
     align-items: center;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     padding-top: 16px;
+    width: 100%;
 }
 
 .modal-footer-row.layout-right { justify-content: flex-end; }
@@ -3047,321 +3100,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     .setlist-sidebar { width: 100%; }
 }
 
-/* ==================== SETTINGS STYLES ==================== */
-
-#view-settings {
-    display: none;
-    background: var(--bg-main);
-    min-height: 100vh;
-    padding: 0;
-}
-
-#view-settings.active {
-    display: flex !important;
-    justify-content: center;
-    padding: 30px 24px;
-    width: 100%;
-    background-color: var(--bg-main);
-    box-sizing: border-box;
-}
-
-.settings-container {
-    max-width: 900px;
-    margin: 0 auto;
-    padding: 2rem;
-}
-
-.settings-header {
-    margin-bottom: 2rem;
-    text-align: center;
-}
-
-.settings-header h1 {
-    font-size: 2.5rem;
-    color: var(--ichtus-orange);
-    margin: 0 0 0.5rem 0;
-    letter-spacing: 0.05em;
-}
-
-.settings-subtitle {
-    color: #aaa;
-    font-size: 1rem;
-    margin: 0;
-}
-
-.settings-section {
-    background: var(--bg-card);
-    border: 1px solid var(--border-light);
-    border-radius: 12px;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-}
-
-.settings-section-title {
-    font-family: 'Blockprint', sans-serif;
-    font-size: 1.25rem;
-    color: var(--ichtus-orange);
-    margin: 0 0 1.25rem 0;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid var(--border-light);
-    letter-spacing: 0.05em;
-}
-
-.settings-info-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-    gap: 1rem;
-}
-
-.settings-info-item {
-    background: var(--bg-main);
-    border-radius: 8px;
-    padding: 1rem;
-    border: 1px solid var(--border-light);
-}
-
-.settings-info-item label {
-    display: block;
-    font-size: 0.75rem;
-    font-weight: 700;
-    color: #9ca3af;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    margin-bottom: 0.5rem;
-}
-
-.settings-info-value {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.settings-info-value code {
-    font-family: 'Courier New', monospace;
-    font-size: 0.9rem;
-    color: var(--text-main);
-    background: rgba(0,0,0,0.3);
-    padding: 0.25rem 0.5rem;
-    border-radius: 4px;
-    word-break: break-all;
-}
-
-.settings-info-value .btn-copy {
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    font-size: 1rem;
-    padding: 0.25rem;
-    opacity: 0.6;
-    transition: opacity 0.2s;
-}
-
-.settings-info-value .btn-copy:hover {
-    opacity: 1;
-}
-
-.settings-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 1.25rem;
-    flex-wrap: wrap;
-}
-
-.btn-settings-action {
-    background: var(--bg-sidebar);
-    color: white;
-    border: 1px solid var(--border-light);
-    padding: 0.75rem 1.25rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: all 0.2s;
-}
-
-.btn-settings-action:hover {
-    border-color: var(--ichtus-orange);
-    transform: translateY(-2px);
-}
-
-.btn-settings-danger:hover {
-    border-color: var(--ichtus-red);
-    background: rgba(237, 28, 36, 0.1);
-}
-
-.btn-settings-warning:hover {
-    border-color: #f59e0b;
-    background: rgba(245, 158, 11, 0.1);
-}
-
-.settings-empty {
-    text-align: center;
-    padding: 2rem;
-}
-
-.settings-empty p {
-    color: #9ca3af;
-    margin-bottom: 1rem;
-}
-
-.status-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.85rem;
-    font-weight: 600;
-}
-
-.status-badge.status-ok {
-    background: rgba(0, 166, 81, 0.2);
-    color: var(--ichtus-green);
-    border: 1px solid var(--ichtus-green);
-}
-
-.status-badge.status-warning {
-    background: rgba(244, 121, 32, 0.2);
-    color: var(--ichtus-orange);
-    border: 1px solid var(--ichtus-orange);
-}
-
-.status-badge.status-info {
-    background: rgba(59, 130, 246, 0.2);
-    color: #3b82f6;
-    border: 1px solid #3b82f6;
-}
-
-/* Settings control grid (for toggles and select inputs) */
-.settings-control-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    width: 100%;
-}
-
-.settings-control-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    background: rgba(255, 255, 255, 0.02);
-    border: 1px solid rgba(255, 255, 255, 0.04);
-    border-radius: 10px;
-    padding: 14px 18px;
-    gap: 20px;
-}
-
-.settings-control-info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-}
-
-.settings-control-info label {
-    font-size: 0.95rem;
-    font-weight: 700;
-    color: var(--text-main);
-}
-
-/* Toggle switch (modern style) */
-.toggle-switch {
-    position: relative;
-    display: inline-block;
-    width: 50px;
-    height: 28px;
-    flex-shrink: 0;
-}
-
-.toggle-switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-}
-
-.toggle-slider {
-    position: absolute;
-    cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #4d4d4f;
-    transition: 0.3s;
-    border-radius: 28px;
-}
-
-.toggle-slider::before {
-    position: absolute;
-    content: '';
-    height: 22px;
-    width: 22px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: 0.3s;
-    border-radius: 50%;
-}
-
-.toggle-switch input:checked + .toggle-slider {
-    background-color: var(--ichtus-orange);
-}
-
-.toggle-switch input:checked + .toggle-slider::before {
-    transform: translateX(22px);
-}
-
-/* Settings select dropdown */
-.settings-select {
-    background: var(--bg-sidebar);
-    color: var(--text-main);
-    border: 1px solid var(--border-light);
-    padding: 0.5rem 0.75rem;
-    border-radius: 6px;
-    font-size: 0.9rem;
-    cursor: pointer;
-    outline: none;
-    min-width: 100px;
-    transition: border-color 0.2s;
-}
-
-.settings-select:focus {
-    border-color: var(--ichtus-orange);
-}
-
-.settings-select:hover {
-    border-color: #666;
-}
-
-/* Settings modal form styles */
-.modal-form-content {
-    display: flex;
-    flex-direction: column;
-    gap: 1rem;
-    margin-bottom: 1.5rem;
-}
-
-.modal-form-content .form-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-}
-
-.modal-form-content .form-group label {
-    font-size: 0.85rem;
-    font-weight: 600;
-    color: #aaa;
-}
-
-.modal-form-content .form-input {
-    width: 100%;
-    padding: 0.75rem 1rem;
-    border-radius: 8px;
-    font-size: 1rem;
-}
-
-/* Settings toast */
+/* Settings toast (still used by settings.js) */
 .settings-toast {
     position: fixed;
     bottom: 20px;
@@ -3383,19 +3122,6 @@ input:checked + .slider::before { transform: translateX(20px); }
     85% { opacity: 1; transform: translateX(-50%) translateY(0); }
     100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
 }
-
-@media (max-width: 768px) {
-    .settings-container {
-        padding: 1rem;
-    }
-    
-    .settings-header h1 {
-        font-size: 1.75rem;
-    }
-    
-    .settings-info-grid {
-        grid-template-columns: 1fr;
-    }
     
     .settings-actions {
         flex-direction: column;
