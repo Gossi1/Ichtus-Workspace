@@ -17,22 +17,11 @@ const checklistModule = {
         // Update form values from state
         const dateInp = document.getElementById('inp-date');
         const timeInp = document.getElementById('inp-time');
-        const presetInp = document.getElementById('inp-preset');
 
         if (dateInp) dateInp.value = appState.checklist.startDate || appState.checklist.serviceDate || new Date().toISOString().split('T')[0];
         if (timeInp) timeInp.value = appState.checklist.startTime || appState.checklist.serviceTime || '10:00';
 
-        if (presetInp) {
-            const validPresets = Object.keys(appState.checklist.presets).filter(k => appState.checklist.presets[k] !== null);
-            presetInp.innerHTML = '';
-            validPresets.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p;
-                opt.innerText = p;
-                presetInp.appendChild(opt);
-            });
-            presetInp.value = appState.checklist.preset || appState.checklist.currentPreset || '';
-        }
+        this._populatePresetDropdown();
 
         // Setup event listeners
         this.setupEventListeners();
@@ -110,33 +99,29 @@ const checklistModule = {
             this.syncState({ startTime: e.target.value });
         });
 
-        document.getElementById('inp-preset')?.addEventListener('change', (e) => {
-            this.syncState({ preset: e.target.value, tasksState: {} });
-        });
-
-        // Preset menu
-        document.getElementById('btn-preset-menu')?.addEventListener('click', (e) => {
+        // Preset trigger (click to toggle dropdown)
+        document.getElementById('btn-preset-trigger')?.addEventListener('click', (e) => {
             e.stopPropagation();
-            document.getElementById('preset-dropdown')?.classList.toggle('hidden');
+            document.getElementById('preset-dropdown-wrapper')?.classList.toggle('open');
         });
 
+        // Close preset dropdown on outside click
         document.addEventListener('click', (e) => {
-            const dropdown = document.getElementById('preset-dropdown');
-            const menuBtn = document.getElementById('btn-preset-menu');
-            if (dropdown && menuBtn && !dropdown.contains(e.target) && !menuBtn.contains(e.target)) {
-                dropdown.classList.add('hidden');
+            const wrapper = document.getElementById('preset-dropdown-wrapper');
+            if (wrapper && !wrapper.contains(e.target)) {
+                wrapper.classList.remove('open');
             }
         });
 
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                document.getElementById('preset-dropdown')?.classList.add('hidden');
+                document.getElementById('preset-dropdown-wrapper')?.classList.remove('open');
             }
         });
 
         // Preset actions
-        document.getElementById('btn-add-preset')?.addEventListener('click', () => {
-            document.getElementById('preset-dropdown')?.classList.add('hidden');
+        document.getElementById('btn-add-preset-modern')?.addEventListener('click', () => {
+            document.getElementById('preset-dropdown-wrapper')?.classList.remove('open');
             const name = prompt(__('cl_preset_new_name'));
             if (!name || appState.checklist.presets[name]) return;
             const newPresets = { ...appState.checklist.presets };
@@ -144,8 +129,8 @@ const checklistModule = {
             this.syncState({ presets: newPresets, preset: name, tasksState: {} });
         });
 
-        document.getElementById('btn-dup-preset')?.addEventListener('click', () => {
-            document.getElementById('preset-dropdown')?.classList.add('hidden');
+        document.getElementById('btn-dup-preset-modern')?.addEventListener('click', () => {
+            document.getElementById('preset-dropdown-wrapper')?.classList.remove('open');
             const name = prompt(__('cl_preset_rename_prompt') + ' \u2018' + appState.checklist.preset + '\u2019:', appState.checklist.preset + ' ' + __('cl_preset_dup_suffix'));
             if (!name || appState.checklist.presets[name]) return;
             const newPresets = { ...appState.checklist.presets };
@@ -153,8 +138,8 @@ const checklistModule = {
             this.syncState({ presets: newPresets, preset: name, tasksState: {} });
         });
 
-        document.getElementById('btn-rename-preset')?.addEventListener('click', () => {
-            document.getElementById('preset-dropdown')?.classList.add('hidden');
+        document.getElementById('btn-rename-preset-modern')?.addEventListener('click', () => {
+            document.getElementById('preset-dropdown-wrapper')?.classList.remove('open');
             const oldName = appState.checklist.preset;
             const newName = prompt(__('cl_preset_rename_prompt') + ' ‘' + oldName + '’:', oldName);
             if (!newName || newName === oldName || appState.checklist.presets[newName]) return;
@@ -164,8 +149,8 @@ const checklistModule = {
             this.syncState({ presets: newPresets, preset: newName });
         });
 
-        document.getElementById('btn-del-preset')?.addEventListener('click', () => {
-            document.getElementById('preset-dropdown')?.classList.add('hidden');
+        document.getElementById('btn-del-preset-modern')?.addEventListener('click', () => {
+            document.getElementById('preset-dropdown-wrapper')?.classList.remove('open');
             const validPresets = Object.keys(appState.checklist.presets).filter(k => appState.checklist.presets[k] !== null);
             if (validPresets.length <= 1) return alert(__('cl_preset_cannot_delete'));
             if (!confirm(__('cl_preset_confirm_delete') + ' \u2018' + appState.checklist.preset + '\u2019 ' + __('cl_preset_wilt_verwijderen'))) return;
@@ -338,18 +323,7 @@ const checklistModule = {
         const timeInp = document.getElementById('inp-time');
         if (timeInp && document.activeElement !== timeInp) timeInp.value = appState.checklist.startTime || appState.checklist.serviceTime || '10:00';
 
-        const presetInp = document.getElementById('inp-preset');
-        if (presetInp && document.activeElement !== presetInp) {
-            const validPresets = Object.keys(appState.checklist.presets).filter(k => appState.checklist.presets[k] !== null);
-            presetInp.innerHTML = '';
-            validPresets.forEach(p => {
-                const opt = document.createElement('option');
-                opt.value = p;
-                opt.innerText = p;
-                presetInp.appendChild(opt);
-            });
-            presetInp.value = appState.checklist.preset || appState.checklist.currentPreset || '';
-        }
+        this._populatePresetDropdown();
 
         this.renderTaskDOM();
         this.renderProgressBars();
@@ -1796,6 +1770,39 @@ const checklistModule = {
                 '<button class="btn-delete-task" onclick="checklistModule.deleteChecklist(\'' + cl.id + '\')" title="Verwijder">&#x2715;</button>';
             container.appendChild(row);
         });
+    },
+
+    // ========================================================================
+    // PRESET DROPDOWN (custom modern dropdown)
+    // ========================================================================
+
+    _populatePresetDropdown() {
+        const listContainer = document.getElementById('preset-list-items');
+        const triggerText = document.getElementById('preset-trigger-text');
+        if (!listContainer || !triggerText) return;
+
+        const validPresets = Object.keys(appState.checklist.presets)
+            .filter(k => appState.checklist.presets[k] !== null);
+        const currentPreset = appState.checklist.preset || appState.checklist.currentPreset || '';
+
+        listContainer.innerHTML = '';
+        validPresets.forEach(p => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'modern-dropdown-item' + (p === currentPreset ? ' active' : '');
+            btn.textContent = p;
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const wrapper = document.getElementById('preset-dropdown-wrapper');
+                if (wrapper) wrapper.classList.remove('open');
+                if (p !== currentPreset) {
+                    this.syncState({ preset: p, tasksState: {} });
+                }
+            });
+            listContainer.appendChild(btn);
+        });
+
+        triggerText.textContent = currentPreset || 'Selecteer...';
     },
 
     // ========================================================================

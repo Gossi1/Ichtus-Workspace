@@ -668,48 +668,144 @@ select.form-input {
 }
 select.form-input option { background-color: #2d2d2d; color: #ffffff; }
 
-.btn-menu {
-  background: rgba(255, 255, 255, 0.06); 
-  border: 1px solid rgba(255, 255, 255, 0.15); 
-  color: #ffffff;
-  border-radius: 10px; 
-  width: 44px; 
-  height: 44px; 
-  font-size: 1.1rem; 
-  cursor: pointer;
-  display: flex; 
-  align-items: center; 
-  justify-content: center; 
-  flex-shrink: 0; 
-  transition: all 0.2s;
-}
-.btn-menu:hover { background: rgba(255, 255, 255, 0.15); border-color: rgba(255,255,255,0.3); }
+/* ==========================================================================
+   LIQUID GLASS MODERN DROPDOWN SYSTEM (for preset selector)
+   ========================================================================== */
 
-/* Zwevend contextmenu voor de presets */
-.dropdown-menu {
-  position: absolute; 
-  top: calc(100% + 6px); 
-  right: 0; 
-  width: 200px;
-  background: linear-gradient(135deg, rgba(45, 45, 45, 0.92) 0%, rgba(30, 30, 30, 0.85) 100%);
-  backdrop-filter: blur(16px); 
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.2); 
-  border-top: 1px solid rgba(255, 255, 255, 0.4); 
+.modern-dropdown-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.btn-dropdown-trigger {
+  width: 100%;
+  background: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.02) 100%
+  );
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-top: 1px solid rgba(255, 255, 255, 0.3);
+  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 12px;
+  padding: 12px 20px;
+  color: #ffffff;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-dropdown-trigger:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.35);
+  transform: translateY(-1px);
+}
+
+.dropdown-caret {
+  width: 10px;
+  height: 10px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  margin-left: auto;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modern-dropdown-wrapper.open .dropdown-caret {
+  transform: rotate(180deg);
+  color: var(--ichtus-orange);
+}
+
+.modern-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 100%;
+  min-width: 200px;
+  background: linear-gradient(
+    135deg,
+    rgba(45, 45, 45, 0.92) 0%,
+    rgba(30, 30, 30, 0.85) 100%
+  );
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-left: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 12px; 
-  box-shadow: 0 10px 25px rgba(0,0,0,0.35); 
-  z-index: 950; 
-  overflow: hidden;
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  z-index: 950;
+  box-sizing: border-box;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px) scale(0.97);
+  transition:
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    visibility 0.35s;
 }
-.dropdown-item {
-  width: 100%; background: none; border: none; padding: 11px 16px; color: rgba(255, 255, 255, 0.85);
-  font-size: 0.88rem; font-weight: 500; text-align: left; cursor: pointer; transition: background 0.2s;
+
+.modern-dropdown-wrapper.open .modern-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0) scale(1);
 }
-.dropdown-item:hover { background: rgba(255, 255, 255, 0.08); color: #ffffff; }
-.dropdown-item.border-bottom { border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important; }
-.dropdown-item.text-orange { color: var(--ichtus-orange); }
-.dropdown-item.text-red { color: #f87171; }
+
+.modern-dropdown-item {
+  width: 100%;
+  box-sizing: border-box;
+  background: none;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.9rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s ease;
+}
+
+.modern-dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  transform: translateX(2px);
+}
+
+.modern-dropdown-item.active {
+  background: rgba(244, 121, 32, 0.15);
+  color: var(--ichtus-orange);
+}
+
+.modern-dropdown-item.active::before {
+  content: "✓ ";
+  font-weight: 700;
+}
+
+.modern-dropdown-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 6px 8px;
+}
+
+.modern-dropdown-item.text-orange { color: var(--ichtus-orange); }
+.modern-dropdown-item.text-orange:hover { background: rgba(244, 121, 32, 0.12); }
+
+.modern-dropdown-item.text-red { color: #f87171; }
+.modern-dropdown-item.text-red:hover { background: rgba(248, 113, 113, 0.12); }
 
 /* 6. Footer van het panel */
 .panel-footer { 
