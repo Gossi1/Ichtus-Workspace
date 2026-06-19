@@ -25,11 +25,6 @@ const patchbayModule = (function() {
         touchDragLastX: 0,
         touchDragLastY: 0,
         touchDragMoved: false,
-        // Sound effects
-        _audioContext: null,
-        _soundEnabled: localStorage.getItem('patchbay_sound_enabled') !== 'false',
-        _lastHoverTarget: null,
-        _lastHoverSoundTime: 0,
         // event state
         currentTool: 'select',
         draggedNode: null,
