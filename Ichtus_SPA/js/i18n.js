@@ -38,7 +38,6 @@ const i18n = {
             toast_copied: 'Gekopieerd naar klembord!',
             reset: 'Reset',
             archive: 'Archiveer',
-            'on': 'Aan',
             off: 'Uit',
 
             // ==================== ROUTER / SIDEBAR ====================
@@ -64,7 +63,6 @@ const i18n = {
             cl_back: 'Terug naar overzicht',
             cl_no_checklists: 'Geen checklists gevonden',
             cl_new_checklist: 'Nieuwe checklist',
-            cl_manage: 'Beheer',
             cl_tags: 'Tags',
             cl_filter_label: 'Filter:',
             cl_clear_filter: 'wissen',
@@ -73,11 +71,8 @@ const i18n = {
             cl_team_placeholder: 'Bijv. Beamer',
             cl_empty_items: 'Nog geen items in deze checklist',
             cl_add_item: 'Item toevoegen',
-            cl_completed: 'voltooid',
 
             // Item cards
-            cl_item_mark_open: 'Markeer open',
-            cl_item_mark_done: 'Markeer voltooid',
 
             // Modals
             cl_new_item_title: 'Nieuw Item',
@@ -112,7 +107,6 @@ const i18n = {
             cl_checklist_not_found: 'Checklist niet gevonden',
 
             // Legacy task management
-            cl_legacy_no_tasks: 'Geen taken gevonden voor de geselecteerde rol',
             cl_legacy_delete_task: 'Taak definitief verwijderen?',
 
             // Presets
@@ -394,7 +388,6 @@ const i18n = {
             toast_copied: 'Copied to clipboard!',
             reset: 'Reset',
             archive: 'Archive',
-            'on': 'On',
             off: 'Off',
 
             // ==================== ROUTER / SIDEBAR ====================
@@ -418,7 +411,6 @@ const i18n = {
             cl_back: 'Back to overview',
             cl_no_checklists: 'No checklists found',
             cl_new_checklist: 'New checklist',
-            cl_manage: 'Manage',
             cl_tags: 'Tags',
             cl_filter_label: 'Filter:',
             cl_clear_filter: 'clear',
@@ -427,10 +419,7 @@ const i18n = {
             cl_team_placeholder: 'E.g. Beamer',
             cl_empty_items: 'No items in this checklist yet',
             cl_add_item: 'Add item',
-            cl_completed: 'completed',
 
-            cl_item_mark_open: 'Mark open',
-            cl_item_mark_done: 'Mark completed',
 
             cl_new_item_title: 'New Item',
             cl_item_name_placeholder: 'E.g. Turn on projector',
@@ -462,7 +451,6 @@ const i18n = {
             cl_confirm_archive: 'Archive current service and reset?',
             cl_checklist_not_found: 'Checklist not found',
 
-            cl_legacy_no_tasks: 'No tasks found for the selected role',
             cl_legacy_delete_task: 'Permanently delete task?',
 
             cl_preset_new_name: 'Name for the new service list:',

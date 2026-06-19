@@ -640,10 +640,6 @@ const dashboardModule = {
         } catch (e) {}
     },
 
-    restoreCollapsed() {
-        // No longer used — collapsed state is removed in init()
-    },
-
     _ensureSavedWidgets() {
         try {
             const saved = localStorage.getItem('ichtus_dashboard_widget_order');
