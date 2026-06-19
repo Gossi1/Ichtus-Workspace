@@ -15,9 +15,10 @@ Church service management Single Page Application (SPA) for coordinating worship
    ```
 
 2. **Copy your Firebase config** (optional - enables data sync)
-   - If you have an existing `firebase-api-key.txt` from another installation, copy it here
-   - If not, you'll enter Firebase values during `install.bat` setup
-   - The file is excluded from git (.gitignore) for security
+   - Either copy an existing `firebase-config.txt` (or `firebase-api-key.txt`) from another installation into this project
+   - Or paste your Firebase web-app config straight into `Ichtus_SPA/firebase-config.txt` — the browser fetches it on page boot, so the setup screen is skipped entirely
+   - Or enter values during `install.bat` setup
+   - Both files are excluded from git (.gitignore) for security
 
 3. **Run the installer**
    ```bash
@@ -94,7 +95,9 @@ Ichtus_apps/
 ├── setup.py                     # Setup check & auto-install script
 ├── server.py                    # Local HTTP server
 ├── start-server.bat             # Windows launcher
-├── firebase-api-key.txt         # Firebase config (NOT committed to git!)
+├── firebase-api-key.txt         # Firebase config (NOT committed to git!) used by server.py
+├── Ichtus_SPA/
+│   └── firebase-config.txt      # Firebase config (NOT committed to git!) auto-loaded by the browser
 ├── requirements.txt             # Python dependencies
 │
 ├── .gitignore                   # Excludes: .venv/, firebase-api-key.txt
@@ -158,14 +161,26 @@ python server.py --open
 
 ## 🔐 Firebase Configuration
 
-Your Firebase config is stored in `firebase-api-key.txt` (excluded from git).
+The browser (`Ichtus_SPA/js/firebase-init.js`) resolves your Firebase config from any of these 4 sources, in priority order. The first one with a real `apiKey` (starting with `AIza`) wins; if none does, the setup modal asks you to paste one.
+
+| # | Source | Where it lives | When to use |
+|---|--------|---------------|-------------|
+| 1 | `localStorage.firebaseConfig` | Browser storage of this OS-user, this browser | Pasted through the in-browser setup modal |
+| 2 | `window.FIREBASE_CONFIG` | Injected by `server.py` if `firebase-api-key.txt` exists at the project root | Server-admin deployments / multi-tenant setups |
+| 3 | `Ichtus_SPA/firebase-config.txt` | Fetched at runtime from the served directory | Single-machine manual setup — just drop the file, refresh, done |
+| 4 | `FIREBASE_CONFIG` | Bundled placeholder in `Ichtus_SPA/js/firebase-config.js` | Last-resort template; usually overwritten above |
 
 **To set up Firebase:**
-1. Create a project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Copy your web app config to `firebase-api-key.txt`
-3. Or enter values during `install.bat` setup
 
-The Settings page (Instellingen) allows you to view and edit Firebase config after installation.
+1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+2. Copy your web app config from **Project Settings → Your apps → Web app**.
+3. Drop it into one of the gitignored drop-in files:
+   - `Ichtus_SPA/firebase-config.txt` — preferred for browser-direct/local setups
+   - `firebase-api-key.txt` (project root) — used by `server.py` to inject into every served HTML page
+4. Or paste through the in-browser setup screen (stored in `localStorage`).
+5. Or enter values during `install.bat` setup.
+
+The Instellingen page lets you view, edit, and reset the active config afterward.
 
 ---
 
