@@ -74,7 +74,7 @@ const checklistModule = {
                     }
                     appState.checklist = { ...appState.checklist, ...data };
                     if (!appState.checklist.presets || Object.keys(appState.checklist.presets).length === 0) {
-                        appState.checklist.presets = JSON.parse(JSON.stringify(defaultPresets));
+                        appState.checklist.presets = JSON.parse(JSON.stringify(defaultNewPresets));
                     }
                     this.renderChecklistOverview();
                     this.processStateChange();
@@ -1571,17 +1571,6 @@ const checklistModule = {
                 '<button class="btn-delete-task" onclick="checklistModule.deleteTag(\'' + tag.id + '\')" title="' + __('delete') + '">&#x2715;</button>';
             list.appendChild(row);
         });
-    },
-
-    addTag(icon, name, color) {
-        const id = 'tag_' + Date.now();
-        const tags = appState.checklist.tags || {};
-        const maxOrder = Object.values(tags).reduce((max, t) => Math.max(max, t.sortOrder || 0), 0);
-        tags[id] = { id, name, icon: icon || '', color: color || '#6b7280', sortOrder: maxOrder + 1 };
-        appState.checklist.tags = tags;
-        this._syncChecklistState();
-        this._renderTagManagerList();
-        this.renderChecklistOverview();
     },
 
     deleteTag(tagId) {
