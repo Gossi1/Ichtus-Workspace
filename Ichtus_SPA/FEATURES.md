@@ -365,6 +365,27 @@ Pre-configured templates for different service types:
 - Offline capability with localStorage fallback
 - History archiving for analytics data
 
+#### Per-Module Collections
+| Module | Collection/Doc | Writes | Reads |
+|--------|----------------|--------|-------|
+| Checklist / Command Center | `commandCenter/activeState` | `.set(updates, {merge:true})` on every `syncState()` | `onSnapshot` live listen on init |
+| Checklist / Command Center | `commandCenterHistory` (collection) | `.add()` on **Reset & Archiveer** | none |
+| Dashboard | `dashboard/state` | `.set()` for cloud-synced layout | `.get()` on init |
+| Patchbay | `patchbay/projects` | `.set()` for canvas sync | `.get()` on init |
+| Dashboard (mic monitor) | `mic_monitor/live_status` | `.set()` on each IEM/mic assignment | `onSnapshot` OR Realtime-DB fallback |
+
+#### Configuration (auto-load chain)
+The browser resolves the Firebase config from any of these 4 sources, in priority order. The first one with a real `apiKey` (starting with `AIza`) wins; if none does, the in-page setup modal asks the user to paste one.
+
+| # | Source | Where it lives | When to use |
+|---|--------|---------------|-------------|
+| 1 | `localStorage.firebaseConfig` | Browser storage of this OS-user, this browser | Pasted through the in-browser setup modal |
+| 2 | `window.FIREBASE_CONFIG` | Injected by `server.py` if `firebase-api-key.txt` exists at the project root | Server-admin / multi-tenant deployments |
+| 3 | `Ichtus_SPA/firebase-config.txt` | Fetched at runtime from the served directory | Single-machine manual setup — drop the file, refresh, done |
+| 4 | `FIREBASE_CONFIG` | Bundled placeholder in `Ichtus_SPA/js/firebase-config.js` | Last-resort template; usually overwritten above |
+
+Supported formats inside the drop-in files: JSON object (`{ "apiKey": "...", ... }`) **or** key:value lines (`apiKey: "…"`), matching the parser in `server.py`. Both file paths are gitignored so real secrets never land in the repo.
+
 ### Fullscreen Mode
 - Global fullscreen toggle button
 - Individual module fullscreen support (Analytics)
@@ -376,6 +397,7 @@ Pre-configured templates for different service types:
 - Patchbay projects and current canvas
 - Service sequence configuration
 - Setlist templates and received data
+- `firebaseConfig` — active Firebase web-app config pasted through the in-browser setup modal (auto-detected by `firebase-init.js` as the highest-priority source)
 
 ### Responsive Design
 - Mobile-friendly sidebar with hamburger menu
