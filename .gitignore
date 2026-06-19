@@ -82,5 +82,10 @@ tmp/
 firebase-config.js
 firebase-config.js.backup
 
+# User-dropped Firebase config file (NEVER commit — secrets leak otherwise)
+# Copy firebase-config.example.txt to firebase-config.txt, paste real values,
+# leave the result off git. firebase-init.js auto-loads it on page boot.
+Ichtus_SPA/firebase-config.txt
+
 # Service Account Keys (sensitive credentials!)
 mic-iem-server/serviceAccountKey.json
