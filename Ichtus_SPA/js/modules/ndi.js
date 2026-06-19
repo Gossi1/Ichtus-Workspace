@@ -147,7 +147,11 @@ const ndiModule = {
 
     toggleAutoRefresh(enabled) {
         if (enabled) {
-            this.pollingInterval = setInterval(() => this.refreshSources(), 5000);
+            // Skip the 5 s refresh when the user has navigated to a different view.
+            this.pollingInterval = setInterval(() => {
+                if (!router.isNdiActive()) return;
+                this.refreshSources();
+            }, 5000);
         } else {
             if (this.pollingInterval) {
                 clearInterval(this.pollingInterval);

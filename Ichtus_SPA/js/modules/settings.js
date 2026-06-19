@@ -563,7 +563,11 @@ ndiModule.init = function() {
 
 ndiModule.startAutoRefresh = function() {
     if (this.pollingInterval) return; // Already running
-    this.pollingInterval = setInterval(() => this.refreshSources(), 5000);
+    // Skip the 5 s refresh when the user is on a different view.
+    this.pollingInterval = setInterval(() => {
+        if (!router.isNdiActive()) return;
+        this.refreshSources();
+    }, 5000);
 };
 
 ndiModule.stopAutoRefresh = function() {

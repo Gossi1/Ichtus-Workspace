@@ -35,8 +35,13 @@ const analyticsModule = {
         this.renderDashboard();
         this.renderAutoStartStatus();
 
-        // Poll ProPresenter for look changes
-        this._pollInterval = setInterval(() => this.pollProPresenter(), 1000);
+        // Poll ProPresenter for look changes. Outer guard skips when the
+        // analytics view is hidden; the inner pollProPresenter still has its
+        // own !isServiceRunning short-circuit for use-on-the-view moments.
+        this._pollInterval = setInterval(() => {
+            if (!router.isAnalyticsActive()) return;
+            this.pollProPresenter();
+        }, 1000);
     },
 
     // --- API Functions ---

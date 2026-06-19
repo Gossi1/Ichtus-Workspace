@@ -27,8 +27,12 @@ const checklistModule = {
         this.setupEventListeners();
         this._setupContextMenuListeners();
 
-        // Start timer
-        setInterval(() => this.updateTimersAndColors(), 1000);
+        // Start timer — no-op while another view is active so the per-second
+        // DOM walk over every task row stays scoped to the checklist view.
+        this._timersInterval = setInterval(() => {
+            if (!router.isChecklistActive()) return;
+            this.updateTimersAndColors();
+        }, 1000);
 
         // Firebase sync
         if (useFirebase && db) {
@@ -550,7 +554,7 @@ const checklistModule = {
     },
 
     _syncChecklistState() {
-        saveState();
+        saveChecklist();
         if (useFirebase && db) {
             try {
                 db.collection('commandCenter').doc('activeState')
@@ -1059,18 +1063,6 @@ const checklistModule = {
         return id;
     },
 
-    renameChecklist(id, newName) {
-        const presets = JSON.parse(JSON.stringify(appState.checklist.presets));
-        const current = presets[appState.checklist.currentPreset] || [];
-        const cl = current.find(c => c.id === id);
-        if (cl) {
-            cl.name = newName;
-            appState.checklist.presets = presets;
-            this._syncChecklistState();
-            this.renderChecklistOverview();
-        }
-    },
-
     duplicateChecklist(id) {
         const presets = JSON.parse(JSON.stringify(appState.checklist.presets));
         const current = presets[appState.checklist.currentPreset] || [];
@@ -1549,59 +1541,6 @@ const checklistModule = {
     },
 
     // ========================================================================
-    // DUE DATE MODAL
-    // ========================================================================
-
-    showEditDueDateModal(checklistId) {
-        const modal = document.getElementById('cl-edit-due-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        modal.dataset.checklistId = checklistId;
-
-        const checklists = this._getChecklists();
-        const cl = checklists.find(c => c.id === checklistId);
-        if (cl) {
-            const dateInput = document.getElementById('cl-edit-due-date');
-            const timeInput = document.getElementById('cl-edit-due-time');
-            if (dateInput) dateInput.value = cl.dueDate || appState.checklist.serviceDate || '';
-            if (timeInput) timeInput.value = cl.dueTime || '';
-        }
-    },
-
-    closeEditDueDateModal() {
-        const modal = document.getElementById('cl-edit-due-modal');
-        if (modal) modal.classList.add('hidden');
-    },
-
-    saveEditDueDate() {
-        const modal = document.getElementById('cl-edit-due-modal');
-        const checklistId = modal ? modal.dataset.checklistId : '';
-        if (!checklistId) return;
-
-        const dateInput = document.getElementById('cl-edit-due-date');
-        const timeInput = document.getElementById('cl-edit-due-time');
-        const newDate = dateInput ? dateInput.value : '';
-        const newTime = timeInput ? timeInput.value : '';
-
-        const presets = JSON.parse(JSON.stringify(appState.checklist.presets));
-        const current = presets[appState.checklist.currentPreset] || [];
-        const cl = current.find(c => c.id === checklistId);
-        if (cl) {
-            if (newDate) cl.dueDate = newDate;
-            else delete cl.dueDate;
-            if (newTime) cl.dueTime = newTime;
-            else delete cl.dueTime;
-            appState.checklist.presets = presets;
-            this._syncChecklistState();
-            this.renderChecklistOverview();
-            if (appState.checklist.activeChecklistId === checklistId) {
-                this._renderChecklistDetail(checklistId);
-            }
-        }
-        this.closeEditDueDateModal();
-    },
-
-    // ========================================================================
     // TAG MANAGER
     // ========================================================================
 
@@ -1610,11 +1549,6 @@ const checklistModule = {
         if (!modal) return;
         modal.classList.remove('hidden');
         this._renderTagManagerList();
-    },
-
-    closeTagManager() {
-        const modal = document.getElementById('tag-manager-modal');
-        if (modal) modal.classList.add('hidden');
     },
 
     _renderTagManagerList() {
@@ -1733,43 +1667,6 @@ const checklistModule = {
                 clearBtn.classList.add('hidden');
             }
         }
-    },
-
-    // ========================================================================
-    // MANAGE MODAL
-    // ========================================================================
-
-    showManageModal() {
-        const modal = document.getElementById('manage-modal');
-        if (!modal) return;
-        modal.classList.remove('hidden');
-        this._renderManageChecklists();
-    },
-
-    closeManageModal() {
-        const modal = document.getElementById('manage-modal');
-        if (modal) modal.classList.add('hidden');
-    },
-
-    _renderManageChecklists() {
-        const container = document.getElementById('manage-checklist-list');
-        if (!container) return;
-        const checklists = this._getChecklists();
-
-        if (checklists.length === 0) {
-            container.innerHTML = '<div class="cl-edit-empty">' + __('cl_edit_no_checklists') + '</div>';
-            return;
-        }
-
-        container.innerHTML = '';
-        checklists.forEach(cl => {
-            const items = cl.items || [];
-            const row = document.createElement('div');
-            row.className = 'manage-list-item';
-            row.innerHTML = '<span style="flex:1;color:#eee;">' + this._escapeHtml(cl.name) + ' <span style="color:var(--text-dim,#666);font-size:0.8rem;">(' + items.length + ' items)</span></span>' +
-                '<button class="btn-delete-task" onclick="checklistModule.deleteChecklist(\'' + cl.id + '\')" title="Verwijder">&#x2715;</button>';
-            container.appendChild(row);
-        });
     },
 
     // ========================================================================

@@ -131,7 +131,6 @@ const i18n = {
             cl_tag_add: 'Tag Toevoegen',
 
             // ==================== AGENDA MODULE ====================
-            agenda_visible: 'Zichtbaar (Klik op titel om te hernoemen):',
             agenda_fetching: 'Bezig met ophalen...',
             agenda_template_restored: 'Template hersteld uit geheugen.',
             agenda_image_too_large: 'Afbeelding te groot voor LocalStorage!',
@@ -480,7 +479,6 @@ const i18n = {
             cl_tag_add: 'Add Tag',
 
             // ==================== AGENDA MODULE ====================
-            agenda_visible: 'Visible (Click title to rename):',
             agenda_fetching: 'Fetching...',
             agenda_template_restored: 'Template restored from memory.',
             agenda_image_too_large: 'Image too large for LocalStorage!',

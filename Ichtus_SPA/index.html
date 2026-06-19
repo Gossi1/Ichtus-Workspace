@@ -188,10 +188,10 @@
                         
                         <div class='sunday-controls'>
                             <label class='toggle-sunday'>
-                                <input type='checkbox' id='hideSpeakers' checked onchange='agendaModule.render()'> 
+                                <input type='checkbox' id='hideSpeakers' checked>
                                 Sprekers verbergen (Zondag)
                             </label>
-                            <input type='text' id='customLabel' value='EREDIENST' oninput='agendaModule.render()'>
+                            <input type='text' id='customLabel' value='EREDIENST'>
                         </div>
 
                         <div id='event-selector' class='event-selector'></div>
@@ -372,28 +372,6 @@
             </div>
         </div>
 
-        <div id='cl-edit-due-modal' class='overlay-screen overlay-task-modal hidden'>
-            <div class='task-modal-dialog'>
-                <div class='modal-header'>
-                    <h3 class='task-modal-title'>Deadline Bewerken</h3>
-                </div>
-                <div class='modal-form-content'>
-                    <div class='form-group'>
-                        <label for='cl-edit-due-date'>Datum</label>
-                        <input type='date' id='cl-edit-due-date' class='form-input'>
-                    </div>
-                    <div class='form-group'>
-                        <label for='cl-edit-due-time'>Tijd</label>
-                        <input type='time' id='cl-edit-due-time' class='form-input'>
-                    </div>
-                </div>
-                <div class='modal-footer'>
-                    <button class='btn-secondary' onclick='checklistModule.closeEditDueDateModal()'>Annuleren</button>
-                    <button class='btn-setlist-primary' onclick='checklistModule.saveEditDueDate()'>Opslaan</button>
-                </div>
-            </div>
-        </div>
-
         <!-- Edit Checklist Modal -->
         <div id='cl-edit-checklist-modal' class='overlay-screen overlay-task-modal hidden'>
             <div class='task-modal-dialog cl-edit-dialog'>
@@ -438,21 +416,7 @@
                         </div>
                         <div class='modal-button-row'>
                             <button id='btn-add-tag' class='btn-modal btn-modal-confirm'>Toevoegen</button>
-                            <button id='btn-close-tag-manager' class='btn-modal btn-modal-close'>Sluiten</button>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Manage Checklists Modal -->
-            <div id='manage-modal' class='overlay-screen overlay-task-modal hidden'>
-                <div class='task-modal-dialog manage-modal-dialog'>
-                    <h2 class='task-modal-title heading-font'>&#9999;&#65039; Beheer Checklists</h2>
-                    <div id='manage-checklist-list' class='tag-manager-list'>
-                        <!-- Checklists rendered here for management -->
-                    </div>
-                    <div class='modal-button-row'>
-                        <button id='btn-close-manage-modal' class='btn-modal btn-modal-close'>Sluiten</button>
                     </div>
                 </div>
             </div>
