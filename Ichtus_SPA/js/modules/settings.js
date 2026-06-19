@@ -490,10 +490,6 @@ const settingsModule = {
         }
     },
 
-    setupFirebase() {
-        this.editFirebaseConfig();
-    },
-    
     clearFirebaseCache() {
         if (confirm(__('settings_confirm_clear_cache'))) {
             const keysToRemove = [];
@@ -577,10 +573,3 @@ ndiModule.stopAutoRefresh = function() {
     }
 };
 
-// Extend NDI module with preview quality
-ndiModule.getPreviewQuality = function() {
-    if (!settingsModule.settings) {
-        settingsModule.loadSettings();
-    }
-    return settingsModule.getSetting('ndiPreviewQuality') || 'medium';
-};
