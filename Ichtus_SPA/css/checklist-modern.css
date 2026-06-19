@@ -830,23 +830,61 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
    8. LIQUID GLASS ROLE SELECTOR MODAL
    ========================================================================== */
 
+/* The parent `#role-selector` reuses `.overlay-screen` (which is 100vw + blur+darken).
+   Use the dedicated `.overlay-role-selector` hook to anchor it to the right edge
+   of the ichthus-sidebar so the dark backdrop never washes over the sidebar.
+   Using `#role-selector.overlay-role-selector` bumps specificity to (0,1,1) so this
+   override wins against any later `.overlay-screen` rule. */
+#role-selector.overlay-role-selector {
+  left: 260px;
+  width: calc(100vw - 260px);
+  /* TRACK sidebar state (expanded → 260px, collapsed → 70px) so the dark backdrop
+     slides smoothly with the sidebar instead of jumping. */
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* The wrapper is a normal block child of the overlay (NOT position:fixed /
+   full-viewport). The .overlay-screen parent already supplies flex centering,
+   so the wrapper naturally occupies the overlay's full area, and our own
+   flex-column centers the title + button stack inside it — WHICH IS
+   INSIDE THE OVERLAY'S DARK BACKDROP. That's the whole point: the buttons
+   sit visually centered in the dark "screen" area that the user sees. */
 .role-selector-wrapper {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 1100;
   box-sizing: border-box;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: #ffffff;
+}
+
+/* When the ichthus sidebar is collapsed (body class toggled by toggleSidebar),
+   slide the dark overlay with it. */
+body.sidebar-collapsed #role-selector.overlay-role-selector {
+  left: 70px;
+  width: calc(100vw - 70px);
+}
+
+/* Tablet (769–1024px): branding.css conditionally clamps the sidebar to 70px
+   WITHOUT toggling body.sidebar-collapsed, so mirror that here. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  #role-selector.overlay-role-selector {
+    left: 70px;
+    width: calc(100vw - 70px);
+  }
+}
+
+/* Mobile (≤768px): the ichthus sidebar slides off-canvas via mobile-open and
+   the body's margin-left reverts to 0, so the role selector runs full viewport. */
+@media (max-width: 768px) {
+  #role-selector.overlay-role-selector {
+    left: 0;
+    width: 100vw;
+  }
 }
 
 .role-selector-title {
@@ -862,8 +900,12 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   display: flex;
   flex-direction: column;
   gap: 14px;
-  width: 100%;
-  max-width: 360px;
+  /* Explicit determinate width is what makes the centering unambiguous:
+     `width: 100%` lets the item fill the grid cell so margin/place-items have
+     no slack to absorb. With a fixed 360-px block, the parent's grid centering
+     translates directly to a center-placed button stack. */
+  width: 360px;
+  max-width: calc(100% - 40px);
   padding: 0 20px;
   box-sizing: border-box;
 }
