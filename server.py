@@ -32,7 +32,7 @@ ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
 # Auto-update configuratie
 UPDATE_CONFIG = {
     'github_repo': 'Gossi1/Ichtus-Workspace',  # Gebruiker/Repo
-    'current_version': '1.2.3',
+    'current_version': '2.0.0',
     'check_on_start': True,
 }
 
