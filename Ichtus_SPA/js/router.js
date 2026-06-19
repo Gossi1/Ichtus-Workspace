@@ -86,5 +86,20 @@ const router = {
     }
 };
 
+// =============================================================================
+//  VIEW-ACTIVE HELPERS
+//  Cheap O(1) checks used by long-running setIntervals across the app so they
+//  no-op when their view isn't on screen. all five return false on a fresh
+//  load (currentView is null until router.init completes).
+// =============================================================================
+router.isDashboardActive  = () => router.currentView === 'dashboard';
+router.isChecklistActive  = () => router.currentView === 'checklist';
+router.isAnalyticsActive  = () => router.currentView === 'analytics';
+router.isNdiActive        = () => router.currentView === 'ndi';
+router.isSettingsActive   = () => router.currentView === 'settings';
+router.isAgendaActive     = () => router.currentView === 'agenda';
+router.isPatchbayActive   = () => router.currentView === 'patchbay';
+router.isSetlistActive    = () => router.currentView === 'setlist';
+
 // Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => router.init());

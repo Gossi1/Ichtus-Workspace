@@ -93,14 +93,17 @@ const appState = {
         _savedScrollPos: 0
     },
     
-    // Agenda state
+    // Agenda state — persisted under the single `ichtus_agenda_state`
+    // localStorage key, owned by saveAgenda()/loadState() below. The agenda
+    // view reads/writes only `appState.agenda.*` and never touches
+    // localStorage directly.
     agenda: {
         weekOffset: 0,
         allEvents: [],
-        hideSpeakers: true,
-        customLabel: 'EREDIENST',
         hiddenEvents: [],
-        swappedEvents: []
+        swappedEvents: [],
+        hideSpeakers: true,
+        customLabel: 'EREDIENST'
     }
 };
 
@@ -224,34 +227,60 @@ function loadState() {
         appState.checklist.currentPreset = valid || 'Standaard Dienst';
     }
 
-    // Load agenda state
+    // Load agenda state. Modern path: read the single `ichtus_agenda_state`
+    // blob. Legacy fallback (one-shot migration): if the blob is missing,
+    // harvest the four standalone keys, write the consolidated blob, and
+    // delete the legacy keys so the migration only runs once per browser.
     const savedAgenda = localStorage.getItem('ichtus_agenda_state');
     if (savedAgenda) {
         try {
             const parsed = JSON.parse(savedAgenda);
             appState.agenda = { ...appState.agenda, ...parsed };
         } catch (e) {}
-    }
-    
-    // Load hide speakers and custom label
-    const savedHideSpeakers = localStorage.getItem('ichtus_hide_speakers');
-    if (savedHideSpeakers !== null) {
-        appState.agenda.hideSpeakers = savedHideSpeakers === 'true';
-    }
-    const savedCustomLabel = localStorage.getItem('ichtus_custom_label');
-    if (savedCustomLabel) {
-        appState.agenda.customLabel = savedCustomLabel;
+    } else {
+        const legacyHidden = JSON.parse(localStorage.getItem('ichtus_hidden_events') || '[]');
+        const legacySwapped = JSON.parse(localStorage.getItem('ichtus_swapped_events') || '[]');
+        const legacyHideSpeakers = localStorage.getItem('ichtus_hide_speakers');
+        const legacyCustomLabel = localStorage.getItem('ichtus_custom_label');
+
+        if (Array.isArray(legacyHidden)) appState.agenda.hiddenEvents = legacyHidden;
+        if (Array.isArray(legacySwapped)) appState.agenda.swappedEvents = legacySwapped;
+        if (legacyHideSpeakers !== null) appState.agenda.hideSpeakers = legacyHideSpeakers === 'true';
+        if (legacyCustomLabel) appState.agenda.customLabel = legacyCustomLabel;
+
+        // Migration only mutates agenda state, so write only the agenda blob.
+        saveAgenda();
+
+        localStorage.removeItem('ichtus_hidden_events');
+        localStorage.removeItem('ichtus_swapped_events');
+        localStorage.removeItem('ichtus_hide_speakers');
+        localStorage.removeItem('ichtus_custom_label');
     }
 }
 
-// Save state to localStorage
-function saveState() {
-    localStorage.setItem('ichtus_checklist_newstate', JSON.stringify(appState.checklist));
+// Granular saveers. Each writes only its own localStorage key, so callers
+// don't pay for an unrelated JSON.stringify + disk write on every keystroke.
+// agenda.js uses saveAgenda(); checklist.js uses saveChecklist();
+function saveAgenda() {
     localStorage.setItem('ichtus_agenda_state', JSON.stringify({
         weekOffset: appState.agenda.weekOffset,
         hiddenEvents: appState.agenda.hiddenEvents,
-        swappedEvents: appState.agenda.swappedEvents
+        swappedEvents: appState.agenda.swappedEvents,
+        hideSpeakers: appState.agenda.hideSpeakers,
+        customLabel: appState.agenda.customLabel
     }));
+}
+
+function saveChecklist() {
+    localStorage.setItem('ichtus_checklist_newstate', JSON.stringify(appState.checklist));
+}
+
+// Back-compat shim — flushes everything. New callers should reach for the
+// granular helpers above; saveState exists so utility code or third-party
+// callers don't have to know about the split.
+function saveState() {
+    saveChecklist();
+    saveAgenda();
 }
 
 // Initialize state on load

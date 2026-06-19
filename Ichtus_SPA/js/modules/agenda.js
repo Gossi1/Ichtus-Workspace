@@ -63,16 +63,23 @@ const agendaModule = {
             });
         }
 
-        // Restore form values
+        // Restore form values from appState (single source of truth owned by
+        // state.js). Defaults match the appState.agenda defaults so the box
+        // is never in an undefined state. Preference changes are then wired
+        // to dedicated handlers (onHideSpeakersChange / onCustomLabelInput)
+        // so each user edit mutates appState + saves once — render() itself
+        // never writes localStorage.
         const hideSpeakersInput = document.getElementById('hideSpeakers');
         const customLabelInput = document.getElementById('customLabel');
         if (hideSpeakersInput) {
-            const savedHideSpeakers = localStorage.getItem('ichtus_hide_speakers');
-            hideSpeakersInput.checked = savedHideSpeakers !== null ? savedHideSpeakers === 'true' : true;
+            hideSpeakersInput.checked = appState.agenda.hideSpeakers !== false;
+            hideSpeakersInput.addEventListener('change', () => this.onHideSpeakersChange());
+        }
+        if (customLabelInput && typeof appState.agenda.customLabel === 'string') {
+            customLabelInput.value = appState.agenda.customLabel;
         }
         if (customLabelInput) {
-            const savedLabel = localStorage.getItem('ichtus_custom_label');
-            if (savedLabel) customLabelInput.value = savedLabel;
+            customLabelInput.addEventListener('input', () => this.onCustomLabelInput());
         }
 
         // Make draggable
@@ -90,7 +97,7 @@ const agendaModule = {
         if (weekLabel) {
             weekLabel.innerText = appState.agenda.weekOffset === 0 ? __('agenda_this_week') : `${__('agenda_week')} ${appState.agenda.weekOffset}`;
         }
-        saveState();
+        saveAgenda();
         this.fetchTockify();
     },
 
@@ -158,9 +165,10 @@ const agendaModule = {
             end.setDate(start.getDate() + 6);
             end.setHours(23, 59, 59, 999);
 
-            // Load hidden/swapped state from localStorage
-            const hiddenEvents = JSON.parse(localStorage.getItem('ichtus_hidden_events') || '[]');
-            const swappedEvents = JSON.parse(localStorage.getItem('ichtus_swapped_events') || '[]');
+            // Hidden/swapped flags come from appState — populated by state.js
+            // loadState() (with legacy-key migration on first run).
+            const hiddenEvents = Array.isArray(appState.agenda.hiddenEvents) ? appState.agenda.hiddenEvents : [];
+            const swappedEvents = Array.isArray(appState.agenda.swappedEvents) ? appState.agenda.swappedEvents : [];
 
             appState.agenda.allEvents = [];
 
@@ -212,7 +220,7 @@ const agendaModule = {
             appState.agenda.hiddenEvents = appState.agenda.allEvents
                 .filter(e => !e.visible)
                 .map(e => e.id);
-            localStorage.setItem('ichtus_hidden_events', JSON.stringify(appState.agenda.hiddenEvents));
+            saveAgenda();
         }
         this.render();
     },
@@ -224,8 +232,27 @@ const agendaModule = {
             appState.agenda.swappedEvents = appState.agenda.allEvents
                 .filter(e => e.isOverridden)
                 .map(e => e.id);
-            localStorage.setItem('ichtus_swapped_events', JSON.stringify(appState.agenda.swappedEvents));
+            saveAgenda();
         }
+        this.render();
+    },
+
+    // User-input handlers — each owns its own appState mutation + saveAgenda
+    // call so saveAgenda() never fires from render() (which can run many
+    // times in a row, e.g. on every keystroke if wired to oninput).
+    onHideSpeakersChange() {
+        const hideSpeakersEl = document.getElementById('hideSpeakers');
+        if (!hideSpeakersEl) return;
+        appState.agenda.hideSpeakers = hideSpeakersEl.checked;
+        saveAgenda();
+        this.render();
+    },
+
+    onCustomLabelInput() {
+        const customLabelEl = document.getElementById('customLabel');
+        if (!customLabelEl) return;
+        appState.agenda.customLabel = customLabelEl.value;
+        saveAgenda();
         this.render();
     },
 
@@ -234,12 +261,12 @@ const agendaModule = {
         const agendaGroup = document.getElementById('agenda-group');
         const hideSpeakersEl = document.getElementById('hideSpeakers');
         const customLabelEl = document.getElementById('customLabel');
-        const hideSpeakers = hideSpeakersEl ? hideSpeakersEl.checked : false;
-        const customLabel = customLabelEl ? customLabelEl.value : 'Dienst';
+        const hideSpeakers = hideSpeakersEl ? hideSpeakersEl.checked : (appState.agenda.hideSpeakers !== false);
+        const customLabel = customLabelEl ? customLabelEl.value : (appState.agenda.customLabel || 'Dienst');
 
-        // Save preferences
-        if (hideSpeakersEl) localStorage.setItem('ichtus_hide_speakers', hideSpeakers);
-        if (customLabelEl) localStorage.setItem('ichtus_custom_label', customLabelEl.value);
+        // render() is purely re-rendering from appState + DOM. Preference
+        // persistence lives in onHideSpeakersChange() / onCustomLabelInput()
+        // so each user edit saves exactly once. No saveState() here.
 
         // Populate event-selector with toggle checkboxes
         const container = document.getElementById('event-selector');
@@ -281,12 +308,14 @@ const agendaModule = {
             });
         }
 
-        // Render visible events to columns
+        // Render visible events to columns. Column element refs are stashed
+        // on `this` so downloadImage() can read innerText without re-querying
+        // the DOM by id.
         const activeEvents = appState.agenda.allEvents.filter(e => e.visible);
-        const colDate = document.getElementById('col-date');
+        this.colDate = document.getElementById('col-date');
         const colPipe = document.getElementById('col-pipe');
-        const colTime = document.getElementById('col-time');
-        const colEvent = document.getElementById('col-event');
+        this.colTime = document.getElementById('col-time');
+        this.colEvent = document.getElementById('col-event');
 
         if (activeEvents.length > 0) {
             let last = '';
@@ -303,12 +332,12 @@ const agendaModule = {
                 }
             });
 
-            if (colDate) colDate.innerText = fD.join('\n');
+            if (this.colDate) this.colDate.innerText = fD.join('\n');
             if (colPipe) colPipe.innerText = fP.join('\n');
-            if (colTime) colTime.innerText = activeEvents.map(e => e.timeStr).join('\n');
-            if (colEvent) colEvent.innerText = activeEvents.map(e => '  ' + e.currentDisplayTitle).join('\n');
+            if (this.colTime) this.colTime.innerText = activeEvents.map(e => e.timeStr).join('\n');
+            if (this.colEvent) this.colEvent.innerText = activeEvents.map(e => '  ' + e.currentDisplayTitle).join('\n');
 
-            [colDate, colTime, colEvent].forEach(col => {
+            [this.colDate, this.colTime, this.colEvent].forEach(col => {
                 if (col) col.contentEditable = 'true';
             });
 
@@ -322,6 +351,14 @@ const agendaModule = {
 
     downloadImage() {
         if (!this.img.src) return;
+
+        // Column refs are stashed on `this` during render(). If the user
+        // hits "Download PNG" before the first render() has run (e.g. ICS
+        // fetch still resolving), look them up here so we don't crash.
+        if (!this.colDate)  this.colDate  = document.getElementById('col-date');
+        if (!this.colTime)  this.colTime  = document.getElementById('col-time');
+        if (!this.colEvent) this.colEvent = document.getElementById('col-event');
+        if (!this.colDate || !this.colTime || !this.colEvent) return;
 
         const canvas = document.getElementById('canvas');
         const agendaGroup = document.getElementById('agenda-group');
@@ -346,9 +383,11 @@ const agendaModule = {
         const x = parseInt(agendaGroup.style.left) + paddingLeft;
         const y = parseInt(agendaGroup.style.top) + paddingTop;
 
-        const dates = document.getElementById('col-date').innerText.split('\n');
-        const times = document.getElementById('col-time').innerText.split('\n');
-        const events = document.getElementById('col-event').innerText.split('\n');
+        // Reuse the element refs cached on `this` by render() instead of
+        // re-querying the DOM by id.
+        const dates = this.colDate.innerText.split('\n');
+        const times = this.colTime.innerText.split('\n');
+        const events = this.colEvent.innerText.split('\n');
 
         let maxD = 0;
         dates.forEach(l => {

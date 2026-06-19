@@ -896,7 +896,13 @@ const dashboardModule = {
         };
 
         updateDisplay();
-        this._countdownInterval = setInterval(updateDisplay, 1000);
+        // No-op while the dashboard isn't on screen: stops the per-second
+        // DOM walk against every servicecountdown widget from running forever
+        // when the user is on agenda/checklist/analytics/etc.
+        this._countdownInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            updateDisplay();
+        }, 1000);
     },
 
     toggleCountdownSettings(btn) {
@@ -2541,8 +2547,16 @@ const dashboardModule = {
     _startProPresenterPolling() {
         this._stopProPresenterPolling();
         this._updateAllProPresenterWidgets();
-        this._proPresenterInterval = setInterval(() => this._updateAllProPresenterWidgets(), 15000);
-        this._proPresenterFastInterval = setInterval(() => this._updateAllProPresenterIndexes(), 500);
+        // Skip both ProPresenter polls while the dashboard is hidden.
+        // The 500 ms fast interval is the heaviest single wake-up in the app.
+        this._proPresenterInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            this._updateAllProPresenterWidgets();
+        }, 15000);
+        this._proPresenterFastInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            this._updateAllProPresenterIndexes();
+        }, 500);
     },
 
     _stopProPresenterPolling() {
@@ -2570,7 +2584,10 @@ const dashboardModule = {
         this._stopPlaylistChangeDetection();
         // NIET resetten: _proPresenterPlaylistLastUuid kan al gezet zijn door cache restore
         const baseUrl = this._getProPresenterBaseUrl();
+        // Skip the playlist-change fetch when the dashboard is not active:
+        // the network round-trip + state-diff otherwise fires every tick.
         this._proPresenterPlaylistCheckInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
             fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
                 .then(r => r.json())
                 .then(data => {
@@ -2608,7 +2625,9 @@ const dashboardModule = {
     _startPlaylistSlideTracking() {
         this._stopPlaylistSlideTracking();
         const baseUrl = this._getProPresenterBaseUrl();
+        // Skip slide-index fetches when not on the dashboard.
         this._proPresenterPlaylistSlideCheckInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
             fetch(`${baseUrl}/v1/presentation/slide_index`, {
                 headers: { 'Accept': 'application/json' }
             })
@@ -3297,7 +3316,11 @@ const dashboardModule = {
     _startPlaylistOverviewPolling() {
         this._stopPlaylistOverviewPolling();
         this._loadPlaylistOverview();
-        this._playlistOverviewInterval = setInterval(() => this._loadPlaylistOverview(), 10000);
+        // Skip the overview re-render when the user is on a different view.
+        this._playlistOverviewInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            this._loadPlaylistOverview();
+        }, 10000);
     },
 
     _stopPlaylistOverviewPolling() {
