@@ -8,9 +8,52 @@ let currentUser = null;
 // Configuration loaded from external file
 let firebaseConfig = null;
 
-(function initFirebaseConfig() {
+/**
+ * Try to load a Firebase config from a user-dropped TXT/JSON file at a known
+ * served path. Accepts either:
+ *   - a JSON object: `{ "apiKey": "AIza...", "projectId": "..." }`
+ *   - a key:value list matching the format server.py parses from firebase-api-key.txt
+ *
+ * Returns a parsed config object if a real apiKey is found, otherwise null.
+ * Silently swallows 404/network errors — every missing-file path is fine.
+ */
+async function loadConfigFromFile(url) {
     try {
-        // First check localStorage for saved config (persisted from setup screen)
+        const response = await fetch(url, { cache: 'no-store' });
+        if (!response.ok) return null;
+        const text = (await response.text()).trim();
+        if (!text) return null;
+
+        let parsed;
+        try {
+            parsed = JSON.parse(text);
+        } catch (_) {
+            // Fall back to key:value lines (matches the format server.py reads)
+            parsed = {};
+            const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId'];
+            for (const key of keys) {
+                const m = text.match(new RegExp(`${key}:\\s*["']([^"']+)["']`));
+                if (m) parsed[key] = m[1];
+            }
+        }
+
+        if (
+            parsed &&
+            parsed.apiKey &&
+            parsed.apiKey !== 'YOUR_API_KEY_HERE' &&
+            parsed.apiKey.startsWith('AIza')
+        ) {
+            return parsed;
+        }
+    } catch (_) {
+        // File fetch failed (404, CORS, etc.) — fall through silently
+    }
+    return null;
+}
+
+(async function initFirebaseConfig() {
+    try {
+        // 1. localStorage for saved config (persisted from setup screen) — highest priority
         const savedConfig = localStorage.getItem('firebaseConfig');
         if (savedConfig) {
             try {
@@ -23,8 +66,8 @@ let firebaseConfig = null;
                 localStorage.removeItem('firebaseConfig');
             }
         }
-        
-        // Check server-injected config first (highest priority)
+
+        // 2. Server-injected config (multi-tenant deployments, e.g. server.py writing window.FIREBASE_CONFIG)
         if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
             firebaseConfig = window.FIREBASE_CONFIG;
             if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
@@ -32,11 +75,20 @@ let firebaseConfig = null;
                 return;
             }
         }
-        
-        // Then check external config file (legacy fallback)
+
+        // 3. User-dropped file in the served directory (auto-load, no manual auth)
+        const fileConfig = await loadConfigFromFile('/Ichtus_SPA/firebase-config.txt');
+        if (fileConfig) {
+            firebaseConfig = fileConfig;
+            console.log('Firebase config loaded from /Ichtus_SPA/firebase-config.txt');
+            initializeFirebase(firebaseConfig);
+            return;
+        }
+
+        // 4. Bundled config file (legacy template fallback)
         if (typeof FIREBASE_CONFIG !== 'undefined') {
             firebaseConfig = FIREBASE_CONFIG;
-            
+
             // Check if it's still the placeholder
             if (firebaseConfig.apiKey === 'YOUR_API_KEY_HERE' || !firebaseConfig.apiKey) {
                 showSetupScreen();
@@ -44,7 +96,7 @@ let firebaseConfig = null;
                 initializeFirebase(firebaseConfig);
             }
         } else {
-            // No external config file found - show setup screen
+            // No config source succeeded — show setup screen
             showSetupScreen();
         }
     } catch (e) {
