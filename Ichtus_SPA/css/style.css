@@ -1347,6 +1347,19 @@ button:hover, .btn-label:hover {
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     cursor: crosshair;
+    /*
+     * Sensible default visual area so the agenda-group's DEFAULT_X=110,
+     * DEFAULT_Y=290 (intended for a 1920px-wide canvas) lands inside
+     * the rendered container even before the user uploads a template.
+     * After an image loads, the canvas's intrinsic 1920px width sets the
+     * CSS display width (max ~768px from .canvas-wrapper max-width:800px
+     * minus its padding) and the agenda-group scales to fit via
+     * `transform: scale(N)` applied in agendaModule.applyScaleForCanvas()
+     * so the columns fit inside the displayed canvas instead of being
+     * clipped by `overflow: hidden`.
+     */
+    min-width: 800px;
+    min-height: 480px;
 }
 
 #view-agenda canvas {
@@ -1363,6 +1376,13 @@ button:hover, .btn-label:hover {
     cursor: move;
     user-select: none;
     white-space: nowrap;
+    /*
+     * Anchor the JS-applied `transform: scale(N)` (see
+     * agendaModule.applyScaleForCanvas()) at the agenda-group's own
+     * top-left so the visual position of stored pixel offsets (110, 290
+     * by default) lines up with the visual top-left of the scaled group.
+     */
+    transform-origin: top left;
 }
 
 #view-agenda .column {
@@ -5919,3 +5939,26 @@ input:checked + .slider::before { transform: translateX(20px); }
     gap: 8px;
     align-items: center;
 }
+
+/* --- agenda-positioning xy-input + info-display rules (port v2) --- */
+#view-agenda .info-display { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#view-agenda .xy-input {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: inherit;
+    padding: 4px 6px;
+    width: 70px;
+    font-family: inherit;
+    font-size: 0.85rem;
+    text-align: center;
+    border-radius: 5px;
+}
+#view-agenda .xy-input:focus {
+    outline: none;
+    border-color: var(--ichtus-orange);
+    background: rgba(0, 0, 0, 0.3);
+}
+/* Ensure the existing .dragging rule still fires when makeDraggable
+   toggles the class on drag start/stop. */
+#view-agenda #agenda-group.dragging .column { opacity: 0.85; }
+#view-agenda #agenda-group.dragging { cursor: grabbing; }

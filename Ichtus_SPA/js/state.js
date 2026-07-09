@@ -103,7 +103,9 @@ const appState = {
         hiddenEvents: [],
         swappedEvents: [],
         hideSpeakers: true,
-        customLabel: 'EREDIENST'
+        customLabel: 'EREDIENST',
+        logicalX: 110,
+        logicalY: 290,
     }
 };
 
@@ -267,7 +269,9 @@ function saveAgenda() {
         hiddenEvents: appState.agenda.hiddenEvents,
         swappedEvents: appState.agenda.swappedEvents,
         hideSpeakers: appState.agenda.hideSpeakers,
-        customLabel: appState.agenda.customLabel
+        customLabel: appState.agenda.customLabel,
+        logicalX: appState.agenda.logicalX,
+        logicalY: appState.agenda.logicalY,
     }));
 }
 
