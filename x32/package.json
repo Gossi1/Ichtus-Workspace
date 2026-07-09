@@ -1,0 +1,16 @@
+{
+  "name": "ichtus-x32",
+  "version": "1.0.0",
+  "description": "Ichtus X32 channel preset loader — small HTTP→OSC bridge that lets a browser send preset-load commands to a Behringer X32 over OSC/UDP port 10023.",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "osc": "^2.4.4"
+  }
+}

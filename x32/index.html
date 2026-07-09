@@ -1,0 +1,1010 @@
+<!doctype html>
+<html lang="nl">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Ichtus X32 — Preset Loader</title>
+
+    <!-- Self-contained styling; no shared-assets round-trip so this
+         page works even if the SPA isn't running. Mirrors the Ichtus
+         palette you find in /shared-assets/css/branding.css and the
+         dark-glass language of the Stage Builder view. -->
+    <style>
+        :root {
+            --ichtus-orange: #f47920;
+            --ichtus-red: #ed1c24;
+            --ichtus-green: #27ae60;
+            --ichtus-blue: #38bdf8;
+            --bg-main: #18181c;
+            --bg-card: rgba(255, 255, 255, 0.04);
+            --bg-elevated: rgba(255, 255, 255, 0.07);
+            --text-main: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --border: rgba(255, 255, 255, 0.10);
+            --border-strong: rgba(255, 255, 255, 0.20);
+            --shadow-lg: 0 20px 50px rgba(0, 0, 0, 0.45);
+            --radius: 14px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background:
+                radial-gradient(ellipse at top left, rgba(244, 121, 32, 0.05), transparent 50%),
+                radial-gradient(ellipse at bottom right, rgba(56, 189, 248, 0.04), transparent 60%),
+                var(--bg-main);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 32px 24px 60px 24px;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .app-shell {
+            max-width: 1240px;
+            margin: 0 auto;
+        }
+
+        /* ── Header ── */
+        .header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 24px;
+            margin-bottom: 28px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-title h1 {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.01em;
+            background: linear-gradient(135deg, #fff 0%, #94a3b8 110%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header-title p {
+            margin-top: 4px;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 10px 14px;
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-dim);
+            box-shadow: 0 0 0 0 currentColor;
+            transition: background 0.2s ease, box-shadow 0.3s ease;
+        }
+
+        .status-dot.ok {
+            background: var(--ichtus-green);
+            box-shadow: 0 0 0 4px rgba(39, 174, 96, 0.18);
+        }
+
+        .status-dot.error {
+            background: var(--ichtus-red);
+            box-shadow: 0 0 0 4px rgba(237, 28, 36, 0.18);
+        }
+
+        /* ── Connection card ── */
+        .conn-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.05) 0%, rgba(255, 255, 255, 0.015) 100%);
+            backdrop-filter: blur(20px) saturate(140%);
+            -webkit-backdrop-filter: blur(20px) saturate(140%);
+            border: 1px solid var(--border);
+            border-top: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: var(--radius);
+            padding: 22px;
+            margin-bottom: 22px;
+            box-shadow: var(--shadow-lg);
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr auto;
+            gap: 18px;
+            align-items: end;
+        }
+
+        @media (max-width: 760px) {
+            .conn-card {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .field-stack {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .field-label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+
+        .field-input,
+        .field-select {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            padding: 10px 12px;
+            outline: none;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+            font-family: inherit;
+        }
+
+        .field-input:focus,
+        .field-select:focus {
+            border-color: var(--ichtus-orange);
+            box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.18);
+        }
+
+        .field-input.mono {
+            font-family: 'SFMono-Regular', Menlo, Monaco, Consolas, monospace;
+            font-size: 0.92rem;
+        }
+
+        .btn {
+            border: none;
+            border-radius: 10px;
+            padding: 11px 18px;
+            font-size: 0.88rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--ichtus-orange) 0%, #c45a0d 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px -6px rgba(244, 121, 32, 0.5);
+        }
+
+        .btn-primary:hover {
+            filter: brightness(1.08);
+            transform: translateY(-1px);
+            box-shadow: 0 12px 22px -6px rgba(244, 121, 32, 0.6);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border-strong);
+            color: var(--text-main);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-elevated);
+            border-color: rgba(255, 255, 255, 0.35);
+        }
+
+        .btn-danger {
+            background: rgba(237, 28, 36, 0.15);
+            border: 1px solid rgba(237, 28, 36, 0.4);
+            color: #fca5a5;
+        }
+
+        .btn-danger:hover {
+            background: rgba(237, 28, 36, 0.3);
+            color: #fff;
+        }
+
+        .btn:disabled {
+            opacity: 0.45;
+            cursor: not-allowed;
+            transform: none !important;
+            filter: none !important;
+        }
+
+        /* ── Channels grid ── */
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 4px 4px 14px 4px;
+        }
+
+        .section-title h2 {
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            font-weight: 700;
+        }
+
+        .section-title .count-pill {
+            background: rgba(244, 121, 32, 0.12);
+            color: var(--ichtus-orange);
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 3px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(244, 121, 32, 0.25);
+        }
+
+        .channel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+        }
+
+        .channel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: border-color 0.2s ease, background 0.2s ease, transform 0.15s ease;
+        }
+
+        .channel-card:hover {
+            border-color: var(--border-strong);
+            background: var(--bg-elevated);
+        }
+
+        .channel-card .ch-num {
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            font-size: 1.05rem;
+            font-weight: 800;
+            color: var(--ichtus-orange);
+            letter-spacing: 0.05em;
+        }
+
+        .channel-card .ch-key {
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            letter-spacing: 0.04em;
+        }
+
+        .channel-card .ch-form {
+            display: grid;
+            grid-template-columns: 1fr 60px;
+            gap: 6px;
+        }
+
+        .channel-card .ch-field {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            padding: 7px 9px;
+            color: var(--text-main);
+            font-size: 0.82rem;
+            outline: none;
+            font-family: inherit;
+            transition: border-color 0.2s ease;
+            width: 100%;
+        }
+
+        .channel-card .ch-field:focus {
+            border-color: var(--ichtus-orange);
+        }
+
+        .channel-card .ch-field.slot {
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            text-align: center;
+            color: var(--ichtus-orange);
+            font-weight: 700;
+        }
+
+        .channel-card .ch-btn {
+            background: linear-gradient(135deg, var(--ichtus-blue) 0%, #0284c7 100%);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 8px 10px;
+            cursor: pointer;
+            transition: filter 0.2s ease, transform 0.15s ease;
+            font-family: inherit;
+        }
+
+        .channel-card .ch-btn:hover {
+            filter: brightness(1.1);
+        }
+
+        .channel-card .ch-btn:active {
+            transform: scale(0.97);
+        }
+
+        .channel-card .ch-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .channel-card .ch-cat {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 7px;
+            color: var(--text-muted);
+            font-size: 0.78rem;
+            padding: 7px 9px;
+            outline: none;
+            font-family: inherit;
+            width: 100%;
+        }
+
+        /* ── Raw OSC card ── */
+        .raw-card {
+            margin-top: 28px;
+            background: linear-gradient(135deg, rgba(15, 23, 42, 0.55) 0%, rgba(30, 41, 59, 0.38) 100%);
+            border: 1px solid var(--border);
+            border-top: 1px solid rgba(255, 255, 255, 0.35);
+            border-radius: var(--radius);
+            padding: 22px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .raw-card h3 {
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+            color: var(--text-main);
+        }
+
+        .raw-card .raw-hint {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-bottom: 14px;
+            line-height: 1.5;
+        }
+
+        .raw-card .raw-hint code {
+            background: rgba(0, 0, 0, 0.4);
+            color: var(--ichtus-blue);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.74rem;
+        }
+
+        .raw-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr auto;
+            gap: 10px;
+            align-items: end;
+        }
+
+        @media (max-width: 760px) {
+            .raw-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .raw-grid label {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .raw-grid textarea,
+        .raw-grid input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border);
+            border-radius: 9px;
+            color: var(--text-main);
+            font-size: 0.85rem;
+            padding: 10px 12px;
+            outline: none;
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            resize: vertical;
+            min-height: 60px;
+            transition: border-color 0.2s;
+        }
+
+        .raw-grid textarea:focus,
+        .raw-grid input:focus {
+            border-color: var(--ichtus-orange);
+        }
+
+        /* ── Toast (bottom-center, orange-edge like analytics) ── */
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(120%);
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: #6ee7b7;
+            padding: 14px 22px;
+            border-radius: 11px;
+            font-size: 0.88rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            z-index: 10000;
+            box-shadow: 0 14px 30px rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            transition: transform 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.3s ease;
+            opacity: 0;
+            pointer-events: none;
+            max-width: 88%;
+        }
+
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+            opacity: 1;
+        }
+
+        .toast.error {
+            background: rgba(237, 28, 36, 0.15);
+            border-color: rgba(237, 28, 36, 0.5);
+            color: #fca5a5;
+        }
+
+        .toast .toast-icon {
+            flex-shrink: 0;
+            width: 22px;
+            height: 22px;
+        }
+
+        /* ── Activity log ── */
+        .log-card {
+            margin-top: 28px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 14px 18px;
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            font-size: 0.78rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .log-card .log-entry {
+            padding: 4px 0;
+            color: var(--text-muted);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .log-card .log-entry:last-child {
+            border-bottom: none;
+        }
+
+        .log-card .log-entry.success {
+            color: #6ee7b7;
+        }
+
+        .log-card .log-entry.error {
+            color: #fca5a5;
+        }
+
+        .log-card .log-entry .ts {
+            color: var(--text-dim);
+            margin-right: 10px;
+        }
+
+        /* Live preset library list — the library is just a list of
+           channel→slot mappings the operator has used recently. The
+           X32 itself stores the actual preset contents; we just
+           cache the operator's last recall so they don't have to
+           retype slot numbers during a rehearsal. */
+        .preset-library {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 12px;
+        }
+
+        .preset-chip {
+            background: rgba(56, 189, 248, 0.1);
+            border: 1px solid rgba(56, 189, 248, 0.35);
+            color: #93c5fd;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 4px 10px;
+            cursor: pointer;
+            transition: background 0.15s ease;
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+        }
+
+        .preset-chip:hover {
+            background: rgba(56, 189, 248, 0.25);
+            color: #fff;
+        }
+
+        .preset-chip .chip-del {
+            margin-left: 6px;
+            opacity: 0.5;
+            font-size: 0.7rem;
+        }
+
+        .preset-chip .chip-del:hover {
+            opacity: 1;
+            color: var(--ichtus-red);
+        }
+
+        /* Target-channel pill: tells the operator which input channel a
+           library-chip click will land on, so chip clicks are never a
+           guessing game. Mirrors the orange chip-pill aesthetic. */
+        .library-target {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(244, 121, 32, 0.12);
+            color: var(--ichtus-orange);
+            font-size: 0.78rem;
+            font-weight: 700;
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(244, 121, 32, 0.35);
+            font-family: 'SFMono-Regular', Menlo, Monaco, monospace;
+            letter-spacing: 0.04em;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .library-target strong {
+            color: #ffd9b8;
+            font-weight: 800;
+            font-size: 0.85rem;
+        }
+
+        /* Active-channel highlight: subtle orange wash + border so the
+           operator's eye lands on the same card that the chip pill
+           points at. No layout shift because we only swap colour. */
+        .channel-card.active {
+            border-color: rgba(244, 121, 32, 0.55);
+            background: linear-gradient(135deg, rgba(244, 121, 32, 0.10), rgba(244, 121, 32, 0.02));
+            box-shadow: 0 0 0 1px rgba(244, 121, 32, 0.20);
+        }
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+
+        <!-- ── Header + bridge-status pill ──────────────────────────── -->
+        <div class="header">
+            <div class="header-title">
+                <h1>X32 Preset Loader</h1>
+                <p>Stuur channel-preset recall-commando's naar de Behringer X32 over OSC/UDP.</p>
+            </div>
+            <div class="header-status">
+                <div id="statusDot" class="status-dot"></div>
+                <span id="statusLabel">verbinden…</span>
+            </div>
+        </div>
+
+        <!-- ── Connection card — X32 IP & global slot/category ──────── -->
+        <div class="conn-card">
+            <div class="field-stack">
+                <label class="field-label" for="x32Ip">X32 IP-adres</label>
+                <input id="x32Ip" class="field-input mono" type="text" placeholder="192.168.1.50" value="192.168.1.50">
+            </div>
+            <div class="field-stack">
+                <label class="field-label">Globale library</label>
+                <div class="preset-library" id="presetLibrary">
+                    <!-- populated by JS -->
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-top:6px;">
+                    <span class="library-target" id="libraryTarget">
+                        Chips richten op <strong>Ch&nbsp;1</strong>
+                    </span>
+                    <span style="color: var(--text-dim); font-size: 0.74rem;">
+                        Klik een kanaalveld om de chip-routing aan te passen.
+                    </span>
+                </div>
+            </div>
+            <div class="field-stack" style="grid-column: 1 / -1;">
+                <span id="libraryHint" style="color: var(--text-dim); font-size: 0.78rem;">
+                    Klik "Herlaad presets" om de standaard presets uit Ichtus te laden, dan kun je ze snel op een kanaal toepassen.
+                </span>
+                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                    <button class="btn btn-secondary" id="btnSeedLibrary" style="font-size: 0.78rem; padding: 8px 14px;">
+                        Herlaad presets
+                    </button>
+                    <button class="btn btn-secondary" id="btnClearLibrary" style="font-size: 0.78rem; padding: 8px 14px; color: var(--text-dim);">
+                        Wis bibliotheek
+                    </button>
+                    <button class="btn btn-secondary" id="btnSaveCurrent" style="font-size: 0.78rem; padding: 8px 14px;">
+                        💾 Sla huidige waarden op
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Channel grid (one card per input channel) ────────────── -->
+        <div class="section-title">
+            <h2>Input-kanalen</h2>
+            <span class="count-pill">32 kanalen</span>
+        </div>
+
+        <div class="channel-grid" id="channelGrid">
+            <!-- populated by JS -->
+        </div>
+
+        <!-- ── Raw OSC card (for tech support / advanced use) ───────── -->
+        <div class="raw-card">
+            <h3>Ruwe OSC-opdracht</h3>
+            <p class="raw-hint">
+                Voor wanneer de preset-knop niet genoeg is. Stuur een willekeurig OSC-commando naar het IP dat hierboven is ingesteld.
+                Voorbeeld: <code>/ch/05/mute ,i 1</code> om kanaal 5 te muten. Type-tags: <code>i</code>, <code>f</code>, <code>s</code>.
+            </p>
+            <div class="raw-grid">
+                <div>
+                    <label>OSC-adres</label>
+                    <input id="rawAddress" type="text" placeholder="/ch/05/mix/fader">
+                </div>
+                <div>
+                    <label>Argumenten (JSON-array)</label>
+                    <textarea id="rawArgs" placeholder='[{"type":"i","value":1}] of [{"type":"s","value":"Lead Vox"}]'></textarea>
+                </div>
+                <div>
+                    <label>&nbsp;</label>
+                    <button id="btnRawSend" class="btn btn-primary">Verstuur</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Activity log ─────────────────────────────────────────── -->
+        <div class="log-card" id="logCard">
+            <div class="log-entry">
+                <span class="ts">[--:--]</span>
+                <span>Wachten op commando's…</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast">
+        <svg class="toast-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <path id="toastCheck" d="M20 6L9 17l-5-5"/>
+        </svg>
+        <span id="toastText">OK</span>
+    </div>
+
+    <script>
+        // Preset categories; declared up-front so renderChannels() can
+        // reference it during card build instead of relying on the
+        // function-body hoisting (TDZ-correct, easier to skim).
+        const CATEGORIES = [
+            { value: 'CHANNEL', label: 'Channel (volledig)' },
+            { value: 'EQ',      label: 'EQ' },
+            { value: 'GATE',    label: 'Gate' },
+            { value: 'DYNA',    label: 'Dynamics' }
+        ];
+
+        // ── State ────────────────────────────────────────────────────
+        const state = {
+            x32Ip: localStorage.getItem('x32:x32ip') || '192.168.1.50',
+            library: [],         // [{name, slot, category}]
+            stat: 'connecting',  // 'connecting' | 'ok' | 'error'
+            targetChannel: 1     // last channel whose input was touched
+        };
+
+        // Seed-presets: six commonly-used worship-team channels.
+        // Slot numbers are 0-indexed (X32 library screen index 0 = slot 0);
+        // these are example values the operator can edit in the raw OSC
+        // box once they've saved real presets to the X32 console.
+        const SEED_PRESETS = [
+            { name: 'WL Mic (lead vocal)',     slot: 1,  category: 'CHANNEL' },
+            { name: 'WL Keys (Nord piano)',    slot: 2,  category: 'CHANNEL' },
+            { name: 'Vox 1 (alto)',            slot: 3,  category: 'CHANNEL' },
+            { name: 'Vox 2 (sopraan)',         slot: 4,  category: 'CHANNEL' },
+            { name: 'Vox 3 (tenor/bg)',        slot: 5,  category: 'CHANNEL' },
+            { name: 'E-guitar (Brian)',        slot: 6,  category: 'CHANNEL' },
+            { name: 'Acoustic gtr (DI)',       slot: 7,  category: 'CHANNEL' },
+            { name: 'Bass DI',                 slot: 8,  category: 'CHANNEL' },
+            { name: 'Drum OH L',               slot: 9,  category: 'CHANNEL' },
+            { name: 'Drum OH R',               slot: 10, category: 'CHANNEL' },
+            { name: 'Kick mic',                slot: 11, category: 'CHANNEL' },
+            { name: 'Snare top',               slot: 12, category: 'CHANNEL' }
+        ];
+
+        // ── DOM helpers ──────────────────────────────────────────────
+        const $  = id => document.getElementById(id);
+        const $$ = sel => Array.from(document.querySelectorAll(sel));
+
+        function showToast(text, isError = false, ms = 2400) {
+            const t = $('toast');
+            $('toastText').textContent = text;
+            t.classList.toggle('error', isError);
+            t.classList.add('show');
+            // Swap icon path for X on error
+            if (isError) {
+                $('toastCheck').setAttribute('d', 'M18 6L6 18M6 6l12 12');
+            } else {
+                $('toastCheck').setAttribute('d', 'M20 6L9 17l-5-5');
+            }
+            clearTimeout(t._timer);
+            t._timer = setTimeout(() => t.classList.remove('show'), ms);
+        }
+
+        // ── Activity log ────────────────────────────────────────────
+        function logLine(text, kind = 'info') {
+            const card = $('logCard');
+            const ts = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+            // First line is placeholder; append after it.
+            if (card.firstChild && card.firstChild.querySelector && card.firstChild.querySelector('.ts') && card.firstChild.querySelector('.ts').textContent === '[--:--]') {
+                card.innerHTML = '';
+            }
+            const div = document.createElement('div');
+            div.className = 'log-entry' + (kind === 'success' ? ' success' : kind === 'error' ? ' error' : '');
+            div.innerHTML = `<span class="ts">[${ts}]</span><span></span>`;
+            div.lastChild.textContent = text;
+            card.appendChild(div);
+            card.scrollTop = card.scrollHeight;
+        }
+
+        // ── Status indicator ────────────────────────────────────────
+        function setStatus(kind, label) {
+            const dot = $('statusDot');
+            dot.classList.remove('ok', 'error');
+            if (kind === 'ok')    dot.classList.add('ok');
+            if (kind === 'error') dot.classList.add('error');
+            $('statusLabel').textContent = label;
+        }
+
+        // ── Render presets into chips ──────────────────────────────
+        function renderLibrary() {
+            const wrap = $('presetLibrary');
+            wrap.innerHTML = '';
+            if (!state.library.length) {
+                wrap.innerHTML = '<span style="color:var(--text-dim); font-size:0.78rem; font-style:italic;">Leeg — klik "Herlaad presets" hieronder.</span>';
+                return;
+            }
+            state.library.forEach((p, idx) => {
+                const chip = document.createElement('button');
+                chip.className = 'preset-chip';
+                chip.title = `${p.name}  ·  klik om op geselecteerd kanaal te zetten`;
+                chip.innerHTML = `${escapeHtml(p.name)} · <strong>slot ${p.slot}</strong><span class="chip-del" data-del="${idx}">×</span>`;
+                chip.addEventListener('click', (e) => {
+                    if (e.target.classList.contains('chip-del')) {
+                        e.stopPropagation();
+                        state.library.splice(Number(e.target.dataset.del), 1);
+                        renderLibrary();
+                        return;
+                    }
+                    // Apply the preset to whichever channel the operator
+                    // last touched. State.targetChannel is updated by input
+                    // listeners in renderChannels() below, so this matches
+                    // the visible "I'm working on Ch N" focus. Defaults
+                    // to 1 on first interaction.
+                    applyPresetToChannel(state.targetChannel, p.slot, p.name, p.category);
+                });
+                wrap.appendChild(chip);
+            });
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, c => ({
+                '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+            }[c]));
+        }
+
+        // ── Build the 32 channel cards ─────────────────────────────
+        function renderChannels() {
+            const grid = $('channelGrid');
+            grid.innerHTML = '';
+            for (let i = 1; i <= 32; i++) {
+                const ch = String(i).padStart(2, '0');
+                const card = document.createElement('div');
+                card.className = 'channel-card';
+                card.innerHTML = `
+                    <div>
+                        <div class="ch-num">Ch ${i}</div>
+                        <div class="ch-key">/ch/${ch}</div>
+                    </div>
+                    <div class="ch-form">
+                        <select class="ch-cat" data-ch="${i}" data-field="cat" title="Preset-categorie">
+                            ${CATEGORIES.map(c => `<option value="${c.value}" ${c.value === 'CHANNEL' ? 'selected' : ''}>${escapeHtml(c.label)}</option>`).join('')}
+                        </select>
+                        <input class="ch-field slot" type="number" min="0" max="99" value="0"
+                               data-ch="${i}" data-field="slot" placeholder="slot">
+                    </div>
+                    <input class="ch-field" type="text" placeholder="preset-naam (optioneel)"
+                           data-ch="${i}" data-field="name">
+                    <button class="ch-btn" data-ch="${i}">Laad preset</button>
+                `;
+                grid.appendChild(card);
+            }
+            // (Click handler & focusin delegate are registered once
+            // below renderChannels via setTargetChannel/pin-on-click.)
+            // The duplicate click listener previously here was removed
+            // when focusin + setTargetChannel were added.
+        }
+
+        // Stash the grid element on the function for the later
+        // hookups; renderChannels() above ends without a click listener
+        // because setTargetChannel handles that wiring.
+
+        // Single source of truth for "which card is the chip target right
+        // now". Updates the orange pill, the active-card border, and the
+        // `state.targetChannel` value. Called by both the focusin
+        // delegate (typing in a kanaalveld) and the per-channel button
+        // click (so clicking "Laad preset" on Ch 12 also pins Ch 12 as
+        // the chip target — operators expect this).
+        function setTargetChannel(ch) {
+            if (!Number.isInteger(ch) || ch < 1 || ch > 32) return;
+            state.targetChannel = ch;
+            const pill = $('libraryTarget');
+            if (pill) pill.innerHTML = `Chips richten op <strong>Ch&nbsp;${ch}</strong>`;
+            $$('.channel-card').forEach(card => {
+                const btn = card.querySelector('.ch-btn');
+                if (!btn) return;
+                card.classList.toggle('active', Number(btn.dataset.ch) === ch);
+            });
+        }
+
+        // focusin bubbles (unlike focus), so a single delegate on the
+        // grid catches keystrokes / mouse-clicks on every input & select
+        // across all 32 cards without attaching 96 listeners.
+        grid.addEventListener('focusin', (e) => {
+            const target = e.target.closest('[data-ch]');
+            if (!target) return;
+            setTargetChannel(Number(target.dataset.ch));
+        });
+
+        // Pin target when an operator clicks "Laad preset" on a card,
+        // even if they didn't tab through the inputs.
+        grid.addEventListener('click', (e) => {
+            const btn = e.target.closest('.ch-btn');
+            if (!btn) return;
+            const ch = Number(btn.dataset.ch);
+            setTargetChannel(ch);
+            const slot = Number(grid.querySelector(`.ch-field.slot[data-ch="${ch}"]`).value);
+            const cat  = grid.querySelector(`.ch-cat[data-ch="${ch}"]`).value;
+            const name = grid.querySelector(`.ch-field[data-ch="${ch}"][data-field="name"]`).value.trim();
+            if (!Number.isInteger(slot) || slot < 0 || slot > 99) {
+                showToast('Slot moet 0..99 zijn', true);
+                return;
+            }
+            applyPresetToChannel(ch, slot, name, cat);
+        });
+
+        // ── Network: POST preset recall ───────────────────────────
+        async function applyPresetToChannel(channel, slot, name, category) {
+            const ip = state.x32Ip.trim();
+            try {
+                const r = await fetch('/api/load-channel-preset', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip, channel, slot, name, category })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+                logLine(`OK · ch ${String(channel).padStart(2,'0')}  slot ${slot}  cat=${category}  → ${data.x32}`, 'success');
+                showToast(`Preset ${slot} → Ch ${channel}`);
+                state.stat = 'ok';
+                setStatus('ok', 'Bridge actief');
+            } catch (err) {
+                logLine(`FOUT · ${err.message}`, 'error');
+                showToast(err.message, true, 3200);
+                state.stat = 'error';
+                setStatus('error', 'Storing');
+            }
+        }
+
+        // ── Raw OSC submit ────────────────────────────────────────
+        $('btnRawSend').addEventListener('click', async () => {
+            const address = $('rawAddress').value.trim();
+            const argsRaw = $('rawArgs').value.trim();
+            if (!address.startsWith('/')) {
+                showToast('Adres moet beginnen met /', true);
+                return;
+            }
+            let args;
+            if (argsRaw) {
+                try { args = JSON.parse(argsRaw); }
+                catch (e) { showToast('Argumenten-JSON ongeldig: ' + e.message, true); return; }
+            }
+            try {
+                const r = await fetch('/api/send', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: state.x32Ip.trim(), address, args })
+                });
+                const data = await r.json();
+                if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+                logLine(`RAW · ${address} ${argsRaw || ''} → ${data.x32}`, 'success');
+                showToast('OSC verstuurd');
+            } catch (err) {
+                logLine(`FOUT · ${err.message}`, 'error');
+                showToast(err.message, true, 3200);
+            }
+        });
+
+        // ── Library buttons ───────────────────────────────────────
+        $('btnSeedLibrary').addEventListener('click', () => {
+            state.library = SEED_PRESETS.slice();
+            renderLibrary();
+            showToast('Bibliotheek geladen: ' + state.library.length + ' presets');
+        });
+
+        $('btnClearLibrary').addEventListener('click', () => {
+            state.library = [];
+            renderLibrary();
+        });
+
+        $('btnSaveCurrent').addEventListener('click', () => {
+            // Snapshot every channel-card slot+cat into the library.
+            // Useful when the operator finishes a rehearsal and
+            // wants to reuse the same routing next Sunday.
+            const snapshot = $$('#channelGrid .channel-card').map(card => {
+                const ch = card.querySelector('.ch-btn').dataset.ch;
+                const slot = card.querySelector('.ch-field.slot').value;
+                const cat  = card.querySelector('.ch-cat').value;
+                const name = card.querySelector('.ch-field[data-field="name"]').value.trim();
+                return {
+                    name: name || `Ch ${ch}/cat ${cat}`,
+                    slot: Number(slot) || 0,
+                    category: cat
+                };
+            }).filter(p => p.slot > 0 || p.name);
+            state.library = snapshot;
+            renderLibrary();
+            showToast('Huidige waarden opgeslagen in bibliotheek');
+        });
+
+        // ── Persist X32 IP ────────────────────────────────────────
+        $('x32Ip').addEventListener('input', e => {
+            state.x32Ip = e.target.value;
+            localStorage.setItem('x32:x32ip', state.x32Ip);
+        });
+
+        // ── Health probe at load ──────────────────────────────────
+        async function probeBridge() {
+            try {
+                const r = await fetch('/api/health');
+                const data = await r.json();
+                state.stat = 'ok';
+                setStatus('ok', `Bridge actief · OSC → ${data.oscTarget.host}:${data.oscTarget.port}`);
+                logLine(`Bridge ready · OSC → ${data.oscTarget.host}:${data.oscTarget.port}`, 'success');
+            } catch (err) {
+                state.stat = 'error';
+                setStatus('error', 'Bridge offline');
+                logLine('Bridge niet bereikbaar (' + err.message + ')', 'error');
+            }
+        }
+
+        // ── Init ─────────────────────────────────────────────────
+        $('x32Ip').value = state.x32Ip;
+        renderChannels();
+        renderLibrary();
+        setTargetChannel(1);   // paint the initial chip-target pill + Ch 1 card highlight
+        probeBridge();
+    </script>
+</body>
+</html>

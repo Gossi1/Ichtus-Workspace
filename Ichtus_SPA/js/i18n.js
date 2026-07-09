@@ -48,6 +48,7 @@ const i18n = {
             nav_analytics: 'Analytics',
             nav_setlist: 'Setlist',
                         nav_ndi: 'NDI',
+            nav_stagebuilder: 'Stage Builder',
             nav_settings: 'Instellingen',
 
             // ==================== CHECKLIST MODULE ====================
@@ -399,6 +400,7 @@ const i18n = {
             nav_setlist: 'Setlist',
             nav_ndi: 'NDI',
             nav_settings: 'Settings',
+            nav_stagebuilder: 'Stage Builder',
 
             // ==================== CHECKLIST MODULE ====================
             role_selector_title: 'Select Station',

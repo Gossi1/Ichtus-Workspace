@@ -75,10 +75,17 @@ chrome.runtime.sendMessage({ type: 'GET_LAST_ROSTER' }, (response) => {
 });
 
 // Listen for the SPA page to signal it is ready to receive data.
-// This fires every time the user navigates to the Setlist view.
+// This fires every time the user navigates to the Setlist or Stage Builder view.
 document.addEventListener('ichtus-setlist-ready', () => {
   console.log('[BRIDGE] Heard ichtus-setlist-ready — has cache?', !!cachedSetlist);
   if (cachedSetlist) {
     dispatchSetlist(cachedSetlist, cachedDate);
+  }
+});
+
+document.addEventListener('ichtus-stagebuilder-ready', () => {
+  console.log('[BRIDGE] Heard ichtus-stagebuilder-ready — has roster cache?', !!cachedRoster);
+  if (cachedRoster) {
+    dispatchRoster(cachedRoster);
   }
 });

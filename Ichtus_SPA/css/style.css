@@ -927,7 +927,7 @@ button:hover, .btn-label:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 1000;
+    z-index: 9998;
 }
 
 .task-modal-dialog {
@@ -3059,7 +3059,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     border-color: var(--ichtus-orange);
 }
 
-#view-setlist .tpl-btn-remove {
+#view-setlist #setlist-template-modal .tpl-btn-remove {
     background: rgba(237, 28, 36, 0.2);
     color: var(--ichtus-red);
     border: 1px solid var(--ichtus-red);
@@ -3070,7 +3070,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     transition: all 0.2s;
 }
 
-#view-setlist .tpl-btn-remove:hover {
+#view-setlist #setlist-template-modal .tpl-btn-remove:hover {
     background: var(--ichtus-red);
     color: white;
 }
@@ -5298,7 +5298,7 @@ input:checked + .slider::before { transform: translateX(20px); }
         linear-gradient(-45deg, #151515 25%, transparent 25%), 
         linear-gradient(45deg, transparent 75%, #151515 75%), 
         linear-gradient(-45deg, transparent 75%, #151515 75%);
-    background-size: 12px 12px;
+    background-size: 14px 14px;
     background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
 }
 
@@ -5312,3 +5312,610 @@ input:checked + .slider::before { transform: translateX(20px); }
 }
 
 /* ==========================================================================
+
+/* ============================================================================
+   SETLIST TEMPLATE MODAL — Compact Grid Layout (override for #setlist-template-modal)
+   Replaces the wider max-width and flex rows with a tighter grid layout.
+   The dialog itself is defined earlier (.task-modal-dialog, .overlay-task-modal);
+   here we only override sizing, add drag handles, inline insert triggers,
+   fade-in remove buttons, and SortableJS ghost styling.
+   ============================================================================ */
+#setlist-template-modal .task-modal-dialog {
+    max-width: 680px;
+}
+#setlist-template-modal .task-modal-dialog {
+    overflow: hidden;
+}
+#setlist-template-modal .modal-content-scroll {
+    padding: 16px 16px 24px 16px;
+    overflow-y: auto;
+    max-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    align-items: center;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Editable Header Title — Template name is now a text input */
+.header-title-container {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex: 1;
+}
+.modal-dialog-title-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1;
+}
+.editable-template-title {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 0 6px;
+    margin: 0;
+    outline: none;
+    max-width: 220px;
+    height: auto;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    color: #ff9f43;
+    text-shadow: 0 0 10px rgba(255, 159, 67, 0.3);
+    font-family: inherit;
+}
+.editable-template-title:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.editable-template-title:focus {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: #ff9f43;
+    box-shadow: 0 0 8px rgba(255, 159, 67, 0.2);
+}
+
+/* Drag handle on the left of each row (.tpl-drag-handle) */
+#setlist-template-modal .tpl-drag-handle {
+    cursor: grab;
+    color: rgba(255, 255, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: color 0.15s ease;
+}
+#setlist-template-modal .tpl-drag-handle:hover {
+    color: #ff9f43;
+}
+.tpl-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Inline ⊕ trigger — appears between rows on hover */
+#setlist-template-modal .tpl-inline-insert-trigger {
+    position: absolute;
+    bottom: -11px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.6);
+    background: #28c76f;
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0;
+    z-index: 10;
+    box-shadow: 0 0 8px rgba(40, 199, 111, 0.6);
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease;
+}
+#setlist-template-modal .tpl-inline-insert-trigger::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 10%, rgba(40, 199, 111, 0.4) 50%, transparent 90%);
+    z-index: -1;
+    pointer-events: none;
+}
+#setlist-template-modal .tpl-item-row:hover .tpl-inline-insert-trigger {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+#setlist-template-modal .tpl-inline-insert-trigger:hover {
+    background: #21a058;
+    transform: translateX(-50%) scale(1.2) !important;
+    box-shadow: 0 0 12px rgba(40, 199, 111, 0.9);
+}
+
+/* SortableJS Ghost — translucent dashed copy while dragging */
+#setlist-template-modal .sortable-ghost {
+    opacity: 0.3;
+    background: rgba(255, 159, 67, 0.05) !important;
+    border: 1px dashed rgba(255, 159, 67, 0.4) !important;
+}
+
+#setlist-template-modal .tpl-row-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+/* flex children default to min-width: auto (= min-content), which lets the select
+   collapse to its longest <option> text. Override to `min-width: 0` so our explicit
+   per-field min-widths are honored, not the browser’s intrinsic min-content. */
+#setlist-template-modal .tpl-row-fields > * { min-width: 0; }
+/* Floor widths so flex-wrap doesn't shrink inputs below their readable content. */
+#setlist-template-modal .tpl-item-row .i-name    { min-width: 200px; }
+#setlist-template-modal .tpl-item-row .i-type    { min-width: 120px; }
+#setlist-template-modal .tpl-item-row .i-color   { min-width: 32px; width: 32px; height: 30px; }
+#setlist-template-modal .tpl-item-row .i-insert  { min-width: 150px; }
+#setlist-template-modal .tpl-item-row .i-uuid    { min-width: 240px; }
+#setlist-template-modal .tpl-item-row .i-dest    { min-width: 100px; width: 100px; }
+#setlist-template-modal .tpl-item-row input[type="text"],
+#setlist-template-modal .tpl-item-row select {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    color: #ffffff;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    outline: none;
+    height: 30px;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+/* Keep select text away from the native dropdown chevron. */
+/* Modern liquid-glass chevron: native arrow removed, custom 12px white-translucent
+   SVG sits 10px from the right edge, 28px right padding so text never collides with it. */
+#setlist-template-modal .tpl-item-row select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 6px 28px 6px 10px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2714%27%20height%3D%2714%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23ff9f43%27%20stroke-width%3D%272.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M6%209l6%206%206-6%27%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+    text-overflow: ellipsis;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.3); }
+#setlist-template-modal .tpl-item-row select:hover {
+    border-color: rgba(255, 159, 67, 0.5);
+    background-color: rgba(0, 0, 0, 0.30);
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row input[type="text"]:focus,
+#setlist-template-modal .tpl-item-row select:focus {
+    border-color: #ff9f43;
+    /* Use background-COLOR (longhand) so the chevron background-image is NOT reset. */
+    background-color: rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 0 2px rgba(255, 159, 67, 0.25);
+    outline: none;
+}
+#setlist-template-modal .tpl-item-row input[type="color"] {
+    -webkit-appearance: none;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+#setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+
+#setlist-template-modal .btn-close-modal {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition: all 0.15s;
+    height: 30px;
+    width: 30px;
+}
+#setlist-template-modal .btn-close-modal:hover {
+    background: rgba(234, 84, 85, 0.15);
+    color: #ea5455;
+}
+
+/* Fade-in delete button — invisible until row is hovered */
+.tpl-btn-remove {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    height: 30px;
+    width: 30px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, background 0.15s, color 0.15s;
+}
+#setlist-template-modal .tpl-item-row:hover .tpl-btn-remove {
+    opacity: 1;
+    pointer-events: auto;
+}
+.tpl-btn-remove:hover {
+    background: rgba(234, 84, 85, 0.15);
+    color: #ea5455;
+}
+
+/* Wide trigger at the bottom of the scroll area */
+.btn-list-add-trigger {
+    background: rgba(40, 199, 111, 0.06);
+    border: 1px dashed rgba(40, 199, 111, 0.3);
+    color: #28c76f;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 4px;
+}
+.btn-list-add-trigger:hover {
+    background: rgba(40, 199, 111, 0.15);
+    border-style: solid;
+    border-color: rgba(40, 199, 111, 0.5);
+}
+
+.modal-footer-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.01);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.footer-right {
+    display: flex;
+    gap: 8px;
+    width: auto;
+    justify-content: flex-end;
+}
+#setlist-template-modal .btn-nav,
+#setlist-template-modal .btn-upload {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+}
+#setlist-template-modal .btn-nav:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+/* Opslaan (btn-save-tpl) no longer uses the orange->red gradient;
+   it falls back to the default .btn-upload neutral background
+   (same as Annuleren). border: none + color: #ffffff + font-weight: 600
+   are kept so the button still reads as slightly more prominent.
+   The matching inline <style> block in index.html has the same edit. */
+#setlist-template-modal .btn-upload.btn-label {
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.footer-actions-menu-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.btn-icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+.footer-dropdown-menu {
+    display: none;
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    background: rgba(25, 28, 36, 0.85);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    min-width: 170px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 1010;
+    padding: 4px 0;
+}
+.footer-actions-menu-wrapper.open .footer-dropdown-menu {
+    display: block;
+}
+.dropdown-item {
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    padding: 8px 14px;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.dropdown-item.danger-text {
+    color: #ea5455;
+}
+.dropdown-item.danger-text:hover {
+    background: rgba(234, 84, 85, 0.1);
+}
+
+#setlist-template-modal .dropdown-item {
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    padding: 8px 14px;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#setlist-template-modal .dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+#setlist-template-modal .dropdown-item.danger-text {
+    color: #ea5455;
+}
+#setlist-template-modal .dropdown-item.danger-text:hover {
+    background: rgba(234, 84, 85, 0.1);
+}
+
+/* ==========================================================================
+   X32 LIBRARY MAP MODAL \u2014 spec from source (2).html
+   Glass-card editor for the operator's name -> X32 channel-library slot
+   mapping. Open via the list-icon button in the Stage Builder header.
+   ========================================================================== */
+
+.sb-config-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9998;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+.sb-glass-config-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%;
+    max-width: 640px;
+    box-shadow:
+        0 20px 50px rgba(0, 0, 0, 0.5),
+        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    color: #e2e8f0;
+}
+
+.sb-config-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.sb-config-title-block h3 {
+    margin: 0;
+    font-size: 1.15rem;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.sb-patch-count-badge {
+    font-size: 0.75rem;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.04);
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.sb-x32-help {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #94a3b8;
+    margin: 0 0 18px 0;
+    background: rgba(0, 0, 0, 0.2);
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 3px solid #38bdf8;
+}
+
+.sb-x32-row {
+    display: grid;
+    grid-template-columns: 1fr 100px 32px;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+}
+
+.sb-glass-config-card .form-input {
+    width: 100%;
+    box-sizing: border-box;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: #f1f5f9;
+    font-size: 0.85rem;
+    outline: none;
+    transition: all 0.2s ease;
+}
+
+.sb-glass-config-card .form-input:focus {
+    border-color: rgba(56, 189, 248, 0.5);
+    box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+    background: rgba(0, 0, 0, 0.4);
+}
+
+.sb-glass-config-card .form-input[data-x32-field="slot"] {
+    color: #fbbf24;
+    font-weight: 700;
+    text-align: center;
+}
+
+.sb-btn-delete-row {
+    background: transparent;
+    border: none;
+    color: #64748b;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.15s ease;
+}
+
+.sb-x32-row:hover .sb-btn-delete-row {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.sb-btn-delete-row:hover {
+    background: rgba(239, 68, 68, 0.15);
+    color: #f87171;
+}
+
+.sb-x32-actions-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#sb-x32-library-status {
+    font-size: 0.75rem;
+    color: #64748b;
+    flex-basis: 100%;
+    margin-bottom: 4px;
+}
+
+.sb-btn-mini {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #cbd5e1;
+    padding: 6px 14px;
+    border-radius: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    transition: all 0.2s ease;
+}
+
+.sb-btn-mini:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#sb-add-x32-library-row {
+    background: rgba(56, 189, 248, 0.08);
+    border-color: rgba(56, 189, 248, 0.2);
+    color: #38bdf8;
+    margin-right: auto;
+}
+#sb-add-x32-library-row:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: #38bdf8;
+}
+
+#sb-save-x32-library-firebase {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.2);
+    color: #4ade80;
+}
+#sb-save-x32-library-firebase:hover {
+    background: rgba(34, 197, 94, 0.18);
+    border-color: #4ade80;
+    box-shadow: 0 0 12px rgba(34, 197, 94, 0.15);
+}
+
+.sb-config-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 16px;
+}
+
+.sb-btn-mini-close {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #94a3b8;
+    padding: 6px 16px;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.sb-btn-mini-close:hover {
+    background: rgba(255, 255, 255, 0.05);
+    color: #f1f5f9;
+    border-color: rgba(255, 255, 255, 0.25);
+}
+
+#view-stagebuilder .sb-header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}

@@ -6,7 +6,7 @@
     <base href='/Ichtus_SPA/'>
     <title>Ichtus Workspace</title>
     <link rel='stylesheet' href='../shared-assets/css/branding.css'>
-    <link rel='stylesheet' href='css/style.css?v=3'>
+    <link rel='stylesheet' href='css/style.css?v=8'>
     <link rel='stylesheet' href='css/checklist-modern.css'>
     <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
 </head>
@@ -1026,23 +1026,328 @@
                  MODAL OVERLAY LAYOUT DIALOGS
                  ================================================================== -->
 
-            <!-- 1. Template Editor Modal Dialog Container -->
+                                    <!-- 1. Template Editor Modal Dialog Container
+                 Recreated from the user's reference: grid-based rows, green +
+                 insert trigger between rows on hover, fade-in delete button,
+                 ⋮ dropdown for Reset/Verwijder, Annuleren + Opslaan
+                 footer-right. The inline <style> is scoped to
+                 #setlist-template-modal so it wins over the older
+                 #view-setlist .tpl-item-row flex rules. The inline
+                 <script> provides the dropdown close-on-outside-click
+                 handler + a global addNewItemAtPosition() helper. SortableJS
+                 is NOT re-bound here — setlistModule.openTemplateEditor()
+                 in setlist.js still owns that lifecycle. -->
             <div id="setlist-template-modal" class="overlay-screen overlay-task-modal hidden">
                 <div class="task-modal-dialog">
                     <div class="modal-header-row">
-                        <h3 class="modal-dialog-title">Template Bewerken: <span id="edit-tpl-name" class="orange-text"></span></h3>
-                        <button id="btn-close-setlist-modal" class="btn-close-modal" title="Sluiten">✖</button>
+                        <div class="header-title-container">
+                            <span class="modal-dialog-title-label">Template:</span>
+                            <input type="text" id="edit-tpl-name" class="editable-template-title orange-text" value="DoopDienst" placeholder="Template Naam..." title="Klik om naam te wijzigen">
+                        </div>
+                        <button id="btn-close-setlist-modal" class="btn-close-modal" title="Sluiten">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
                     </div>
 
-                    <!-- Active items wrapper hook -->
-                    <div id="tpl-items-container" class="modal-content-scroll"></div>
+                    <div id="tpl-items-container" class="modal-content-scroll">
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Welcome" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#6892af" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Loop voor de dienst" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header">Header</option>
+                                    <option value="presentation" selected>Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#000000" title="Color" style="display:none">
+                                <select class="i-insert" style="display:none; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" placeholder="Target UUID" style="display:block; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Openingslied" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#197c19" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening" selected>+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Mededelingen" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#5e460b" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Mededelingen" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header">Header</option>
+                                    <option value="presentation" selected>Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#000000" title="Color" style="display:none">
+                                <select class="i-insert" style="display:none; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" placeholder="Target UUID" style="display:block; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Praise &amp; Worship" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#197c19" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise" selected>+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Preek" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#b65a10" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/><circle cx="15" cy="5" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Doopliederen" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#968423" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Eindlied" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#197c19" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing" selected>+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Einde-Dienst" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header" selected>Header</option>
+                                    <option value="presentation">Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#8b0000" title="Color" style="display:block">
+                                <select class="i-insert" style="display:block; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                        <div class="tpl-item-row">
+                            <div class="tpl-drag-handle">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                            </div>
+                            <div class="tpl-row-fields">
+                                <input type="text" class="i-name" value="Loop na de dienst" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                                    <option value="header">Header</option>
+                                    <option value="presentation" selected>Presentation</option>
+                                </select>
+                                <input type="color" class="i-color" value="#000000" title="Color" style="display:none">
+                                <select class="i-insert" style="display:none; flex: 1.5;">
+                                    <option value="">No Insert</option>
+                                    <option value="opening">+ Opening</option>
+                                    <option value="praise">+ Worship</option>
+                                    <option value="closing">+ Closing</option>
+                                </select>
+                                <input type="text" class="i-uuid" value="6e8e3626-ebcc-4efa-aad1-53253561d08a" placeholder="Target UUID" style="display:block; flex: 2;">
+                                <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                            </div>
+                            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                            </button>
+                            <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                        </div>
+
+                    </div>
 
                     <div class="modal-footer-row">
-                        <div class="footer-left">
-                            <button id="btn-add-tpl-item" class="btn-nav">+ Item Toevoegen</button>
-                            <button id="btn-reset-tpl" class="btn-nav">Reset naar Standaard</button>
-                            <button id="btn-del-tpl" class="btn-nav danger-outline">Verwijder Template</button>
+                        <div class="footer-actions-menu-wrapper">
+                            <button class="btn-nav btn-icon-only" onclick="this.parentElement.classList.toggle('open')" title="Meer opties">⋮</button>
+                            <div class="footer-dropdown-menu">
+                                <button id="btn-reset-tpl" class="dropdown-item">Reset naar standaard</button>
+                                <button id="btn-del-tpl" class="dropdown-item danger-text">Verwijder Template</button>
+                            </div>
                         </div>
+
                         <div class="footer-right">
                             <button id="btn-close-setlist-modal-alt" class="btn-nav" onclick="setlistModule.closeTemplateModal()">Annuleren</button>
                             <button id="btn-save-tpl" class="btn-upload btn-label">Opslaan</button>
@@ -1051,7 +1356,364 @@
                 </div>
             </div>
 
-            <!-- 2. New Template Modal Generation Box -->
+            <style>
+            /* All rules scoped to #setlist-template-modal so the new modal's
+               look does NOT leak into #new-template-modal, the Settings/
+               Agenda/Analytics .btn-nav/.btn-upload buttons, or anywhere
+               else that uses these shared class names. */
+            #setlist-template-modal .task-modal-dialog {
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5),
+                            inset 0 1px 0 rgba(255, 255, 255, 0.1);
+                border-radius: 14px;
+                max-width: 480px;
+                max-height: 80vh;
+            }
+            #setlist-template-modal .header-title-container {
+                display: flex;
+                align-items: baseline;
+                gap: 4px;
+                flex: 1;
+            }
+            #setlist-template-modal .modal-dialog-title-label {
+                font-size: 1.05rem;
+                font-weight: 600;
+                color: rgba(255, 255, 255, 0.6);
+                line-height: 1;
+            }
+            #setlist-template-modal .editable-template-title {
+                background: transparent;
+                border: 1px solid transparent;
+                border-radius: 5px;
+                font-size: 1.05rem;
+                font-weight: 600;
+                padding: 0 6px;
+                margin: 0;
+                outline: none;
+                max-width: 220px;
+                height: auto;
+                box-sizing: border-box;
+                transition: all 0.2s ease;
+            }
+            #setlist-template-modal .editable-template-title:hover {
+                background: rgba(255, 255, 255, 0.04);
+                border-color: rgba(255, 255, 255, 0.1);
+            }
+            #setlist-template-modal .editable-template-title:focus {
+                background: rgba(0, 0, 0, 0.3);
+                border-color: #ff9f43;
+                box-shadow: 0 0 8px rgba(255, 159, 67, 0.2);
+            }
+            #setlist-template-modal .orange-text {
+                color: #ff9f43;
+                text-shadow: 0 0 10px rgba(255, 159, 67, 0.3);
+            }
+            #setlist-template-modal .modal-content-scroll {
+                padding: 16px 16px 24px 16px;
+                overflow-y: auto;
+                max-height: 50vh;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            #setlist-template-modal .tpl-item-row {
+                position: relative;
+                display: grid;
+                grid-template-columns: auto 1fr auto;
+                gap: 8px;
+                padding: 10px 12px;
+                background: rgba(255, 255, 255, 0.02);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                border-radius: 8px;
+                align-items: center;
+            }
+            #setlist-template-modal .tpl-item-row:hover {
+                background: rgba(255, 255, 255, 0.04);
+                border-color: rgba(255, 255, 255, 0.12);
+            }
+            #setlist-template-modal .tpl-inline-insert-trigger {
+                position: absolute;
+                bottom: -11px;
+                left: 50%;
+                transform: translateX(-50%) scale(0.6);
+                background: #28c76f;
+                color: #fff;
+                width: 18px;
+                height: 18px;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 11px;
+                font-weight: bold;
+                cursor: pointer;
+                opacity: 0;
+                z-index: 10;
+                box-shadow: 0 0 8px rgba(40, 199, 111, 0.6);
+                transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease;
+            }
+            #setlist-template-modal .tpl-inline-insert-trigger::before {
+                content: '';
+                position: absolute;
+                width: 400px;
+                height: 1px;
+                background: linear-gradient(90deg, transparent 10%, rgba(40, 199, 111, 0.4) 50%, transparent 90%);
+                z-index: -1;
+                pointer-events: none;
+            }
+            #setlist-template-modal .tpl-item-row:hover .tpl-inline-insert-trigger {
+                opacity: 1;
+                transform: translateX(-50%) scale(1);
+            }
+            #setlist-template-modal .tpl-inline-insert-trigger:hover {
+                background: #21a058;
+                transform: translateX(-50%) scale(1.2) !important;
+                box-shadow: 0 0 12px rgba(40, 199, 111, 0.9);
+            }
+            #setlist-template-modal .tpl-drag-handle {
+                cursor: grab;
+                color: rgba(255, 255, 255, 0.25);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 4px;
+                transition: color 0.15s ease;
+            }
+            #setlist-template-modal .tpl-drag-handle:hover {
+                color: #ff9f43;
+            }
+            #setlist-template-modal .sortable-ghost {
+                opacity: 0.3;
+                background: rgba(255, 159, 67, 0.05) !important;
+                border: 1px dashed rgba(255, 159, 67, 0.4) !important;
+            }
+            #setlist-template-modal .tpl-row-fields {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            #setlist-template-modal .tpl-item-row input[type="text"],
+            #setlist-template-modal .tpl-item-row select {
+                background: rgba(0, 0, 0, 0.25);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                border-radius: 5px;
+                color: #ffffff;
+                padding: 6px 10px;
+                font-size: 0.85rem;
+                outline: none;
+                height: 30px;
+                box-sizing: border-box;
+                transition: all 0.2s;
+            }
+            #setlist-template-modal .tpl-item-row input[type="text"]::placeholder {
+                color: rgba(255, 255, 255, 0.3);
+            }
+            #setlist-template-modal .tpl-item-row input[type="text"]:focus,
+            #setlist-template-modal .tpl-item-row select:focus {
+                border-color: #ff9f43;
+                background: rgba(0, 0, 0, 0.35);
+            }
+            #setlist-template-modal .tpl-item-row input[type="color"] {
+                -webkit-appearance: none;
+                border: none;
+                width: 30px;
+                height: 30px;
+                border-radius: 6px;
+                cursor: pointer;
+                background: transparent;
+                padding: 0;
+            }
+            #setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+            #setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+            #setlist-template-modal .btn-close-modal {
+                background: transparent;
+                border: none;
+                color: rgba(255, 255, 255, 0.35);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 5px;
+                transition: all 0.15s;
+                height: 30px;
+                width: 30px;
+            }
+            #setlist-template-modal .btn-close-modal:hover {
+                background: rgba(234, 84, 85, 0.15);
+                color: #ea5455;
+            }
+            #setlist-template-modal .tpl-btn-remove {
+                background: transparent;
+                border: none;
+                color: rgba(255, 255, 255, 0.35);
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                border-radius: 5px;
+                height: 30px;
+                width: 30px;
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.2s ease, background 0.15s, color 0.15s;
+            }
+            #setlist-template-modal .tpl-item-row:hover .tpl-btn-remove {
+                opacity: 1;
+                pointer-events: auto;
+            }
+            #setlist-template-modal .tpl-btn-remove:hover {
+                background: rgba(234, 84, 85, 0.15);
+                color: #ea5455;
+            }
+            #setlist-template-modal .modal-footer-row {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                align-items: center;
+                padding: 12px 16px;
+                background: rgba(255, 255, 255, 0.01);
+                border-top: 1px solid rgba(255, 255, 255, 0.06);
+            }
+            #setlist-template-modal .footer-right {
+                display: flex;
+                gap: 8px;
+                width: auto;
+                justify-content: flex-end;
+            }
+            #setlist-template-modal .footer-actions-menu-wrapper {
+                position: relative;
+                display: inline-block;
+            }
+            #setlist-template-modal .btn-icon-only {
+                width: 32px;
+                height: 32px;
+                padding: 0;
+                justify-content: center;
+                font-size: 1.1rem;
+            }
+            #setlist-template-modal .footer-dropdown-menu {
+                display: none;
+                position: absolute;
+                bottom: 40px;
+                left: 0;
+                background: rgba(25, 28, 36, 0.85);
+                backdrop-filter: blur(14px);
+                -webkit-backdrop-filter: blur(14px);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                border-radius: 8px;
+                min-width: 170px;
+                box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+                z-index: 1010;
+                padding: 4px 0;
+            }
+            #setlist-template-modal .footer-actions-menu-wrapper.open .footer-dropdown-menu {
+                display: block;
+            }
+            #setlist-template-modal .dropdown-item {
+                background: transparent;
+                border: none;
+                color: #e2e8f0;
+                padding: 8px 14px;
+                text-align: left;
+                width: 100%;
+                font-size: 0.82rem;
+                cursor: pointer;
+                transition: background 0.15s;
+            }
+            #setlist-template-modal .dropdown-item:hover {
+                background: rgba(255, 255, 255, 0.05);
+            }
+            #setlist-template-modal .dropdown-item.danger-text {
+                color: #ea5455;
+            }
+            #setlist-template-modal .dropdown-item.danger-text:hover {
+                background: rgba(234, 84, 85, 0.1);
+            }
+            #setlist-template-modal .btn-nav,
+            #setlist-template-modal .btn-upload {
+                padding: 8px 12px;
+                font-size: 0.82rem;
+                font-weight: 500;
+                border-radius: 6px;
+                cursor: pointer;
+                transition: all 0.2s ease;
+                background: rgba(255, 255, 255, 0.04);
+                border: 1px solid rgba(255, 255, 255, 0.08);
+                color: #e2e8f0;
+                display: inline-flex;
+                align-items: center;
+            }
+            #setlist-template-modal .btn-nav:hover {
+                background: rgba(255, 255, 255, 0.1);
+            }
+            #setlist-template-modal .btn-upload.btn-label {
+                border: none;
+                color: #ffffff;
+                font-weight: 600;
+            }
+            #setlist-template-modal select option {
+                background: #181a20;
+                color: #fff;
+            }
+            </style>
+
+            <script>
+            // Close the ⋮ dropdown on any outside click.
+            (function() {
+                document.addEventListener('click', function(event) {
+                    const menuWrapper = document.querySelector('#setlist-template-modal .footer-actions-menu-wrapper');
+                    if (menuWrapper && !menuWrapper.contains(event.target)) {
+                        menuWrapper.classList.remove('open');
+                    }
+                });
+            })();
+
+            // Global addNewItemAtPosition \u2014 called by each row's \u2295 onclick.
+            // setlist.js has setlistModule.addNewItemAtPosition (more
+            // sophisticated: focus on insert, fallback to end-of-container).
+            // The inline rows use this global so the markup doesn't need a
+            // module reference. Both implementations coexist; the inline
+            // one wins for inline-rendered rows.
+            function addNewItemAtPosition(triggerElement) {
+                const currentRow = triggerElement.closest('.tpl-item-row');
+                if (!currentRow) return;
+                const newRow = document.createElement('div');
+                newRow.className = 'tpl-item-row';
+                newRow.innerHTML = `
+                    <div class="tpl-drag-handle">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>
+                    </div>
+                    <div class="tpl-row-fields">
+                        <input type="text" class="i-name" value="" placeholder="Nieuw Item" style="width: 100%; flex-basis: 100%;">
+                        <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                            <option value="header" selected>Header</option>
+                            <option value="presentation">Presentation</option>
+                        </select>
+                        <input type="color" class="i-color" value="#6892af" title="Color" style="display:block">
+                        <select class="i-insert" style="display:block; flex: 1.5;">
+                            <option value="">No Insert</option>
+                            <option value="opening">+ Opening</option>
+                            <option value="praise">+ Worship</option>
+                            <option value="closing">+ Closing</option>
+                        </select>
+                        <input type="text" class="i-uuid" value="" placeholder="Target UUID" style="display:none; flex: 2;">
+                        <input type="text" class="i-dest" value="presentation" placeholder="Dest" style="width: 90px;">
+                    </div>
+                    <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                    </button>
+                    <div class="tpl-inline-insert-trigger" onclick="addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
+                `;
+                currentRow.insertAdjacentElement('afterend', newRow);
+                const nameInput = newRow.querySelector('.i-name');
+                if (nameInput) nameInput.focus();
+            }
+            // Note: SortableJS is NOT re-bound here. setlistModule.openTemplateEditor()
+            // still owns the Sortable.create() / destroy() lifecycle on the
+            // #tpl-items-container element.
+            </script>
+<!-- 2. New Template Modal Generation Box -->
             <div id="new-template-modal" class="overlay-screen overlay-task-modal hidden">
                 <div class="task-modal-dialog size-small">
                     <div class="modal-header-row">
@@ -1174,12 +1836,24 @@
                         <h1>Roster → X32 Recaller</h1>
                         <p class='sb-subtitle'>Elke WorshipTools-toewijzing wordt automatisch gematcht aan een X32 library-preset. Kies een kanaal en druk op Recall (Companion-stijl libchan-recall).</p>
                     </div>
-                    <button id='sb-btn-refresh-status' class='sb-icon-btn' title='Ververs X32 session-status' onclick='stagebuilderModule.refreshSessionStatus()'>
-                        <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
-                            <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/>
-                            <path d='M21 3v5h-5'/>
-                        </svg>
-                    </button>
+                    <div class='sb-header-actions'>
+                        <button id='sb-btn-open-x32-library' class='sb-icon-btn' title='X32 Library Map bewerken' onclick='stagebuilderModule.openX32LibraryMap()'>
+                            <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                                <path d='M8 6h13'/>
+                                <path d='M8 12h13'/>
+                                <path d='M8 18h13'/>
+                                <path d='M3 6h.01'/>
+                                <path d='M3 12h.01'/>
+                                <path d='M3 18h.01'/>
+                            </svg>
+                        </button>
+                        <button id='sb-btn-refresh-status' class='sb-icon-btn' title='Ververs X32 session-status' onclick='stagebuilderModule.refreshSessionStatus()'>
+                            <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                                <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/>
+                                <path d='M21 3v5h-5'/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 <!-- Status bar: X32 IP + connect-state pill + Connect/Poll/Disconnect -->
@@ -1251,7 +1925,48 @@
             </div>
         </div>
 
+        </div>
+        <!-- /#view-stagebuilder -->
+
+        <!-- X32 Library Map modal (glass card, spec from source (2).html) -->
+        <div id="sb-x32-library-modal" class="sb-config-overlay hidden">
+            <div class="sb-glass-config-card" onclick="event.stopPropagation()">
+
+                <div class="sb-config-header">
+                    <div class="sb-config-title-block">
+                        <h3>X32 Library Map</h3>
+                        <span class="sb-patch-count-badge"><strong id="sb-x32-library-count">0</strong> Namen</span>
+                    </div>
+                </div>
+
+                <p class="control-desc sb-x32-help">
+                    One row per channel-DSP combo. Naam is free-form (bijv. <em>WL Mic</em>, <em>Vox 2 (Sara)</em>); slot is het bibliotheek-ID dat je in de X32 hebt opgeslagen via Setup &rarr; Library &rarr; save (0&ndash;99).
+                </p>
+
+                <div id="sb-x32-library-rows">
+                    <!-- rows are rendered by stagebuilderModule._renderX32LibraryRows() -->
+                </div>
+
+                <div class="sb-x32-actions-row">
+                    <span id="sb-x32-library-status" class="control-desc">Status: standalone (geen Firebase-sync tot je erom vraagt)</span>
+
+                    <button id="sb-add-x32-library-row" class="sb-btn-mini" type="button">Naam toevoegen</button>
+                    <button id="sb-save-x32-library" class="sb-btn-mini" type="button">Save (lokaal)</button>
+                    <button id="sb-load-x32-library" class="sb-btn-mini" type="button">Load van Firebase</button>
+                    <button id="sb-save-x32-library-firebase" class="sb-btn-mini" type="button">Save naar Firebase</button>
+                </div>
+
+                <div class="sb-config-footer">
+                    <button class="sb-btn-mini-close" type="button" onclick="stagebuilderModule.closeX32LibraryMap()">Sluiten</button>
+                </div>
+
+            </div>
+        </div>
+
     </main>
+
+    <!-- SortableJS v1.15.0 — drag/drop reordering of template rows -->
+    <script src='https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js'></script>
 
     <!-- ICAL Parser (loaded early for agenda parsing) - local copy, no CDN needed -->
     <script src='js/vendor/ical.min.js'></script>
