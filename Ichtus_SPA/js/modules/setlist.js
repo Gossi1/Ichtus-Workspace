@@ -78,6 +78,22 @@ const setlistModule = {
                 { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
             ]
         },
+        "avondmaalDienst": {
+            name: "AvondmaalDienst",
+            items: [
+                { type: "header", name: "Welcome", color: { red: 0.40784314274787903, green: 0.572549045085907, blue: 0.686274528503418, alpha: 1.0 } },
+                { type: "presentation", name: "Loop voor de dienst", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "header", name: "Intro", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "opening" },
+                { type: "header", name: "Announcments", color: { red: 0.3686274588108063, green: 0.27450981736183167, blue: 0.04313725605607033, alpha: 1.0 } },
+                { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "header", name: "Worship", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "praise" },
+                { type: "header", name: "Avondmaal", color: { red: 1.0, green: 0.843137264251709, blue: 0.0, alpha: 1.0 } },
+                { type: "header", name: "Preek", color: { red: 0.7137255072593689, green: 0.3529411852359772, blue: 0.062745101749897, alpha: 1.0 } },
+                { type: "header", name: "Ending Song", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "closing" },
+                { type: "header", name: "Service End", color: { red: 0.545098066329956, green: 0.0, blue: 0.0, alpha: 1.0 } },
+                { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+            ]
+        },
         "delightedYouth": {
             name: "Delighted Youth",
             items: [
@@ -717,10 +733,12 @@ const setlistModule = {
     openTemplateEditor() {
         this.editingTemplateKey = document.getElementById('setlist-service-type').value;
         const tpl = this.SERVICE_TEMPLATES[this.editingTemplateKey];
-        document.getElementById('edit-tpl-name').innerText = tpl.name;
+        // edit-tpl-name is now an <input type="text"> (editable inline title) — use .value.
+        document.getElementById('edit-tpl-name').value = tpl.name;
 
         const container = document.getElementById('tpl-items-container');
-        container.innerHTML = '';
+        // Remove only existing rows - preserve the .btn-list-add-trigger at the bottom.
+        container.querySelectorAll('.tpl-item-row').forEach(r => r.remove());
         tpl.items.forEach((item, index) => {
             container.appendChild(this.createItemRow(item, index));
         });
@@ -731,31 +749,89 @@ const setlistModule = {
         }
 
         document.getElementById('setlist-template-modal').classList.remove('hidden');
+
+        // Bind (or rebind) Sortable.js for drag/drop reordering on the rows container.
+        // The drag handle is .tpl-drag-handle; only .tpl-item-row is draggable so the
+        // + add-trigger at the bottom stays anchored. The btn-list-add-trigger must
+        // remain the LAST child of the container for addNewItemAtPosition() inserts.
+        if (typeof Sortable !== 'undefined') {
+            if (this.tplSortable) {
+                this.tplSortable.destroy();
+            }
+            this.tplSortable = Sortable.create(container, {
+                handle: '.tpl-drag-handle',
+                animation: 200,
+                draggable: '.tpl-item-row',
+                ghostClass: 'sortable-ghost'
+            });
+        }
     },
 
     createItemRow(item, index) {
         const div = document.createElement('div');
         div.className = 'tpl-item-row';
         const isHeader = item.type === 'header';
+        // 6-dot SVG handle (SortableJS .tpl-drag-handle target)
+        const dragHandleSvg = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/></svg>`;
+        // X-icon SVG for the remove button
+        const removeSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6L6 18M6 6l12 12"/></svg>`;
 
         div.innerHTML = `
-            <input type="text" class="i-name" value="${item.name || ''}" placeholder="Header/Item Name" style="flex:2; min-width:150px;">
-            <select class="i-type" onchange="setlistModule.toggleRowFields(this)">
-                <option value="header" ${isHeader ? 'selected' : ''}>Header</option>
-                <option value="presentation" ${!isHeader ? 'selected' : ''}>Presentation</option>
-            </select>
-            <input type="color" class="i-color" value="${this.rgbToHex(item.color)}" title="Header Color" style="display:${isHeader ? 'block' : 'none'}">
-            <select class="i-insert" style="display:${isHeader ? 'block' : 'none'}; flex:1;">
-                <option value="">No Insert</option>
-                <option value="opening" ${item.insert === 'opening' ? 'selected' : ''}>+ Opening Songs</option>
-                <option value="praise" ${item.insert === 'praise' ? 'selected' : ''}>+ Worship Songs</option>
-                <option value="closing" ${item.insert === 'closing' ? 'selected' : ''}>+ Closing Songs</option>
-            </select>
-            <input type="text" class="i-uuid" value="${item.uuid || ''}" placeholder="Target UUID" style="display:${!isHeader ? 'block' : 'none'}; flex:2;">
-            <input type="text" class="i-dest" value="${item.destination || 'presentation'}" placeholder="Destination" style="width:120px">
-            <button class="tpl-btn-remove" onclick="this.parentElement.remove()" title="Verwijder">✖</button>
+            <div class="tpl-drag-handle">${dragHandleSvg}</div>
+            <div class="tpl-row-fields">
+                <input type="text" class="i-name" value="${item.name || ''}" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
+                    <option value="header" ${isHeader ? 'selected' : ''}>Header</option>
+                    <option value="presentation" ${!isHeader ? 'selected' : ''}>Presentation</option>
+                </select>
+                <input type="color" class="i-color" value="${this.rgbToHex(item.color)}" title="Color" style="display:${isHeader ? 'block' : 'none'}">
+                <select class="i-insert" style="display:${isHeader ? 'block' : 'none'}; flex: 1.5;">
+                    <option value="">No Insert</option>
+                    <option value="opening" ${item.insert === 'opening' ? 'selected' : ''}>+ Opening</option>
+                    <option value="praise" ${item.insert === 'praise' ? 'selected' : ''}>+ Worship</option>
+                    <option value="closing" ${item.insert === 'closing' ? 'selected' : ''}>+ Closing</option>
+                </select>
+                <input type="text" class="i-uuid" value="${item.uuid || ''}" placeholder="Target UUID" style="display:${!isHeader ? 'block' : 'none'}; flex: 2;">
+                <input type="text" class="i-dest" value="${item.destination || 'presentation'}" placeholder="Dest" style="width: 90px;">
+            </div>
+            <button class="tpl-btn-remove" onclick="setlistModule.removeRow(this)" title="Verwijder">${removeSvg}</button>
+            <div class="tpl-inline-insert-trigger" onclick="setlistModule.addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>
         `;
         return div;
+    },
+
+    /**
+     * Remove a single template row by its remove button.
+     * Used by the fade-in delete buttons; called via inline onclick.
+     * Renamed from inline parentElement.remove() so we can hook in
+     * animations / dirty-state tracking later without touching markup.
+     */
+    removeRow(btnEl) {
+        const row = btnEl.closest('.tpl-item-row');
+        if (row) row.remove();
+    },
+
+    /**
+     * Insert a new editable template row IMMEDIATELY AFTER the row
+     * whose .tpl-inline-insert-trigger was clicked. The new row has
+     * the same DOM structure as createItemRow({type:'header',name:''}).
+     * Used by the green ⊕ buttons that appear between rows on hover.
+     */
+    addNewItemAtPosition(triggerEl) {
+        const container = document.getElementById('tpl-items-container');
+        if (!container) return;
+        const currentRow = triggerEl.closest('.tpl-item-row');
+        const newRow = this.createItemRow({ type: 'header', name: '' }, container.querySelectorAll('.tpl-item-row').length);
+        if (currentRow && currentRow.parentElement === container) {
+            currentRow.insertAdjacentElement('afterend', newRow);
+        } else {
+            const addBtn = container.querySelector('.btn-list-add-trigger');
+            if (addBtn) container.insertBefore(newRow, addBtn);
+            else container.appendChild(newRow);
+        }
+        // Autofocus the row's name input for quick editing
+        const nameInput = newRow.querySelector('.i-name');
+        if (nameInput) nameInput.focus();
     },
 
     toggleRowFields(selectEl) {
@@ -768,10 +844,23 @@ const setlistModule = {
 
     addTemplateItem() {
         const container = document.getElementById('tpl-items-container');
-        container.appendChild(this.createItemRow({ type: 'header', name: 'New Item' }, container.children.length));
+        // Insert the new row ABOVE the .btn-list-add-trigger.
+        const newRow = this.createItemRow({ type: 'header', name: 'New Item' }, container.querySelectorAll('.tpl-item-row').length);
+        const addBtn = container.querySelector('.btn-list-add-trigger');
+        if (addBtn) container.insertBefore(newRow, addBtn);
+        else container.appendChild(newRow);
     },
 
     saveTemplateEdit() {
+        // Persist any changes to the editable template title (the input.next to "Template:").
+        const titleEl = document.getElementById('edit-tpl-name');
+        if (titleEl && this.SERVICE_TEMPLATES[this.editingTemplateKey]) {
+            const newName = (titleEl.value || '').trim();
+            if (newName) this.SERVICE_TEMPLATES[this.editingTemplateKey].name = newName;
+        }
+        // Re-render the template <select> so a rename is reflected in the dropdown
+        // immediately, not just on next page reload.
+        this.renderTemplateDropdown();
         const rows = document.querySelectorAll('#tpl-items-container .tpl-item-row');
         const newItems = [];
         rows.forEach(row => {
@@ -798,6 +887,14 @@ const setlistModule = {
 
     closeTemplateModal() {
         document.getElementById('setlist-template-modal')?.classList.add('hidden');
+        // Collapse the footer dropdown so re-opening doesnt show a stuck-open menu.
+        const wrapper = document.querySelector('#setlist-template-modal .footer-actions-menu-wrapper');
+        if (wrapper) wrapper.classList.remove('open');
+        // Tear down the Sortable instance so any in-progress drag stops leaking listeners.
+        if (this.tplSortable) {
+            this.tplSortable.destroy();
+            this.tplSortable = null;
+        }
     },
 
     showNewTemplateModal() {
@@ -846,6 +943,14 @@ const setlistModule = {
     },
 
 };
+
+// Close the footer dropdown on outside click.
+document.addEventListener('click', function(event) {
+    const menuWrapper = document.querySelector('.footer-actions-menu-wrapper');
+    if (menuWrapper && !menuWrapper.contains(event.target)) {
+        menuWrapper.classList.remove('open');
+    }
+});
 
 // Make globally available for onclick handlers
 window.setlistModule = setlistModule;

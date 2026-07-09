@@ -19,7 +19,7 @@ const settingsModule = {
         proPresenterIp: '127.0.0.1',
         proPresenterPort: '50001'
     },
-    
+
     // Current settings (loaded from localStorage)
     settings: {},
 
@@ -29,6 +29,11 @@ const settingsModule = {
         this.fetchLatestGitHubVersion();
         this.render();
         this.applySettings();
+
+        // The X32 Library configuration lived here in earlier revisions;
+        // it was relocated into the Stage Builder view (open via the
+        // 🎚️ button next to the gear icon) so a single workspace
+        // owns the operator-chosen name + library-slot ID pairs.
     },
     
     loadSettings() {
@@ -325,8 +330,13 @@ const settingsModule = {
         // 7. Debug panel
         // ==========================================
         this.renderDebugPanel();
+
+        // The X32 Library Map editor used to live in this render() body
+        // until the move-to-Stage-Builder pivot in this revision; the
+        // 🎚️ button on the Stage Builder header now owns the editor.
+
     },
-    
+
     formatDateSample(date) {
         const format = this.getSetting('dateFormat');
         const day = String(date.getDate()).padStart(2, '0');
@@ -514,7 +524,13 @@ const settingsModule = {
                 setTimeout(() => location.reload(), 1500);
             }
         }
-    }
+    },
+
+    // The X32 Library configuration was relocated from Settings to the
+    // Stage Builder view in this revision; the relevant editor methods
+    // now live on `stagebuilderModule` (see `openX32LibraryMap`,
+    // `_saveX32LibraryMapLocally`, `_saveX32LibraryMapToFirebase`,
+    // `_loadX32LibraryMapFromFirebase`).
 };
 
 // Global format helper functions that other modules can use

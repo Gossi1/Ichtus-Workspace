@@ -19,12 +19,69 @@ import argparse
 import webbrowser
 import json
 import threading
+import signal
+import time
+import subprocess
+from collections import deque
 import urllib.request
 import urllib.error
 import zipfile
 import shutil
 from pathlib import Path
 from datetime import datetime
+
+# --- Robustness state (module-level) -------------------------------
+#
+# LOGSERVER_BUFFER holds the last N server-side log lines (one entry
+# per stdout/stderr write that contained non-whitespace). /api/status
+# exposes the buffer so the SPA can show *why* server.py just crashed
+# or stalled without the operator leaving the browser. The supervisor
+# spawns server.py inside a subprocess and reads its own copy of the
+# same stdout via a pipe — /api/status on the supervisor's :9090 port
+# gives a unified view across Python + Node children.
+#
+# Started-at and request-count are also surfaced so the SPA can render
+# "uptime 4h 12m · 137 requests served" without an extra backend call.
+LOGSERVER_BUFFER = deque(maxlen=50)
+LOGSERVER_LOCK = threading.Lock()
+LOGSERVER_STARTED_AT = None  # set in main() right before .serve_forever()
+
+
+class _TeeStream:
+    """A write-only stream shim. Forwards each byte to the wrapped
+    real stream (so the operator still sees the same console output as
+    before) AND appends a single trimmed, prefixed line to the shared
+    in-process log buffer so /api/status consumers (SPA, supervisor
+    probe) get a live tail.
+
+    Errors from the underlying stream are silently swallowed because
+    logging must NEVER raise — a broken logger would propagate into
+    the request handler and replace a useful 500 with an opaque
+    "BrokenPipeError" for the next visitor.
+    """
+
+    def __init__(self, real, label):
+        self.real = real
+        self.label = label
+
+    def write(self, s):
+        if s is None:
+            return 0
+        try:
+            self.real.write(s)
+        except Exception:
+            pass
+        if s and s.strip():
+            with LOGSERVER_LOCK:
+                LOGSERVER_BUFFER.append(f'[{self.label}] {s.rstrip()}')
+        return len(s)
+
+    def flush(self):
+        try:
+            self.real.flush()
+        except Exception:
+            pass
+
 
 # --- Configuratie ---
 ROOT_DIR = Path(__file__).resolve().parent  # Project-root = Ichtus_apps/
@@ -136,7 +193,13 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
     
     # Firebase config loaded at class level
     _firebase_config = None
-    
+
+    # Class-level request counter. /api/status surfaces this so the SPA
+    # can render "served 137 requests since startup" without hitting a
+    # backend datastore. int += is atomic under CPython's GIL which is
+    # enough for an operator-facing stat — no extra lock needed.
+    _REQUEST_COUNT = 0
+
     # Set the directory for serving files (class variable)
     directory = str(ROOT_DIR)
 
@@ -150,18 +213,88 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         super().end_headers()
 
     def do_GET(self):
+        # Count every inbound request (route + static file alike) so
+        # /api/status can show throughput. Cheap under the GIL.
+        IchtusHandler._REQUEST_COUNT += 1
+
         # Load Firebase config if not already loaded
         if IchtusHandler._firebase_config is None:
             IchtusHandler._firebase_config = load_firebase_config()
-        
+
+        # Fast /api/health — bypasses NDI discovery and the Tockify
+        # proxy so it ALWAYS returns < 50ms even during a hung scan.
+        # Used by the supervisor's liveness probe and start-server.bat's
+        # curl check after launch. Always-on; never 500s.
+        if self.path == '/api/health':
+            try:
+                uptime = int(time.time() - LOGSERVER_STARTED_AT) if LOGSERVER_STARTED_AT else 0
+            except Exception:
+                uptime = 0
+            payload = json.dumps({
+                'status': 'ok',
+                'service': 'ichtus-spa',
+                'pid': os.getpid(),
+                'uptime_sec': uptime,
+                'requests_served': IchtusHandler._REQUEST_COUNT,
+                'threading': True,
+                'timestamp': datetime.now().isoformat()
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+            return
+
+        # /api/status — richer snapshot for the SPA's status panel.
+        # Returns the same uptime/PID/request stats as /api/health
+        # plus the in-process log_tail so the operator can see *why*
+        # the server is misbehaving without leaving the browser tab.
+        if self.path == '/api/status' or self.path.startswith('/api/status?'):
+            try:
+                uptime = int(time.time() - LOGSERVER_STARTED_AT) if LOGSERVER_STARTED_AT else 0
+                started_iso = (
+                    datetime.fromtimestamp(LOGSERVER_STARTED_AT).isoformat()
+                    if LOGSERVER_STARTED_AT else None
+                )
+            except Exception:
+                uptime = 0
+                started_iso = None
+            with LOGSERVER_LOCK:
+                tail = list(LOGSERVER_BUFFER)
+            payload = json.dumps({
+                'service': 'ichtus-spa',
+                'status': 'ok',
+                'pid': os.getpid(),
+                'uptime_sec': uptime,
+                'started_at': started_iso,
+                'requests_served': IchtusHandler._REQUEST_COUNT,
+                'hostname': socket.gethostname(),
+                'version': UPDATE_CONFIG['current_version'],
+                'threading': True,
+                'log_tail': tail,
+                'log_tail_size': len(tail),
+                'log_buffer_capacity': LOGSERVER_BUFFER.maxlen,
+                'timestamp': datetime.now().isoformat()
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+            return
+
         # Check if this is an HTML file that needs config injection
         if self.path.endswith('.html') or self.path == '/':
             self.serve_html_with_config()
             return
-        
+
         print(f'  DEBUG: GET path={repr(self.path)}')
-        
-        # Test endpoint - always works
+
+        # Test endpoint - always works (kept for backward-compat with
+        # start-server.bat's launch probe and any external monitor that
+        # learned the URL before /api/health existed).
         if self.path.startswith('/api/test'):
             print(f'  DEBUG: Test endpoint matched!')
             self.send_response(200)
@@ -416,6 +549,64 @@ def get_local_ip():
         return ip
     except Exception:
         return '127.0.0.1'
+
+
+def _print_port_owner_diag(port):
+    """Best-effort attempt to print which process currently holds
+    `port`. Operators have been caught out by 'localhost refused to
+    connect' that turned out to be a stale dev server in another
+    console window — finding it on Windows is `netstat -ano` then
+    `tasklist /FI "PID eq N"` (and on POSIX you read /proc/<pid>/
+    cmdline). We do both with stdlib subprocess so no extra dep.
+
+    Returns silently on platforms missing `netstat` (macOS still ships
+    it; we just pivot to a friendlier message in that case).
+    """
+    try:
+        out = subprocess.run(
+            ['netstat', '-ano'],
+            capture_output=True, text=True, timeout=5
+        ).stdout
+    except FileNotFoundError:
+        print(f'  Kan `netstat` niet vinden op dit systeem.', flush=True)
+        print(f'  Zoek zelf met:  netstat -ano | findstr ":{port}"', flush=True)
+        return
+    except Exception as e:
+        print(f'  Kon poort-eigenaar niet achterhalen ({e}).', flush=True)
+        return
+
+    owners = []
+    for line in out.splitlines():
+        if f':{port}' in line and 'LISTENING' in line.upper():
+            parts = line.split()
+            # netstat -ano columns: Proto LocalAddress ForeignAddress State PID
+            if len(parts) >= 5:
+                try:
+                    pid = int(parts[-1])
+                    if pid not in owners:
+                        owners.append(pid)
+                except ValueError:
+                    pass
+
+    if not owners:
+        print(f'  Geen LISTENING-eigenaar gevonden voor poort {port} (raadpleeg zelf `netstat -ano`).', flush=True)
+        return
+
+    print(f'  Poort {port} wordt vastgehouden door:', flush=True)
+    for pid in owners:
+        print(f'    PID {pid}', flush=True)
+        if sys.platform == 'win32':
+            try:
+                tl = subprocess.run(
+                    ['tasklist', '/FI', f'PID eq {pid}', '/NH'],
+                    capture_output=True, text=True, timeout=5
+                ).stdout.strip()
+                if tl:
+                    name = tl.split()[0] if tl.split() else 'onbekend'
+                    print(f'      → process: {name}', flush=True)
+            except Exception:
+                pass
+        print(f'      Stop met:  taskkill /F /PID {pid}', flush=True)
 
 
 def check_for_updates():
@@ -758,10 +949,83 @@ Voorbeelden:
     sys.stdout.flush()
     sys.stderr.flush()
 
-    server = http.server.HTTPServer(
-        (args.host, args.port),
-        IchtusHandler,
-    )
+    # Attach the TeeStream NOW so EVERY subsequent print (including
+    # the banner below) is mirrored into LOGSERVER_BUFFER and thus
+    # visible via /api/status. The wrapper sits ON TOP of the
+    # TextIOWrapper from the top of the file, so unicode content still
+    # works on Windows.
+    sys.stdout = _TeeStream(sys.stdout, 'stdout')
+    sys.stderr = _TeeStream(sys.stderr, 'stderr')
+
+    # Stamp start time right before binding. /api/status reads this to
+    # render uptime (e.g. "47m ago").
+    global LOGSERVER_STARTED_AT
+    LOGSERVER_STARTED_AT = time.time()
+
+    # Graceful shutdown: SIGINT (Ctrl-C in this console), SIGTERM
+    # (taskkill, service manager, shutdown), SIGBREAK (Windows
+    # Ctrl-Break console event). The supervisor doesn't CREATE_NEW_PROCESS_GROUP
+    # when spawning us, so Ctrl-C in the supervisor console *automatically*
+    # broadcasts SIGINT to us too — no extra signal-forwarding code needed.
+    # `server.shutdown()` returns only after in-flight handlers finish
+    # (Python 3.6+); we wrap in a daemon thread so the signal handler
+    # stays tiny (PEP 475: handlers should not run real code).
+    _shutdown_done = threading.Event()
+
+    def _graceful_shutdown(sig_name):
+        if _shutdown_done.is_set():
+            return
+        _shutdown_done.set()
+        print(f'  [SHUTDOWN] Ontvangen {sig_name} — listener dichtdraaien…', flush=True)
+        def _do():
+            try:
+                server.shutdown()
+                server.server_close()
+            except Exception as e:
+                print(f'  [SHUTDOWN] Waarschuwing tijdens sluiten: {e}', flush=True)
+            print('  [SHUTDOWN] Klaar. Tot ziens!', flush=True)
+            os._exit(0)
+        threading.Thread(target=_do, daemon=True).start()
+
+    signal.signal(signal.SIGINT, lambda s, f: _graceful_shutdown('SIGINT'))
+    signal.signal(signal.SIGTERM, lambda s, f: _graceful_shutdown('SIGTERM'))
+    if hasattr(signal, 'SIGBREAK'):
+        signal.signal(signal.SIGBREAK, lambda s, f: _graceful_shutdown('SIGBREAK'))
+
+    # ThreadingHTTPServer mixes threads into HTTPServer so concurrent
+    # in-flight requests can interleave. With the previous single-
+    # threaded build, the 3-5s NDI scan would freeze every other
+    # request tab the operator had open — surfacing as "the SPA is
+    # unresponsive when NDI is scanning". One thread per request is
+    # fine for the single-operator / small-band load profile.
+    try:
+        server = http.server.ThreadingHTTPServer(
+            (args.host, args.port),
+            IchtusHandler,
+        )
+    except OSError as e:
+        # errno 98  -> POSIX EADDRINUSE
+        # errno 10048 -> Windows WSAEADDRINUSE
+        # Catch by errno AND by message substring so unusual envs
+        # (Cygwin, WSL) still hit the friendly branch.
+        already_in_use = (
+            getattr(e, 'errno', None) == 98
+            or getattr(e, 'errno', None) == 10048
+            or 'already in use' in str(e).lower()
+            or 'address already' in str(e).lower()
+        )
+        if already_in_use:
+            print('', flush=True)
+            print('  ╔══════════════════════════════════════════════════════╗', flush=True)
+            print(f'  ║  KAN POORT {args.port} NIET BINDEN — AL IN GEBRUIK  ║', flush=True)
+            print('  ╚══════════════════════════════════════════════════════╝', flush=True)
+            print(f'  Reden: {e}', flush=True)
+            print('', flush=True)
+            _print_port_owner_diag(args.port)
+            sys.exit(2)
+        # Different bind failure (interface missing, permission, etc)
+        print(f'  [FATAL] Kan poort {args.port} niet binden op {args.host}: {e}', flush=True)
+        sys.exit(1)
 
     local_ip = get_local_ip()
     # Print entire header at once to avoid buffering issues on Windows
@@ -774,9 +1038,13 @@ Voorbeelden:
   Root:      {ROOT_DIR}
   --------------------------------------------------
   API Endpoints:
-    GET /api/ndi/sources  - Ontdek NDI bronnen
+    GET /api/health           - Snelle levenscheck (altijd <50ms)
+    GET /api/status           - Uptime + PID + log_tail (diagnostisch)
+    GET /api/ndi/sources      - Ontdek NDI bronnen (kan 3-5s duren)
+    GET /api/tockify/ics      - Tockify ICS proxy
   --------------------------------------------------
-  Druk Ctrl+C om te stoppen
+  Robustness: ThreadingHTTPServer · graceful shutdown · log buffer
+  Druk Ctrl+C om te stoppen (of gebruik supervisor.py)
   ==================================================
 
   Server draait. Wacht op verzoeken...
@@ -793,8 +1061,13 @@ Voorbeelden:
     try:
         server.serve_forever()
     except KeyboardInterrupt:
-        print('\n  Server gestopt. Tot ziens!\n')
-        server.server_close()
+        # Belt-and-suspenders: if for some reason the SIGINT handler
+        # didn't fire (e.g. signaled via CTRL_BREAK_EVENT on Windows
+        # without our SIGBREAK handler), still close cleanly. The
+        # signal handler above is the primary path because
+        # serve_forever() doesn't actually raise KeyboardInterrupt on
+        # Windows' SendMessageCtrlC-style signals.
+        pass
 
 
 if __name__ == '__main__':

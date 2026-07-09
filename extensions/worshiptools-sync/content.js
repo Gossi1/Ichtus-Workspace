@@ -97,6 +97,7 @@ function extractRoster() {
         }
 
         const roster = [];
+        let totalDeclined = 0; // aggregate across all role sections for the success alert
         // Each role section is a .pb-3 div within the roles container
         const roleSections = rolesContainer.querySelectorAll('.pb-3');
 
@@ -109,11 +110,27 @@ function extractRoster() {
 
             // Find all people assigned to this role
             const personItems = section.querySelectorAll('.list-group-item');
+            let skippedDeclined = 0;
             personItems.forEach(item => {
                 // Get the person's name
                 const nameSpan = item.querySelector('.user-name span');
                 const name = nameSpan ? nameSpan.textContent.trim() : '';
                 if (!name || name === 'Persoon toevoegen') return; // skip "Add Person" button row
+
+                // Skip people who have DECLINED the assignment. WorshipTools
+                // marks declined users with a red border on the avatar
+                // wrapper (`border-danger`) AND exposes a `title="Declined"`
+                // attribute on the status badge — we check both so the
+                // filter survives any CSS-class rename.
+                if (
+                    item.querySelector('.outer.profile-pic.border-danger') ||
+                    item.querySelector('[title="Declined"]')
+                ) {
+                    console.log('[WT→SPA] Skipping declined:', name);
+                    skippedDeclined++;
+                    totalDeclined++;
+                    return;
+                }
 
                 // Try to extract avatar URL from the profile picture
                 let avatarUrl = '';
@@ -124,19 +141,32 @@ function extractRoster() {
 
                 roster.push({ name, role, avatar_url: avatarUrl });
             });
+            if (skippedDeclined > 0) {
+                console.log(`[WT→SPA] Filtered out ${skippedDeclined} declined role(s) for "${role}".`);
+            }
         });
 
         console.log('[WT→SPA] Roster extracted:', roster.length, 'assignments', roster);
 
+        // Compute plural once now that totalDeclined is final — the same
+        // inflection is needed by both the empty-roster alert and the success
+        // message so we don't repeat the ternary.
+        const plural = totalDeclined === 1 ? '' : 'en';
+
         if (roster.length === 0) {
-            alert('⚠️ Geen teamleden gevonden in de Rollen sectie.');
+            if (totalDeclined > 0) {
+                alert(`⚠️ Alle ${totalDeclined} rol-toewijzing${plural} waren declined — geen teamleden beschikbaar voor deze dienst.`);
+            } else {
+                alert('⚠️ Geen teamleden gevonden in de Rollen sectie.');
+            }
             return;
         }
 
         const names = [...new Set(roster.map(r => r.name))];
         const preview = names.slice(0, 5).join(', ');
         const more = names.length > 5 ? ` +${names.length - 5} meer` : '';
-        alert(`✅ ${roster.length} rol-toewijzingen gevonden (${names.length} personen): ${preview}${more}\n\nOpen Ichtus SPA → Dashboard om de mic toewijzing te zien.`);
+        const declinedSuffix = totalDeclined > 0 ? ` · ${totalDeclined} declined rol-toewijzing${plural} gefilterd` : '';
+        alert(`✅ ${roster.length} rol-toewijzingen gevonden (${names.length} personen): ${preview}${more}${declinedSuffix}\n\nOpen Ichtus SPA → Dashboard om de mic toewijzing te zien.`);
 
         chrome.runtime.sendMessage({
             type: 'ROSTER_EXTRACTED',

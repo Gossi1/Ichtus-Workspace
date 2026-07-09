@@ -11,13 +11,13 @@ const router = {
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder'].includes(hash)) ? hash : 'dashboard';
         
         this.navigate(initialView);
         
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.replace('#', '');
-            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings'].includes(hash)) ? hash : 'dashboard';
+            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder'].includes(hash)) ? hash : 'dashboard';
             if (view !== this.currentView) {
                 this.navigate(view, false);
             }
@@ -38,6 +38,12 @@ const router = {
         // Clean up NDI module when navigating away
         if (this.currentView === 'ndi' && typeof ndiModule !== 'undefined' && ndiModule.cleanup) {
             ndiModule.cleanup();
+        }
+
+        // Clean up Stage Builder module when navigating away (frees document-level
+        // drag/move listeners and clears any in-progress freeform drag).
+        if (this.currentView === 'stagebuilder' && typeof stagebuilderModule !== 'undefined' && stagebuilderModule.cleanup) {
+            stagebuilderModule.cleanup();
         }
 
         // Hide all views
@@ -82,6 +88,8 @@ const router = {
             ndiModule.init();
         } else if (view === 'settings' && typeof settingsModule !== 'undefined') {
             settingsModule.init();
+        } else if (view === 'stagebuilder' && typeof stagebuilderModule !== 'undefined') {
+            stagebuilderModule.init();
         }
     }
 };
@@ -100,6 +108,7 @@ router.isSettingsActive   = () => router.currentView === 'settings';
 router.isAgendaActive     = () => router.currentView === 'agenda';
 router.isPatchbayActive   = () => router.currentView === 'patchbay';
 router.isSetlistActive    = () => router.currentView === 'setlist';
+router.isStageBuilderActive = () => router.currentView === 'stagebuilder';
 
 // Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => router.init());

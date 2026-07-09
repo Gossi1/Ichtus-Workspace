@@ -69,6 +69,28 @@ const DEFAULT_HARDWARE = [
     { mic_id: 4, iem_pack: 'IEM Pack 4', frequency: '505.100 MHz' }
 ];
 
+// ── Default X32 Library Map ──────────────────────────────────────────────
+//
+// One operator-chosen name per row (max 64 chars, e.g. "WL Mic",
+// "WL Keys (piano)", "Vox 2 (Sara)"), each mapped to the X32 channel-
+// library slot ID the operator has uploaded into the console
+// (Setup → Library → save). The names are free-form — there is no
+// closed role enum anymore — so the same operator can define one name
+// per channel-DSP they reuse on stage (his vocal mic, his piano, etc.).
+// Multiple operators on different laptops see the same values via the
+// Settings UI → they all write through this Express bridge to Firestore
+// at `mic_monitor/x32_library` (collection `mic_monitor`, doc id
+// `x32_library`). Sync is on-request only — the SPA exposes explicit
+// Load/Save buttons that hit /api/x32-library; nothing fetches on init
+// and nothing auto-pushes on every local save.
+//
+// NOTE: The Settings UI persists this map; consumers that actually
+// translate it into OSC recall (`/ch/<N>/lib/load ,i <slot>`) still
+// need to be wired in a future change. Today Firestore is the source of
+// truth for the UI cross-laptop sync only.
+
+const DEFAULT_X32_LIBRARY = {};
+
 // ── Express App ───────────────────────────────────────────────────────────
 
 const app = express();
@@ -88,6 +110,101 @@ async function getHardwareConfig() {
         console.warn('  [FIREBASE] Kon config niet ophalen, gebruik default:', err.message);
     }
     return DEFAULT_HARDWARE;
+}
+
+// Load the operator's X32 library map from Firestore. Returns null
+// when the doc is missing (first install), the schema is wrong, or the
+// bridge is offline — in all cases the caller falls back to in-memory
+// defaults. The map must contain at least one entry; an empty map doc
+// is treated as "no saved values" so the operator doesn't stare at a
+// settings panel that says "saved" while showing zero rows. A missing
+// serviceAccountKey.json makes `firestore` null and falls through to
+// defaults silently.
+async function loadX32LibraryFromFirestore() {
+    if (!firestore) return null;
+    try {
+        const doc = await firestore.collection('mic_monitor').doc('x32_library').get();
+        if (!doc.exists) return null;
+        const data = doc.data();
+        if (
+            data &&
+            data.map &&
+            typeof data.map === 'object' &&
+            !Array.isArray(data.map) &&
+            Object.keys(data.map).length > 0
+        ) {
+            return {
+                lastUpdated: data.lastUpdated || null,
+                map: data.map
+            };
+        }
+        console.warn('  [X32_LIB] Firestore doc schema unexpected of leeg — falling back to defaults');
+    } catch (err) {
+        console.warn('  [X32_LIB] Firestore read mislukt:', err.message);
+    }
+    return null;
+}
+
+// Persist the operator's map payload to Firestore. Throws so the
+// POST route can return 500 — silent failure here would leave the
+// operator confused about whether their click actually saved. Last-
+// writer-wins via `set()` (full doc replace). The companion read
+// helper enforces the same shape so any future field additions stay
+// in lockstep on both ends.
+async function saveX32LibraryToFirestore(map, lastUpdated) {
+    if (!firestore) {
+        throw new Error('Firestore niet geïnitialiseerd. Voeg serviceAccountKey.json toe en herstart de server.');
+    }
+    await firestore.collection('mic_monitor').doc('x32_library').set({
+        map,
+        lastUpdated
+    });
+}
+
+// Validate the operator-supplied map shape. Each entry must be a string
+// key (operator-chosen name, max 64 chars after trim) mapped to a
+// non-negative integer ≤ 99. The key alphabet is open-allow-list so
+// operators can introduce any name they want — Stage Builder's
+// commitLayout() will resolve the slot via display_name later.
+// Duplicate names would silently merge into a single object key so the
+// shape itself enforces uniqueness.
+const MAX_X32_NAME_LENGTH = 64;
+function validateX32LibraryMap(raw) {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        return { ok: false, reason: 'Ongeldig lichaam. Verwacht { map: { naam: libSlot, ... }}.' };
+    }
+    const cleaned = {};
+    for (const [k, v] of Object.entries(raw)) {
+        if (typeof k !== 'string') {
+            return { ok: false, reason: `Sleutel is geen string: ${String(k)}` };
+        }
+        const trimmed = k.trim();
+        if (!trimmed) {
+            return { ok: false, reason: 'Lege naam gevonden.' };
+        }
+        if (trimmed.length > MAX_X32_NAME_LENGTH) {
+            return { ok: false, reason: `Naam \u201c${trimmed}\u201d is te lang (max ${MAX_X32_NAME_LENGTH} tekens).` };
+        }
+        if (v === null || v === undefined) {
+            return { ok: false, reason: 'Waarde voor ' + trimmed + ' ontbreekt.' };
+        }
+        if (typeof v !== 'number' && typeof v !== 'string') {
+            return { ok: false, reason: 'Waarde voor ' + trimmed + ' moet number of numerieke string zijn (kreeg ' + typeof v + ').' };
+        }
+        const n = typeof v === 'number' ? v : Number(v);
+        if (!Number.isInteger(n) || n < 0 || n > 99) {
+            return { ok: false, reason: `Waarde voor \u201c${trimmed}\u201d moet geheel getal 0..99 zijn (kreeg ${JSON.stringify(v)}).` };
+        }
+        cleaned[trimmed] = n;
+    }
+    // An empty map would round-trip into a valid POST but leave the
+    // on-disk file with `{ map: {} }` which is worse than the first-time
+    // defaults state. Refuse explicitly so the UI shows a 400 instead
+    // of silently saving "nothing".
+    if (Object.keys(cleaned).length === 0) {
+        return { ok: false, reason: 'Map is leeg. Voeg minstens één naam met een library-slot toe.' };
+    }
+    return { ok: true, map: cleaned };
 }
 
 async function seedInitialConfig() {
@@ -283,6 +400,57 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+/**
+ * GET /api/x32-library
+ *
+ * Returns the operator's X32 channel-library map from Firestore so the
+ * SPA Settings view can render the saved names and their integer
+ * library-slot IDs. Source of truth is the document at
+ * `mic_monitor/x32_library`; falls back to the in-memory default
+ * (empty object) when the doc is missing (first install), the bridge
+ * has no service account, or the bridge is offline.
+ *
+ * Response shape: `{ map: { 'WL Mic': 12, 'WL Keys': 8, ... }, lastUpdated: ISO | null }`
+ */
+app.get('/api/x32-library', async (req, res) => {
+    const fromFs = await loadX32LibraryFromFirestore();
+    if (fromFs) {
+        return res.json(fromFs);
+    }
+    res.json({ map: { ...DEFAULT_X32_LIBRARY }, lastUpdated: null });
+});
+
+/**
+ * POST /api/x32-library
+ *
+ * Operator save from the Settings UI (the Save to Firebase button).
+ * Body: `{ map: { 'WL Mic': 12, 'Vox 2 (Sara)': 12, ... } }`.
+ * Each key must be a non-empty string ≤ 64 chars; each value must be
+ * an integer 0..99; the cleaned map is written to Firestore at
+ * `mic_monitor/x32_library` so any operator who clicks Load from
+ * Firebase next sees the change. Last-writer-wins (full doc
+ * replace) — operators who want to share values overwrite the whole
+ * map; partial merge is not provided to keep the mental model simple.
+ */
+app.post('/api/x32-library', async (req, res) => {
+    const validation = validateX32LibraryMap(req.body?.map);
+    if (!validation.ok) {
+        return res.status(400).json({ error: validation.reason });
+    }
+    const payload = {
+        map: validation.map,
+        lastUpdated: new Date().toISOString()
+    };
+    try {
+        await saveX32LibraryToFirestore(payload.map, payload.lastUpdated);
+    } catch (err) {
+        console.error('  [X32_LIB] Firestore write failed:', err.message);
+        return res.status(500).json({ error: err.message });
+    }
+    console.log('  [X32_LIB] Map saved to Firestore mic_monitor/x32_library:', Object.entries(validation.map).map(([k, v]) => `${k}=\u2192lib ${v}`).join(', '));
+    res.json({ ok: true, ...payload });
+});
+
 // ── Server Start ──────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3001;
@@ -304,6 +472,8 @@ async function startServer() {
   ║    POST /api/update-roster    (roster sync)  ║
   ║    POST /api/save-hardware-config (edit)     ║
   ║    GET  /api/health           (status)       ║
+  ║    GET  /api/x32-library      (preset map)   ║
+  ║    POST /api/x32-library      (preset map)   ║
   ╠══════════════════════════════════════════════╣
   ║  Firebase: ${firebaseOk ? 'Verbonden ✓' : 'NIET VERBONDEN ✗'}           ║
   ╚══════════════════════════════════════════════╝

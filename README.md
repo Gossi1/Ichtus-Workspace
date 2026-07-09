@@ -49,12 +49,54 @@ Just run:
 start-server.bat
 ```
 
-Or manually:
+The launcher now boots a single supervisor (Python, default `:9090`) that
+owns the lifetime of every service. If a service crashes, the supervisor
+restarts it with capped exponential backoff (2s → 4s → 8s → 16s → 30s).
+Stop everything with one Ctrl-C in the **ICHTUS — Supervisor** console.
+
+If you want to start a single service manually (e.g. you only need
+the SPA without the bridges):
 ```bash
 python server.py --open
 ```
 
 ---
+
+## 🛡️ Robustness / Supervisor
+
+The dev stack now has a single supervisor (Python, no new deps) that
+watches every other service. Open `http://localhost:9090/` after launch
+for the unified status dashboard.
+
+| Concern | Where it lives | Behaviour |
+|--------|----------------|-----------|
+| All services crash-resistant | `supervisor.py` | Capped backoff (2s / 4s / 8s / 16s / 30s) on non-zero exit; never gives up but logs loudly |
+| One-click service restart | `POST http://localhost:9090/api/restart/<key>` | Hard terminate + relaunch of `spa`, `x32`, or `mic_iem` |
+| Live crash tail | `GET http://localhost:9090/api/logs/<key>` | Last 50 lines of `logs/<name>.log` formatted as JSON |
+| "Why is the SPA slow" | `GET http://localhost:8080/api/status` | PID, uptime, request count, last 50 in-process log lines |
+| Liveness probe | `GET http://localhost:8080/api/health` / `:9090/api/health` | Always-fast (no NDI discovery dependency) |
+| Single-instance guard | `supervisor.pid` + heartbeat file | A second `start-server.bat` launch refuses to start a duplicate |
+| Clean Ctrl-C | `SIGINT` in ICHTUS — Supervisor window | 5s drain then `terminate()` stragglers |
+
+Logs land in `logs/<service>.log` (5 MB × 3 rotating via `RotatingFileHandler`).
+
+Manual control:
+
+```bash
+# Start the supervisor directly (no .bat launcher)
+python supervisor.py --open
+
+# Change the status UI port
+python supervisor.py --port 9100
+
+# Stop everything: Ctrl-C in the supervisor console, or:
+#   taskkill /PID <pid from supervisor.pid>
+```
+
+If you only need the SPA without the bridges, you can still run it
+standalone as before — `server.py` now ships the same `/api/health` +
+`/api/status` endpoints, so a status tab in the SPA works in single-
+shot mode too.
 
 ## ⚙️ Settings (Instellingen)
 
@@ -93,8 +135,10 @@ Ichtus_apps/
 ├── README.md                    # This file
 ├── install.bat                  # Auto-installer (Windows)
 ├── setup.py                     # Setup check & auto-install script
-├── server.py                    # Local HTTP server
-├── start-server.bat             # Windows launcher
+├── server.py                    # Local HTTP server (now ThreadingHTTPServer + /api/status)
+├── supervisor.py                # Local dev watchdog (auto-restarts on crash; stdlib only)
+├── start-server.bat             # Windows launcher (now launches the supervisor)
+├── logs/                        # Per-service rotating logs (NOT committed, 5 MB x 3)
 ├── firebase-api-key.txt         # Firebase config (NOT committed to git!) used by server.py
 ├── Ichtus_SPA/
 │   └── firebase-config.txt      # Firebase config (NOT committed to git!) auto-loaded by the browser
