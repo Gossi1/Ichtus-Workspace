@@ -1804,6 +1804,129 @@ const stagebuilderModule = {
         }
     },
 
+    /**
+     * Auto Assign — destructive reset + re-run. Wipes every operator
+     * override (the per-row slot/channel edits made via the dropdowns)
+     * AND every persisted `ichtus.sb.assign.*` mapping in localStorage,
+     * then re-runs the role-based channel rules AND the slot auto-
+     * suggest in one shot. Use this when the operator wants to start
+     * clean: clear all the manual picks and let the algorithm re-pick
+     * everything from the current WorshipTools roster + X32 polled
+     * state. Pairs naturally with `pushAll()` as a "start clean,
+     * then send" flow.
+     *
+     * Behavior:
+     *  - Always enabled (matches the Recall-All "always clickable"
+     *    philosophy — clicking with no roster shows a helpful toast).
+     *  - Synchronous (channel rules + auto-suggest are pure CPU work).
+     *  - Preserves the one-time migration flag
+     *    `ichtus.sb.roleBasedChannels.v1` so we don't re-fire the
+     *    legacy-migration toast after the wipe.
+     *  - Preserves other stage-builder localStorage keys (x32 IP,
+     *    disconnect-intent, debug-mode, _scrubNoticeAck) — only
+     *    touches the `sb.assign.*` namespace.
+     *  - Does NOT touch `_x32DiscoveredPresets` or the bridge
+     *    connection state — those are owned by connect/poll/disconnect.
+     *  - Does NOT refetch the roster — the operator wants the
+     *    CURRENT roster re-assigned against the CURRENT X32 cache.
+     */
+    autoAssignAll() {
+        if (!this.rosterRows || this.rosterRows.length === 0) {
+            this.showToast(
+                'Auto Assign: wacht op WorshipTools-roster — geen rijen om toe te wijzen.',
+                'error'
+            );
+            return;
+        }
+        if (this._x32ConnectInFlight || this._x32BridgeFetchInFlight) {
+            this.showToast(
+                'Auto Assign: X32 is bezig met verbinden/recallen — probeer zo dadelijk opnieuw.',
+                'error'
+            );
+            return;
+        }
+        // 1. Wipe persisted `ichtus.sb.assign.*` mappings — the
+        //    operator's manual picks. Iterating in reverse keeps
+        //    indices valid while removeItem() shrinks the bag.
+        //    Other Stage-Builder localStorage keys (migration flag,
+        //    disconnect-intent, debug toggle, scrub-ack) live under
+        //    different prefixes and are naturally left alone.
+        let wiped = 0;
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const k = localStorage.key(i);
+                if (!k || k.indexOf('ichtus.sb.assign.') !== 0) continue;
+                try {
+                    localStorage.removeItem(k);
+                    wiped++;
+                } catch (_) { /* private mode — silently stop */ }
+            }
+        } catch (_) { /* storage disabled — quietly continue */ }
+
+        // 2. Reset every row's transient + persisted state. Locked
+        //    roles keep their `locked: true` flag and their
+        //    read-only UI in `_renderRow`; we just throw away their
+        //    auto-assigned slot so the auto-suggest can re-pick.
+        for (const row of this.rosterRows) {
+            row.slot = null;
+            row.autoSlot = null;
+            row.channel = null;
+            row.status = 'idle';
+            row.lastPushedAt = null;
+            row.lastPushedSummary = '';
+        }
+
+        // 3. Re-run the role-based channel rules against the wiped
+        //    rows. Same call `_rebuildRows` makes on roster changes
+        //    — brings the channels back to WL/keys/gtr/bass/vocalist
+        //    order so the auto-suggest sees the right conflict map.
+        this._assignChannelsByRole();
+
+        // 4. Re-build the cross-roster first-name set (cheap O(N))
+        //    so `_scoreMatch` can penalize same-wrong-person matches,
+        //    then re-run the slot auto-suggest. Skipped silently if
+        //    no X32 prefs cache yet — the channel column will already
+        //    reflect the role rules and the slot column shows "—" /
+        //    shows the dropdown with no row selected, exactly like
+        //    a fresh init before the X32 has been polled. After the
+        //    reset above every row.slot is null, so the post-suggest
+        //    count is simply "how many THIS call matched".
+        this._buildAllFirstNames();
+        this._autoSuggestPending();
+        const slotMatched = this.rosterRows.filter(function (r) {
+            return r.slot != null;
+        }).length;
+
+        // 5. Re-render so the table reflects the cleared state +
+        //    re-applied rules. (autoSuggestPending already persists
+        //    its slot choices to localStorage via _saveSlotMapping,
+        //    so a reload mid-session keeps the new picks.)
+        this._renderRosterOrEmpty();
+
+        // 6. Toast feedback. Two numbers (slot-matched vs slot-still-
+        //    empty) so the operator immediately sees whether the X32
+        //    data was rich enough to cover the roster.
+        const total = this.rosterRows.length;
+        const channelsSet = this.rosterRows.filter(function (r) {
+            return r.channel != null;
+        }).length;
+        const slotsEmpty = total - slotMatched;
+        const variants = [];
+        variants.push(slotMatched + '/' + total + ' slots auto-matched');
+        variants.push(channelsSet + '/' + total + ' channels');
+        if (slotsEmpty > 0) variants.push(slotsEmpty + ' zonder preset match');
+        if (wiped > 0) variants.push(wiped + ' overschrijvingen gewist');
+        const variant = (slotMatched === 0 && this._x32DiscoveredPresets)
+            ? 'error'
+            : 'success';
+        this.showToast('Auto Assign: ' + variants.join(' · '), variant);
+        this._sbDebugLog('autoAssignAll: wiped=' + wiped +
+            ', channels set=' + channelsSet + '/' + total +
+            ', slot-matched delta=' + slotMatched + '/' + total +
+            ', slots-still-empty=' + slotsEmpty +
+            ', presets available=' + !!this._x32DiscoveredPresets);
+    },
+
     // ------------------------------------------------------------------
     //  HELPERS — toast, escape utilities
     // ------------------------------------------------------------------

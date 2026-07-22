@@ -78,6 +78,13 @@ logs/
 *.temp
 temp/
 tmp/
+# ===========================
+# Dev / temp artifacts
+# ===========================
+.freebuff/
+tmp_*
+Ichtus_SPA/.tmp-*.html
+
 # Firebase Config (contains API keys)
 firebase-config.js
 firebase-config.js.backup

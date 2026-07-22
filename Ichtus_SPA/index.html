@@ -935,6 +935,13 @@
                                 </div>
                             </div>
                             <p id="setlist-received-time" class="received-time">Ontvangen: 13:49:05</p>
+
+                            <!-- Bridge status indicator: shows whether the Chrome extension content script is injected -->
+                            <div class="bridge-status-row" id="bridge-status-row">
+                                <span id="bridge-status-dot" class="status-dot offline"></span>
+                                <span id="bridge-status-text">Extensie status controleren...</span>
+                            </div>
+
                             <p class="connection-hint">Open Planning in WorshipTools, klik op "Extract Setlist" in de Chrome extensie. De data verschijnt automatisch hier.</p>
                             <button id="btn-open-worshiptools" class="btn-nav style-fullwidth">Open WorshipTools ↗</button>
                         </div>
@@ -1860,7 +1867,7 @@
                     </div>
                 </div>
 
-                <!-- Status bar: X32 IP + connect-state pill + Connect/Poll/Disconnect -->
+                <!-- Status bar: X32 IP (left) + connection telemetry pill (center) + grouped controls (right) -->
                 <div class='sb-status-bar'>
                     <div class='sb-status-left'>
                         <label for='sb-x32-ip-input'>X32 console</label>
@@ -1877,16 +1884,21 @@
                         <span id='sb-x32-connection-meta' class='sb-conn-meta'>klik Connect om te koppelen</span>
                     </div>
                     <div class='sb-status-right'>
-                        <button id='sb-x32-connect' class='sb-btn sb-btn-secondary sb-mini' onclick='stagebuilderModule.connectToX32()' title='Open OSC-verbinding met de X32 console'>
-                            Connect
+                        <div class='sb-btn-group'>
+                            <button id='sb-x32-connect' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.connectToX32()' title='Open OSC-verbinding met de X32 console'>
+                                Connect
+                            </button>
+                            <button id='sb-x32-poll' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.pollX32Presets()' title='Vernieuw alle 100 library-slots (hasdata + naam)'>
+                                Poll
+                            </button>
+                            <button id='sb-x32-disconnect' class='sb-btn sb-btn-secondary sb-btn-danger' onclick='stagebuilderModule.disconnectFromX32()' title='Sluit OSC-verbinding'>
+                                Disconnect
+                            </button>
+                        </div>
+                        <button id='sb-x32-auto-assign' class='sb-btn sb-btn-action sb-btn-auto-assign' onclick='stagebuilderModule.autoAssignAll()' title='Wis alle handmatige slot/kanaal-overschrijvingen en alle opgeslagen sb.assign.* mappings, draai vervolgens slot auto-suggest + rol-gebaseerde kanaal-regels opnieuw'>
+                            Auto Assign
                         </button>
-                        <button id='sb-x32-poll' class='sb-btn sb-btn-secondary sb-mini' onclick='stagebuilderModule.pollX32Presets()' title='Vernieuw alle 100 library-slots (hasdata + naam)'>
-                            Poll
-                        </button>
-                        <button id='sb-x32-disconnect' class='sb-btn sb-btn-secondary sb-mini' onclick='stagebuilderModule.disconnectFromX32()' title='Sluit OSC-verbinding'>
-                            Disconnect
-                        </button>
-                        <button id='sb-x32-recall-all' class='sb-btn sb-btn-primary sb-mini' onclick='stagebuilderModule.pushAll()' title='Stuur alle recall-klare rijen (slot + kanaal toegekend) in één keer naar de X32' disabled>
+                        <button id='sb-x32-recall-all' class='sb-btn sb-btn-primary' onclick='stagebuilderModule.pushAll()' title='Stuur alle recall-klare rijen (slot + kanaal toegekend) in één keer naar de X32' disabled>
                             Recall All <span id='sb-x32-recall-all-count' class='sb-conn-meta-inline'>(0)</span>
                         </button>
                     </div>
