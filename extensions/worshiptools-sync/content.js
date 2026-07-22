@@ -184,6 +184,39 @@ function extractRoster() {
     }
 }
 
+/**
+ * Parse a potential song number from the start of a song name.
+ * Song numbers follow patterns like "O586", "D013", "LvK 9", "Ps 150", etc.
+ * Returns { number, name } or { name } if no number is detected.
+ * Wrapped in try/catch so a single rogue line never crashes the extraction.
+ */
+function parseSongNumber(line) {
+    try {
+        if (typeof line !== 'string') return { name: String(line || '') };
+        // Match patterns: 1-3 uppercase letters followed by digits (optionally separated by space)
+        // e.g. O586, D143, LvK 9, Ps 150, ELB 838
+        const numberMatch = line.match(/^([A-Z]{1,3}\s*\d{1,4})\s+(.+)/);
+        if (numberMatch) {
+            return {
+                number: numberMatch[1].replace(/\s+/g, ' ').trim(),
+                name: numberMatch[2].trim()
+            };
+        }
+        // Also try digit-only prefix like "01 Amazing Grace"
+        const digitMatch = line.match(/^(\d{2,4})\s+(.+)/);
+        if (digitMatch) {
+            return {
+                number: digitMatch[1],
+                name: digitMatch[2].trim()
+            };
+        }
+        return { name: line };
+    } catch (e) {
+        console.warn('[WT→SPA] parseSongNumber error for line:', line, e);
+        return { name: String(line || '') };
+    }
+}
+
 function extractSetlist() {
     try {
         console.log('[WT→SPA] extractSetlist() called — scanning page...');
@@ -234,13 +267,21 @@ function extractSetlist() {
         });
 
         // 3. Final Deduplication and Length Filter
-        const finalItems = [...new Set(processed)].filter(line => {
-            return line.length > 5 &&
-                   !/^[A-G][b#]?$/.test(line);
+        const seen = new Set();
+        const finalItems = [];
+        processed.forEach(line => {
+            if (line.length > 5 && !/^[A-G][b#]?$/.test(line) && !seen.has(line)) {
+                seen.add(line);
+                finalItems.push(line);
+            }
         });
+
+        // Build structured array AFTER filtering so indices align perfectly
+        const finalStructured = finalItems.map(line => parseSongNumber(line));
 
         const finalOutput = finalItems.join('\n');
         console.log('[WT→SPA] Final items after cleaning:', finalItems.length, finalItems.slice(0, 5));
+        console.log('[WT→SPA] Structured items:', finalStructured.slice(0, 5));
 
         if (finalOutput.length > 0) {
             // 1. Copy to clipboard (non-blocking)
@@ -251,16 +292,19 @@ function extractSetlist() {
             // 2. Extract the service date from the page
             const serviceDate = extractDate();
 
-            // 3. Show success message
+            // 3. Show success message — include structured count info
             const preview = finalItems.slice(0, 5).join(', ');
             const more = finalItems.length > 5 ? ` +${finalItems.length - 5} more` : '';
-            console.log(`✅ ${finalItems.length} items extracted. First: ${preview}${more}`);
+            const numberedCount = finalStructured.filter(s => s.number).length;
+            const numberInfo = numberedCount > 0 ? ` | ${numberedCount} met nummer` : '';
+            console.log(`✅ ${finalItems.length} items extracted. First: ${preview}${more}${numberInfo}`);
             alert(`✅ Success! ${finalItems.length} items extracted and copied to clipboard.\n📅 Date: ${serviceDate}\n\nOpen Ichtus SPA → Setlist view to see them.`);
 
-            // 4. Send date along with setlist
+            // 4. Send structured data alongside the plain text
             chrome.runtime.sendMessage({
                 type: 'SETLIST_EXTRACTED',
                 data: finalOutput,
+                structured: finalStructured,  // [{ number?, name }]
                 date: serviceDate
             }, (response) => {
                 if (chrome.runtime.lastError) {
