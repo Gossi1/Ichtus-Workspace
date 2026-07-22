@@ -113,6 +113,7 @@ const setlistModule = {
     editingTemplateKey: null,
     receivedSetlist: null,
     parsedSongs: null,
+    structuredSongs: null, // [{ number?, name }] from content.js extraction
     fullItems: null,
     serviceDate: null,
     proConnectionStatus: 'unknown', // 'unknown' | 'online' | 'offline'
@@ -174,6 +175,19 @@ const setlistModule = {
             composed: true
         }));
 
+        // Check bridge status indicator (data-ichtus-bridge attribute on <html>)
+        this.checkBridgeStatus();
+
+        // Watch for the bridge to appear dynamically (e.g. if spa-bridge.js
+        // is injected after the page has already loaded).
+        if (!this._bridgeObserver) {
+            this._bridgeObserver = new MutationObserver(() => this.checkBridgeStatus());
+            this._bridgeObserver.observe(document.documentElement, {
+                attributes: true,
+                attributeFilter: ['data-ichtus-bridge']
+            });
+        }
+
         // Restore any previously received setlist from localStorage
         const saved = localStorage.getItem('ichtus_received_setlist');
         if (saved) {
@@ -181,6 +195,7 @@ const setlistModule = {
                 const data = JSON.parse(saved);
                 this.receivedSetlist = data.raw;
                 this.parsedSongs = data.parsed;
+                this.structuredSongs = data.structured || null;
                 this.fullItems = data.fullItems || null;
                 this.serviceDate = data.date || null;
                 this.updateConnectionStatus('received');
@@ -203,8 +218,8 @@ const setlistModule = {
         });
     },
 
-    receiveSetlist(rawText, date) {
-        console.log('[SPA] receiveSetlist called. Has date?', !!date, 'date value:', date);
+    receiveSetlist(rawText, date, structured) {
+        console.log('[SPA] receiveSetlist called. Has date?', !!date, 'date:', date, 'structured:', structured?.length || 0);
         // Prevent re-processing identical data (e.g. from cached re-dispatch)
         if (this.receivedSetlist === rawText) {
             console.log('[SPA] Skipping duplicate setlist');
@@ -212,6 +227,7 @@ const setlistModule = {
         }
 
         this.receivedSetlist = rawText;
+        this.structuredSongs = structured || null;
         this.parsedSongs = this.parseSongs(rawText);
         this.fullItems = this.parseFullItems(rawText);
         this.serviceDate = date || null;
@@ -221,6 +237,7 @@ const setlistModule = {
         localStorage.setItem('ichtus_received_setlist', JSON.stringify({
             raw: rawText,
             parsed: this.parsedSongs,
+            structured: structured,
             fullItems: this.fullItems,
             date: this.serviceDate,
             receivedAt: new Date().toISOString()
@@ -230,7 +247,9 @@ const setlistModule = {
         this.renderSongPreview();
         this.renderDateDisplay();
         const dateMsg = this.serviceDate ? `📅 ${this.serviceDate} — ` : '';
-        this.showStatus(`✅ ${dateMsg}${__('setlist_received')}! ${this.countSongs()} ${__('cl_edit_items_count')} ${__('ndi_sources_found')}.`, 'success');
+        const numberedCount = structured ? structured.filter(s => s.number).length : 0;
+        const numberInfo = numberedCount > 0 ? ` (${numberedCount} met nummer)` : '';
+        this.showStatus(`✅ ${dateMsg}${__('setlist_received')}! ${this.countSongs()} ${__('cl_edit_items_count')} ${__('ndi_sources_found')}${numberInfo}.`, 'success');
     },
 
     renderDateDisplay() {
@@ -277,26 +296,53 @@ const setlistModule = {
         }
     },
 
+    /**
+     * Render the song preview with optional song-number badges.
+     * Tries to match parsed songs with structured data to show
+     * song numbers (e.g. "O586") as small badges next to the name.
+     */
     renderSongPreview() {
         const container = document.getElementById('setlist-preview');
         if (!container || !this.parsedSongs) return;
 
         const { opening, praise, closing } = this.parsedSongs;
+
+        // Build a lookup from the structured data (song name -> number)
+        const numberMap = {};
+        if (this.structuredSongs) {
+            this.structuredSongs.forEach(s => {
+                if (s.number && s.name) {
+                    // Map by clean name (lowercased)
+                    numberMap[s.name.toLowerCase()] = s.number;
+                }
+            });
+        }
+
+        /** Render a list of songs, adding number badges where available */
+        const renderList = (songs) => {
+            return songs.map(s => {
+                const escaped = this.escapeHtml(s);
+                const num = numberMap[s.toLowerCase()];
+                const badge = num ? `<span class="song-number-badge">${this.escapeHtml(num)}</span> ` : '';
+                return `<li>${badge}${escaped}</li>`;
+            }).join('');
+        };
+
         let html = '';
 
         if (opening.length > 0) {
             html += `<div class="song-bucket"><h4 class="bucket-title bucket-opening">Openingsliederen (${opening.length})</h4><ul class="song-link-list">`;
-            opening.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
+            html += renderList(opening);
             html += '</ul></div>';
         }
         if (praise.length > 0) {
             html += `<div class="song-bucket"><h4 class="bucket-title bucket-praise">Praise & Worship (${praise.length})</h4><ul class="song-link-list">`;
-            praise.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
+            html += renderList(praise);
             html += '</ul></div>';
         }
         if (closing.length > 0) {
             html += `<div class="song-bucket"><h4 class="bucket-title bucket-closing">Eindliederen (${closing.length})</h4><ul class="song-link-list">`;
-            closing.forEach(s => html += `<li>${this.escapeHtml(s)}</li>`);
+            html += renderList(closing);
             html += '</ul></div>';
         }
 
@@ -354,9 +400,38 @@ const setlistModule = {
 
     },
 
+    /**
+     * Check whether the spa-bridge content script is present and active.
+     * The bridge sets data-ichtus-bridge on <html> when it is injected.
+     *   - 'loaded'  = bridge is in the page, waiting for data
+     *   - 'active'  = bridge has dispatched at least one payload
+     *   - (absent)  = bridge not running (ext not installed / file:// access denied)
+     *
+     * This method updates the #bridge-status-dot and #bridge-status-text
+     * elements in the WorshipTools card.
+     */
+    checkBridgeStatus() {
+        const dot = document.getElementById('bridge-status-dot');
+        const text = document.getElementById('bridge-status-text');
+        if (!dot || !text) return;
+
+        const status = document.documentElement.dataset.ichtusBridge;
+
+        if (status === 'active' || status === 'loaded') {
+            dot.className = 'status-dot online';
+            text.textContent = status === 'active'
+                ? 'Extensie actief ✓'
+                : 'Extensie geladen — wacht op data...';
+        } else {
+            dot.className = 'status-dot offline';
+            text.textContent = 'Extensie niet gevonden — zet "Toegang tot bestands-URL" aan in chrome://extensions';
+        }
+    },
+
     clearSetlist() {
         this.receivedSetlist = null;
         this.parsedSongs = null;
+        this.structuredSongs = null;
         this.serviceDate = null;
         localStorage.removeItem('ichtus_received_setlist');
         this.updateConnectionStatus('waiting');
@@ -542,7 +617,38 @@ const setlistModule = {
         const statusBox = document.getElementById('setlist-status-box');
 
         if (!this.parsedSongs || this.countSongs() === 0) {
-            this.showStatus(__('setlist_waiting') + ' ' + __('setlist_extract_help'), "error");
+            const hasDataInStorage = !!localStorage.getItem('ichtus_received_setlist');
+
+            // If data exists in localStorage but wasn't loaded into memory
+            // (race: init hasn't finished), restore it now and retry once.
+            if (hasDataInStorage) {
+                try {
+                    const saved = JSON.parse(localStorage.getItem('ichtus_received_setlist'));
+                    if (saved && saved.raw) {
+                        this.receivedSetlist = saved.raw;
+                        this.parsedSongs = saved.parsed;
+                        this.fullItems = saved.fullItems || null;
+                        this.serviceDate = saved.date || null;
+                        this.updateConnectionStatus('received');
+                        this.renderSongPreview();
+                        this.renderDateDisplay();
+                        if (this.parsedSongs && this.countSongs() > 0) {
+                            console.log('[Sync] Restored setlist from localStorage — retrying sync in next tick');
+                            setTimeout(() => this.handleSync(), 0);
+                            return;
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // Show the waiting message plus a file:// URL tip (harmless for
+            // users who already have the bridge working; essential for users
+            // who haven't enabled "Allow access to file URLs").
+            const locale = (typeof i18n !== 'undefined' && i18n.lang === 'nl') ? 'nl' : 'en';
+            const tip = locale === 'nl'
+                ? 'Tip: Zorg dat de Chrome-extensie \"WorshipTools to Ichtus SPA Sync\" is geïnstalleerd. Open chrome://extensions, zoek de extensie en zet \"Toegang tot bestands-URL\" aan. Ververs daarna deze pagina en probeer opnieuw.'
+                : 'Tip: Make sure the \"WorshipTools to Ichtus SPA Sync\" Chrome extension is installed. Open chrome://extensions, find the extension and enable \"Allow access to file URLs\". Then refresh this page and try again.';
+            this.showStatus(__('setlist_waiting') + ' ' + __('setlist_extract_help') + "\n\n" + tip, "error");
             return;
         }
 
@@ -618,14 +724,40 @@ const setlistModule = {
             let unmatchedSongs = [];
 
             template.items.forEach(tplItem => {
-                items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));
-                if (tplItem.insert) {
+                items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));                        if (tplItem.insert) {
                     let listToInsert = [];
                     if (tplItem.insert === "opening") listToInsert = opening;
                     if (tplItem.insert === "praise") listToInsert = praise;
                     if (tplItem.insert === "closing") listToInsert = closing;
                     listToInsert.forEach(s => {
-                        const uuid = libraryMap[s.toLowerCase()];
+                        const processedName = s.toLowerCase();
+                        // Strategy 1: match by full name in library (e.g. "o586 hij is heer")
+                        let uuid = libraryMap[processedName];
+
+                        // Strategy 2: match by song number if we have structured data
+                        if (!uuid && this.structuredSongs) {
+                            const structured = this.structuredSongs.find(st => st.name && st.name.toLowerCase() === processedName);
+                            if (structured && structured.number) {
+                                // Try matching by song number (e.g. "o586") — some libraries store just the number
+                                uuid = libraryMap[structured.number.toLowerCase()];
+                                if (uuid) {
+                                    console.log('[Sync] Matched by number:', structured.number, '→', s);
+                                }
+                            }
+                        }
+
+                        // Strategy 3: if the name has a prefix like "O586 Hij is Heer", 
+                        // strip the number prefix and try matching the clean name
+                        if (!uuid) {
+                            const nameWithoutNumber = s.replace(/^[A-Z]{1,3}\s*\d{1,4}\s+/, '').trim();
+                            if (nameWithoutNumber && nameWithoutNumber !== s) {
+                                uuid = libraryMap[nameWithoutNumber.toLowerCase()];
+                                if (uuid) {
+                                    console.log('[Sync] Matched by clean name:', nameWithoutNumber, '←', s);
+                                }
+                            }
+                        }
+
                         if (uuid) {
                             items.push(this.createItem(s, uuid));
                             matchedSongs++;

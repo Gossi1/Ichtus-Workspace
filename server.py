@@ -504,6 +504,106 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         
         return sources
     
+    def do_POST(self):
+        """Handle POST requests — currently only /api/update (git pull)."""
+        IchtusHandler._REQUEST_COUNT += 1
+
+        if self.path == '/api/update':
+            self.handle_git_pull()
+            return
+
+        self.send_response(404)
+        self.send_header('Content-Type', 'application/json; charset=utf-8')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.end_headers()
+        self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
+
+    def handle_git_pull(self):
+        """
+        Run 'git fetch origin' and 'git pull' and return the output as JSON.
+        Used by the Chrome extension's Git Pull button to let the operator
+        pull the latest code without leaving the browser.
+        """
+        try:
+            git_dir = str(ROOT_DIR)
+            result_fetch = subprocess.run(
+                ['git', 'fetch', 'origin'],
+                capture_output=True, text=True, timeout=30,
+                cwd=git_dir
+            )
+            result_pull = subprocess.run(
+                ['git', 'pull'],
+                capture_output=True, text=True, timeout=30,
+                cwd=git_dir
+            )
+
+            output_lines = []
+            if result_fetch.stdout.strip():
+                output_lines.append('$ git fetch origin')
+                for line in result_fetch.stdout.strip().split('\n'):
+                    output_lines.append('  ' + line)
+            if result_fetch.stderr.strip():
+                for line in result_fetch.stderr.strip().split('\n'):
+                    output_lines.append('  ⚠ ' + line)
+
+            output_lines.append('')
+            output_lines.append('$ git pull')
+            for line in result_pull.stdout.strip().split('\n'):
+                output_lines.append('  ' + line)
+            if result_pull.stderr.strip():
+                for line in result_pull.stderr.strip().split('\n'):
+                    output_lines.append('  ⚠ ' + line)
+
+            exit_code = max(result_pull.returncode, result_fetch.returncode)
+            success = exit_code == 0
+
+            payload = json.dumps({
+                'success': success,
+                'exit_code': exit_code,
+                'output': '\n'.join(output_lines),
+                'message': 'git pull voltooid.' if success else 'git pull had fouten (zie output).'
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
+        except subprocess.TimeoutExpired:
+            payload = json.dumps({
+                'success': False,
+                'output': 'Timeout: git pull duurde langer dan 30 seconden.',
+                'message': 'Git pull timeout.'
+            })
+            self.send_response(504)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except FileNotFoundError:
+            payload = json.dumps({
+                'success': False,
+                'output': 'Git is niet geïnstalleerd of niet gevonden in PATH.\n\nInstalleer git van https://git-scm.com/',
+                'message': 'Git niet gevonden.'
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({
+                'success': False,
+                'output': f'Fout bij git pull:\n{str(e)}',
+                'message': 'Onverwachte fout.'
+            })
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
     def handle_tockify_ics(self):
         """Server-side proxy: fetch Tockify ICS feed (no CORS issues)."""
         ics_url = 'https://tockify.com/api/feeds/ics/ichtus'
