@@ -306,6 +306,14 @@
             <span class='sidebar-toggle-text'>Inklappen</span>
         </button>
     </nav>
+    <script>
+    (function(){
+        if (localStorage.getItem('ichtus_sidebar_collapsed') === 'true') {
+            var s = document.getElementById('ichtus-sidebar');
+            if (s) { s.classList.add('collapsed'); document.body.classList.add('sidebar-collapsed'); }
+        }
+    })();
+    </script>
 
     <!-- Main Content Area -->
     <main class='main-content' id='app-container'>
