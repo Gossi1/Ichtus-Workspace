@@ -42,20 +42,57 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ---
 
-## 💻 For Existing Setup
+## 🪟 Windows Service (Auto-start met Windows)
 
-Just run:
+Wil je dat de server **automatisch start wanneer je je laptop aanzet**?
+(Dus zonder dat je `start-server.bat` hoeft te draaien.)
+
+### Installatie
+
+```cmd
+install-service.bat
+```
+
+**Dit moet als Administrator!** Rechterklik op `install-service.bat` → "Als administrator uitvoeren".
+
+Wat het script automatisch doet:
+1. ✅ Downloadt **NSSM** (Non-Sucking Service Manager) als die nog niet geïnstalleerd is
+2. ✅ Maakt een Python virtual environment (`.venv`) als die nog niet werkt
+3. ✅ Installeert de **IchtusServer** Windows service
+4. ✅ Zet 'm op **automatisch starten** met Windows
+5. ✅ Start de service direct
+
+### Beheer
+
+| Actie | Commando |
+|-------|----------|
+| Status checken | `nssm status IchtusServer` |
+| Stoppen | `nssm stop IchtusServer` |
+| Starten | `nssm start IchtusServer` |
+| Herstarten | `nssm restart IchtusServer` |
+| Configuratie wijzigen | `nssm edit IchtusServer` |
+| Logs bekijken | `type logs\service-error.log` |
+| Service verwijderen | `nssm remove IchtusServer confirm` |
+
+### Waar vind je de SPA?
+
+```
+http://localhost:8080/Ichtus_SPA/
+```
+
+---
+
+## 💻 Handmatig starten (zonder service)
+
 ```bash
 start-server.bat
 ```
 
-The launcher now boots a single supervisor (Python, default `:9090`) that
-owns the lifetime of every service. If a service crashes, the supervisor
-restarts it with capped exponential backoff (2s → 4s → 8s → 16s → 30s).
-Stop everything with one Ctrl-C in the **ICHTUS — Supervisor** console.
+Dit start de **supervisor** (Python, `:9090`) die de SPA server (`:8080`),
+de X32 OSC bridge (`:3002`) en de Mic/IEM monitor (`:3001`) bewaakt.
+Bij een crash herstart de supervisor automatisch.
 
-If you want to start a single service manually (e.g. you only need
-the SPA without the bridges):
+Of start alleen de SPA:
 ```bash
 python server.py --open
 ```

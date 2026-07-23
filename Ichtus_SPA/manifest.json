@@ -1,0 +1,56 @@
+{
+  "name": "Ichtus Workspace",
+  "short_name": "Ichtus",
+  "description": "Church service management — agenda, checklists, patchbay, setlist synchronisatie",
+  "start_url": "/Ichtus_SPA/",
+  "scope": "/Ichtus_SPA/",
+  "display": "standalone",
+  "display_override": ["window-controls-overlay", "standalone"],
+  "orientation": "any",
+  "theme_color": "#1a1a2e",
+  "background_color": "#1a1a2e",
+  "categories": ["productivity", "utilities", "lifestyle"],
+  "lang": "nl",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/Ichtus_SPA/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Ichtus_SPA/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/Ichtus_SPA/icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Open het dashboard",
+      "url": "/Ichtus_SPA/"
+    },
+    {
+      "name": "Setlist",
+      "short_name": "Setlist",
+      "description": "Setlist synchronisatie",
+      "url": "/Ichtus_SPA/"
+    },
+    {
+      "name": "Checklist",
+      "short_name": "Checklist",
+      "description": "Command center checklists",
+      "url": "/Ichtus_SPA/"
+    }
+  ]
+}
