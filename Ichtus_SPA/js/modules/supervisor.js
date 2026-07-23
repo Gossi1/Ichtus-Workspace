@@ -48,6 +48,7 @@ const supervisorModule = {
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             this._servicesCache = data.services || [];
+            this._updateData = data.update || {};
             this._render();
         } catch (err) {
             this._renderError(err);
@@ -122,10 +123,71 @@ const supervisorModule = {
         return div.innerHTML;
     },
 
+    async _doUpdate() {
+        const banner = document.getElementById('sv-update-banner');
+        const btn = document.getElementById('sv-update-btn');
+        const output = document.getElementById('sv-update-output');
+        if (!btn) return;
+        btn.disabled = true;
+        btn.textContent = 'Bezig met pullen…';
+        if (output) {
+            output.classList.remove('hidden');
+            output.textContent = 'git pull uitvoeren...';
+        }
+        try {
+            const resp = await fetch('http://localhost:9090/api/update', { method: 'POST' });
+            const data = await resp.json();
+            if (output) {
+                output.textContent = data.output || data.message || 'Gereed.';
+            }
+            if (data.success && banner) {
+                banner.classList.add('sv-update-success');
+                document.getElementById('sv-update-text').textContent = 'Code geüpdatet! Services herstarten...';
+                // After successful pull, restart all services
+                try {
+                    const restartResp = await fetch('http://localhost:9090/api/restart-all', { method: 'POST' });
+                    if (restartResp.ok) {
+                        document.getElementById('sv-update-text').textContent = '✅ Code geüpdatet en services herstart';
+                    }
+                } catch (restartErr) {
+                    document.getElementById('sv-update-text').textContent = 'Code geüpdatet, maar services herstarten mislukt: herstart handmatig met nssm restart IchtusSupervisor';
+                }
+                setTimeout(() => {
+                    banner.classList.add('hidden');
+                }, 6000);
+            }
+            // Refresh status after pull
+            setTimeout(() => this._poll(), 3000);
+        } catch (err) {
+            if (output) {
+                output.textContent = 'Fout: ' + err.message;
+            }
+        }
+        setTimeout(() => {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = 'Pull & Herstart';
+            }
+        }, 5000);
+    },
+
     _render() {
         const container = document.getElementById('sv-services-container');
+        const banner = document.getElementById('sv-update-banner');
         if (!container) return;
         container.innerHTML = '';
+
+        // Show update banner if available
+        if (banner && this._updateData && this._updateData.update_available) {
+            banner.classList.remove('hidden');
+            banner.classList.remove('sv-update-success');
+            const count = this._updateData.behind_count || 0;
+            const branch = this._updateData.branch || 'master';
+            document.getElementById('sv-update-text').textContent =
+                `${count} nieuwe commit(s) beschikbaar op ${branch}`;
+        } else if (banner) {
+            banner.classList.add('hidden');
+        }
 
         if (this._servicesCache.length === 0) {
             container.innerHTML = '<div class="sv-empty">Geen services gevonden</div>';

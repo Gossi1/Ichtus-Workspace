@@ -257,6 +257,112 @@
   to { opacity: 1; }
 }
 
+/* Update Banner */
+#view-supervisor .sv-update-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  margin-bottom: 16px;
+  background: rgba(244,121,32,0.1);
+  border: 1px solid rgba(244,121,32,0.25);
+  border-radius: 10px;
+  animation: sv-slide-down 0.3s ease;
+}
+
+#view-supervisor .sv-update-banner.hidden {
+  display: none;
+}
+
+#view-supervisor .sv-update-banner.sv-update-success {
+  background: rgba(39,174,96,0.1);
+  border-color: rgba(39,174,96,0.25);
+}
+
+@keyframes sv-slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#view-supervisor .sv-update-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#view-supervisor .sv-update-icon {
+  font-size: 18px;
+}
+
+#view-supervisor .sv-update-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f47920;
+}
+
+#view-supervisor .sv-update-banner.sv-update-success .sv-update-text {
+  color: #27ae60;
+}
+
+#view-supervisor .sv-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#view-supervisor .sv-btn-pull {
+  background: #f47920;
+  color: #fff;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: background 0.15s;
+}
+
+#view-supervisor .sv-btn-pull:hover:not(:disabled) {
+  background: #e06a10;
+}
+
+#view-supervisor .sv-btn-pull:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#view-supervisor .sv-btn-dismiss {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #8899aa;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#view-supervisor .sv-btn-dismiss:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.1);
+}
+
+#view-supervisor .sv-update-output {
+  margin: 4px 0 0;
+  padding: 10px 14px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #aab;
+  white-space: pre-wrap;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+#view-supervisor .sv-update-output.hidden {
+  display: none;
+}
+
 #view-supervisor .sv-log-dialog {
   width: 90%;
   max-width: 700px;

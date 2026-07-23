@@ -34,6 +34,19 @@
             <div class="header-divider"></div>
         </div>
         
+        <!-- Update Banner -->
+        <div id="sv-update-banner" class="sv-update-banner hidden">
+            <div class="sv-update-banner-content">
+                <span class="sv-update-icon">📥</span>
+                <span id="sv-update-text" class="sv-update-text">Nieuwe updates beschikbaar</span>
+            </div>
+            <div class="sv-update-actions">
+                <button id="sv-update-btn" class="sv-btn sv-btn-pull" onclick="supervisorModule._doUpdate()">Pull & Herstart</button>
+                <button class="sv-btn sv-btn-dismiss" onclick="document.getElementById('sv-update-banner').classList.add('hidden')">✕</button>
+            </div>
+            <pre id="sv-update-output" class="sv-update-output hidden"></pre>
+        </div>
+
         <div class="sv-status-bar">
             <span class="sv-status-label">Service status — automatisch verversen elke 5s</span>
             <button class="sv-btn sv-btn-refresh" onclick="supervisorModule._poll()">🔄 Ververs nu</button>
