@@ -46,7 +46,7 @@ const updateChecker = {
             if (!badge) return;
             if (available) {
                 badge.classList.remove('hidden');
-                badge.textContent = (count > 0) ? count : '⬆';
+                badge.textContent = (count > 0) ? '⬆' + count : '⬆';
             } else {
                 badge.classList.add('hidden');
             }
