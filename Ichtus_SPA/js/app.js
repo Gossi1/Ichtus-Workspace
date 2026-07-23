@@ -41,28 +41,26 @@ document.addEventListener('fullscreenchange', () => {
         }
 });
 
-// Hide splash screen — minimaal 1s zichtbaar, daarna vloeiende fade-out
+// Splash cleanup — alleen DOM verwijderen NA de CSS-animatie (1.6s)
+// Het tonen/verbergen gebeurt volledig via CSS in <head>
 window.hideSplash = function() {
     var splash = document.getElementById('splash-screen');
     if (!splash) return;
 
-    // Bereken hoelang de splash al zichtbaar is
-    var elapsed = Date.now() - (window._splashLoadedAt || Date.now());
-    var minDelay = Math.max(0, 1000 - elapsed);
+    // Luister naar animationend event (cleanste manier)
+    function removeSplash() {
+        if (splash && splash.parentNode) {
+            splash.parentNode.removeChild(splash);
+        }
+    }
 
-    setTimeout(function() {
-        // Cancel CSS animation + start fade-out in dezelfde frame
-        splash.style.animation = 'none';
-        splash.classList.add('fade-out');
+    splash.addEventListener('animationend', removeSplash, { once: true });
 
-        // DOM verwijderen na de fade-out transition (0.4s in CSS)
-        setTimeout(function() {
-            if (splash.parentNode) splash.parentNode.removeChild(splash);
-        }, 500);
-    }, minDelay);
+    // Fallback: als animationend om een reden niet afvuurt, verwijder na 2s
+    setTimeout(removeSplash, 2000);
 };
 
-// Splash verbergen — app.js is het laatste script, DOM is volledig geladen
+// Start splash cleanup — app.js is het laatste script
 hideSplash();
 
 // Start the background update checker (polls supervisor every 5 min)
