@@ -1431,23 +1431,12 @@ button:hover, .btn-label:hover {
     position: relative;
     display: inline-block;
     background: #000;
-    border-radius: 6px;
+    border-radius: 12px;
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     cursor: crosshair;
-    /*
-     * Sensible default visual area so the agenda-group's DEFAULT_X=110,
-     * DEFAULT_Y=290 (intended for a 1920px-wide canvas) lands inside
-     * the rendered container even before the user uploads a template.
-     * After an image loads, the canvas's intrinsic 1920px width sets the
-     * CSS display width (max ~768px from .canvas-wrapper max-width:800px
-     * minus its padding) and the agenda-group scales to fit via
-     * `transform: scale(N)` applied in agendaModule.applyScaleForCanvas()
-     * so the columns fit inside the displayed canvas instead of being
-     * clipped by `overflow: hidden`.
-     */
-    min-width: 800px;
-    min-height: 480px;
+    /* Container past zich aan canvas aan */
+    max-width: 100%;
 }
 
 #view-agenda canvas {
