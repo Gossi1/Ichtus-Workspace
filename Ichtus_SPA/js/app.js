@@ -41,18 +41,28 @@ document.addEventListener('fullscreenchange', () => {
         }
 });
 
-// Hide splash screen — smooth fade-out via JS (overrides CSS auto-hide)
+// Hide splash screen — minimaal 1s zichtbaar, daarna vloeiende fade-out
 window.hideSplash = function() {
     var splash = document.getElementById('splash-screen');
-    if (splash) {
+    if (!splash) return;
+
+    // Bereken hoelang de splash al zichtbaar is
+    var elapsed = Date.now() - (window._splashLoadedAt || Date.now());
+    var minDelay = Math.max(0, 1000 - elapsed);
+
+    setTimeout(function() {
+        // Cancel CSS animation + start fade-out in dezelfde frame
+        splash.style.animation = 'none';
         splash.classList.add('fade-out');
+
+        // DOM verwijderen na de fade-out transition (0.4s in CSS)
         setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
-        }, 450);
-    }
+        }, 500);
+    }, minDelay);
 };
 
-// Hide splash: app.js is the last script, so DOM is fully ready
+// Splash verbergen — app.js is het laatste script, DOM is volledig geladen
 hideSplash();
 
 // Start the background update checker (polls supervisor every 5 min)
