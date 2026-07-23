@@ -57,6 +57,18 @@
             </div>
         </div>
     </div>
+    <script>
+        (function(){
+            var s = document.getElementById('splash-screen');
+            if (s && sessionStorage.getItem('splashShown')) {
+                // Refresh binnen dezelfde sessie → splash overslaan
+                s.style.display = 'none';
+            } else if (s) {
+                // Nieuwe sessie (PWA launch) → splash tonen, flag zetten
+                try { sessionStorage.setItem('splashShown', '1'); } catch(e){}
+            }
+        })();
+    </script>
 
     <!-- Mobile Hamburger Menu Button -->
     <button class='mobile-hamburger' id='mobile-hamburger' aria-label='Menu'>
