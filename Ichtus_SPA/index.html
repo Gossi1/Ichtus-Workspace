@@ -3,12 +3,18 @@
 <head>
     <meta charset='UTF-8'>
     <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no'>
+    <meta name='theme-color' content='#1a1a2e'>
+    <meta name='apple-mobile-web-app-capable' content='yes'>
+    <meta name='apple-mobile-web-app-status-bar-style' content='black-translucent'>
     <base href='/Ichtus_SPA/'>
     <title>Ichtus Workspace</title>
+    <link rel='manifest' href='manifest.json'>
+    <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
+    <link rel='apple-touch-icon' href='icons/icon-192.png'>
+    <link rel='apple-touch-startup-image' href='icons/icon-512.png'>
     <link rel='stylesheet' href='../shared-assets/css/branding.css'>
     <link rel='stylesheet' href='css/style.css?v=9'>
     <link rel='stylesheet' href='css/checklist-modern.css'>
-    <link rel='icon' type='image/png' href='../shared-assets/images/Ichtus logo oranje.png'>
 </head>
 <body data-app='workspace'>
 
@@ -19,6 +25,14 @@
 
     <!-- Sidebar Backdrop Overlay -->
     <div class='sidebar-backdrop' id='sidebar-backdrop'></div>
+
+    <!-- PWA Update Notification Banner -->
+    <div id='pwa-update-banner' class='pwa-update-banner hidden'>
+        <span class='pwa-update-icon'>🔄</span>
+        <span class='pwa-update-text'>Nieuwe versie beschikbaar</span>
+        <button id='pwa-update-btn' class='pwa-update-btn'>Vernieuwen</button>
+        <button id='pwa-update-dismiss' class='pwa-update-dismiss' title='Later'>✕</button>
+    </div>
 
     <!-- Ichtus Sidebar Navigation (collapsible) -->
     <nav class='ichtus-sidebar' id='ichtus-sidebar'>
@@ -2014,6 +2028,143 @@
     <script src='js/modules/settings.js'></script>
     <script src='js/modules/stagebuilder.js'></script>
     <script src='js/app.js'></script>
+
+<style>
+/* PWA Update Banner — styled inline to avoid extra CSS dependency */
+.pwa-update-banner {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  background: #2a2a4a;
+  border: 1px solid rgba(255, 153, 0, 0.3);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-size: 14px;
+  color: #eee;
+  animation: pwa-slide-up 0.35s ease-out;
+}
+.pwa-update-banner.hidden { display: none; }
+@keyframes pwa-slide-up {
+  from { opacity: 0; transform: translateX(-50%) translateY(20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+.pwa-update-icon { font-size: 18px; }
+.pwa-update-text { white-space: nowrap; }
+.pwa-update-btn {
+  padding: 6px 16px;
+  border: none;
+  border-radius: 8px;
+  background: #ff9900;
+  color: #1a1a2e;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pwa-update-btn:hover { background: #ffb347; }
+.pwa-update-dismiss {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  line-height: 1;
+}
+.pwa-update-dismiss:hover { color: #fff; }
+</style>
+
+<script>
+// PWA Service Worker — update notification
+if ('serviceWorker' in navigator) {
+  let swRegistration = null;
+  let updateBanner = document.getElementById('pwa-update-banner');
+  let updateBtn = document.getElementById('pwa-update-btn');
+  let updateDismiss = document.getElementById('pwa-update-dismiss');
+
+  function showUpdateBanner() {
+    if (updateBanner) updateBanner.classList.remove('hidden');
+  }
+
+  function hideUpdateBanner() {
+    if (updateBanner) updateBanner.classList.add('hidden');
+  }
+
+  let pendingReload = false;
+
+  function applyUpdate() {
+    if (!swRegistration || !swRegistration.waiting) return;
+    // Tell the waiting SW to activate
+    swRegistration.waiting.postMessage('skip-waiting');
+    pendingReload = true;
+    hideUpdateBanner();
+  }
+
+  // Listen for the 'updatefound' event on the registration
+  function listenForUpdates(reg) {
+    swRegistration = reg;
+
+    // If a waiting SW already exists, show the banner immediately
+    if (reg.waiting) {
+      showUpdateBanner();
+    }
+
+    reg.addEventListener('updatefound', function() {
+      var newWorker = reg.installing;
+      if (!newWorker) return;
+
+      newWorker.addEventListener('statechange', function() {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          // New SW installed but still waiting — notify the user
+          showUpdateBanner();
+        }
+      });
+    });
+  }
+
+  // Periodically check for updates (every 30 minutes)
+  function startPeriodicUpdateCheck() {
+    setInterval(function() {
+      if (swRegistration) {
+        swRegistration.update().catch(function(err) {
+          console.warn('[PWA] Periodic update check failed:', err);
+        });
+      }
+    }, 30 * 60 * 1000);
+  }
+
+  // Listen for controllerchange — when the new SW takes over, reload
+  navigator.serviceWorker.addEventListener('controllerchange', function() {
+    console.log('[PWA] New service worker activated');
+    if (pendingReload) {
+      pendingReload = false;
+      window.location.reload();
+    }
+  });
+
+  // Register
+  window.addEventListener('load', function() {
+    navigator.serviceWorker.register('/Ichtus_SPA/sw.js').then(function(reg) {
+      console.log('[PWA] Service worker registered, scope:', reg.scope);
+      listenForUpdates(reg);
+      startPeriodicUpdateCheck();
+    }).catch(function(err) {
+      console.warn('[PWA] Service worker registration failed:', err);
+    });
+  });
+
+  // Event listeners for banner buttons
+  if (updateBtn) updateBtn.addEventListener('click', applyUpdate);
+  if (updateDismiss) updateDismiss.addEventListener('click', hideUpdateBanner);
+}
+</script>
 
 </body>
 </html>

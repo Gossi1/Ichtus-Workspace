@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f47920"/>
+      <stop offset="100%" style="stop-color:#e67e22"/>
+    </linearGradient>
+  </defs>
+  <!-- Background circle -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="180" fill="none" stroke="url(#accent)" stroke-width="8" opacity="0.3"/>
+  <!-- Cross shape -->
+  <g transform="translate(256,256)">
+    <!-- Vertical beam -->
+    <rect x="-24" y="-120" width="48" height="240" rx="8" fill="url(#accent)"/>
+    <!-- Horizontal beam -->
+    <rect x="-90" y="-24" width="180" height="48" rx="8" fill="url(#accent)"/>
+  </g>
+  <!-- Small worship/music note accent -->
+  <g transform="translate(256, 380)" fill="#f47920" opacity="0.6">
+    <circle cx="-8" cy="8" r="10"/>
+    <circle cx="16" cy="8" r="10"/>
+    <rect x="0" y="-30" width="3" height="38" rx="1.5" transform="rotate(-15, 0, -30)"/>
+    <rect x="24" y="-30" width="3" height="38" rx="1.5" transform="rotate(-15, 24, -30)"/>
+  </g>
+  <!-- Letter I accent -->
+  <text x="256" y="160" text-anchor="middle" font-family="sans-serif" font-weight="800" font-size="24" fill="#f47920" opacity="0.15">ICHTUS</text>
+</svg>

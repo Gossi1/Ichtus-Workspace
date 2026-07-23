@@ -78,6 +78,14 @@ logs/
 *.temp
 temp/
 tmp/
+
+# NSSM installer (downloaded automatically by install-service.bat)
+nssm*.zip
+nssm_temp/
+
+# Runtime artifacts (auto-generated)
+supervisor.heartbeat
+supervisor.pid
 # ===========================
 # Dev / temp artifacts
 # ===========================
