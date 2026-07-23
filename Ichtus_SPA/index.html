@@ -929,6 +929,13 @@
                                 <span class="matrix-label">Offline Modus</span>
                                 <span id="settings-offline-badge" class="status-badge status-off">✗ Uit</span>
                             </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label">Git Updates</span>
+                                <div class="matrix-value">
+                                    <button id="btn-check-updates" class="btn-nav" onclick="settingsModule.checkForUpdates()">🔄 Check voor updates</button>
+                                    <span id="settings-update-status" class="update-notification-tag" style="display:none;"></span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

@@ -184,6 +184,44 @@ const settingsModule = {
             });
     },
 
+    checkForUpdates() {
+        const btn = document.getElementById('btn-check-updates');
+        const statusEl = document.getElementById('settings-update-status');
+        if (!btn || !statusEl) return;
+
+        btn.disabled = true;
+        btn.textContent = '⏳ Controleren...';
+        statusEl.style.display = 'none';
+
+        fetch('http://localhost:9090/api/check-update')
+            .then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            })
+            .then(data => {
+                if (data.update_available) {
+                    btn.textContent = '🔄 Check voor updates';
+                    statusEl.className = 'update-notification-tag';
+                    statusEl.textContent = '⬆️ Update beschikbaar (' + data.behind_count + ' commits achter)';
+                    statusEl.style.display = 'inline-block';
+                } else {
+                    btn.textContent = '🔄 Check voor updates';
+                    statusEl.className = 'update-notification-tag';
+                    statusEl.textContent = '✓ Up-to-date';
+                    statusEl.style.display = 'inline-block';
+                }
+                btn.disabled = false;
+            })
+            .catch(error => {
+                console.warn('Update check failed:', error);
+                btn.textContent = '🔄 Check voor updates';
+                statusEl.className = 'update-notification-tag';
+                statusEl.textContent = '⚠️ Kon supervisor niet bereiken';
+                statusEl.style.display = 'inline-block';
+                btn.disabled = false;
+            });
+    },
+
     compareVersions(version1, version2) {
         if (!version1 || !version2) return 0;
         const parts1 = version1.split('.').map(Number);
