@@ -41,19 +41,18 @@ document.addEventListener('fullscreenchange', () => {
         }
 });
 
-// Hide splash screen with smooth fade-out
+// Hide splash screen — smooth fade-out via JS (overrides CSS auto-hide)
 window.hideSplash = function() {
     var splash = document.getElementById('splash-screen');
     if (splash) {
         splash.classList.add('fade-out');
-        // Fully remove from DOM after transition completes
         setTimeout(function() {
             if (splash.parentNode) splash.parentNode.removeChild(splash);
-        }, 600);
+        }, 450);
     }
 };
 
-// Hide splash immediately — DOM + all scripts are loaded at this point
+// Hide splash: app.js is the last script, so DOM is fully ready
 hideSplash();
 
 // Start the background update checker (polls supervisor every 5 min)
