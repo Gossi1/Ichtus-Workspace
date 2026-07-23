@@ -204,6 +204,43 @@
     padding: 0 15px;
 }
 
+/* ==========================================================================
+   SIDEBAR BADGE — Oranje update indicator
+   ========================================================================== */
+.sidebar-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    margin-left: auto;
+    margin-right: 2px;
+    border-radius: 10px;
+    background: #f47920;
+    color: #1a1a2e;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1;
+    box-shadow: 0 0 8px rgba(244, 121, 32, 0.5);
+    animation: badge-pulse 2s ease-in-out infinite;
+    flex-shrink: 0;
+}
+
+.sidebar-badge.hidden {
+    display: none !important;
+}
+
+@keyframes badge-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(244, 121, 32, 0.4); }
+    50% { box-shadow: 0 0 14px rgba(244, 121, 32, 0.8); }
+}
+
+/* When sidebar is collapsed, hide the badge to avoid visual clutter */
+.ichtus-sidebar.collapsed .sidebar-badge {
+    display: none !important;
+}
+
 /* ==================== GLOBAL PREVENT HORIZONTAL SCROLL ==================== */
 
 html, body {

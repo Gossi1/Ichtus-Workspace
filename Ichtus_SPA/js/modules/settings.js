@@ -185,6 +185,11 @@ const settingsModule = {
     },
 
     checkForUpdates() {
+        // Also trigger the global update checker to sync sidebar badges
+        if (window.updateChecker) {
+            window.updateChecker.forceCheck();
+        }
+
         const btn = document.getElementById('btn-check-updates');
         const statusEl = document.getElementById('settings-update-status');
         if (!btn || !statusEl) return;

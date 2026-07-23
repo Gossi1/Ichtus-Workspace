@@ -41,4 +41,10 @@ document.addEventListener('fullscreenchange', () => {
         }
 });
 
+// Start the background update checker (polls supervisor every 5 min)
+if (window.updateChecker) {
+    // Delay first check to let the app fully initialize
+    setTimeout(() => window.updateChecker.start(), 5000);
+}
+
 console.log('Ichtus Workspace SPA ready.');

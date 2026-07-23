@@ -4,6 +4,69 @@
    Fetches from http://localhost:9090/api/status
    ============================================ */
 
+// ── Global update checker ──
+// Periodically polls the supervisor for git updates and shows a badge
+// in the sidebar on the Supervisor and Settings nav items.
+const updateChecker = {
+    _interval: null,
+    _checkIntervalMs: 5 * 60 * 1000, // 5 minutes
+
+    start() {
+        if (this._interval) return;
+        // Do an initial check after a short delay
+        setTimeout(() => this._check(), 3000);
+        this._interval = setInterval(() => this._check(), this._checkIntervalMs);
+    },
+
+    stop() {
+        if (this._interval) {
+            clearInterval(this._interval);
+            this._interval = null;
+        }
+    },
+
+    async _check() {
+        try {
+            const resp = await fetch('http://localhost:9090/api/check-update');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            this._updateBadges(data.update_available, data.behind_count);
+        } catch (err) {
+            // Supervisor not available — hide badges
+            this._updateBadges(false);
+        }
+    },
+
+    _updateBadges(available, count) {
+        const badges = [
+            document.getElementById('badge-supervisor'),
+            document.getElementById('badge-settings')
+        ];
+        badges.forEach(badge => {
+            if (!badge) return;
+            if (available) {
+                badge.classList.remove('hidden');
+                badge.textContent = (count > 0) ? count : '⬆';
+            } else {
+                badge.classList.add('hidden');
+            }
+        });
+    },
+
+    /** Force an immediate check (called from settingsModule.checkForUpdates) */
+    forceCheck() {
+        this._check();
+    },
+
+    /** Clear badges after a successful pull */
+    clearBadges() {
+        this._updateBadges(false);
+    }
+};
+
+// Make globally accessible
+window.updateChecker = updateChecker;
+
 const supervisorModule = {
     initialized: false,
     _lastView: null,
@@ -140,6 +203,11 @@ const supervisorModule = {
             if (output) {
                 output.textContent = data.output || data.message || 'Gereed.';
             }
+            // Clear sidebar badges after successful pull
+            if (data.success) {
+                updateChecker.clearBadges();
+            }
+
             if (data.success && banner) {
                 banner.classList.add('sv-update-success');
                 document.getElementById('sv-update-text').textContent = 'Code geüpdatet! Services herstarten...';
