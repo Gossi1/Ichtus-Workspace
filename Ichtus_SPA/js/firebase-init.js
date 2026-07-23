@@ -161,7 +161,7 @@ function showSetupScreen() {
         setupScreen.className = 'overlay-screen';
         setupScreen.innerHTML = `
             <div class='setup-container'>
-                <img src='../shared-assets/images/Ichtus logo oranje.png' alt='Ichtus Logo' class='setup-logo'>
+                <img src='../shared-assets/images/Ichtus logo oranje.png?v=2.1.0' alt='Ichtus Logo' class='setup-logo'>
                 <h1 class='setup-title heading-font'>ICHTUS WORKSPACE</h1>
                 <p class='setup-subtitle'>Firebase Configuration Required</p>
                 <p class='setup-description'>Enter your Firebase project details to connect. You can find these in the Firebase Console under Project Settings → Your apps → Web app.</p>
@@ -244,7 +244,7 @@ function showSignInScreen() {
         authScreen.className = 'overlay-screen';
         authScreen.innerHTML = `
             <div class='auth-container'>
-                <img src='../shared-assets/images/Ichtus logo oranje.png' alt='Ichtus Logo' class='auth-logo'>
+                <img src='../shared-assets/images/Ichtus logo oranje.png?v=2.1.0' alt='Ichtus Logo' class='auth-logo'>
                 <h1 class='auth-title heading-font'>ICHTUS WORKSPACE</h1>
                 <p class='auth-subtitle'>Sign in to access your workspace</p>
                 <form id='auth-form' onsubmit='handleSignIn(event)'>
