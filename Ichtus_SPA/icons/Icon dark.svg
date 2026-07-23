@@ -5,17 +5,14 @@
    height="512"
    version="1.1"
    id="svg8"
-   sodipodi:docname="icon.svg"
+   sodipodi:docname="Icon dark.svg"
    inkscape:version="1.4.4 (dcaf3e7, 2026-05-05)"
-   inkscape:export-filename="icon192.png"
-   inkscape:export-xdpi="36"
-   inkscape:export-ydpi="36"
-   xml:space="preserve"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
    xmlns="http://www.w3.org/2000/svg"
-   xmlns:svg="http://www.w3.org/2000/svg"><sodipodi:namedview
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <sodipodi:namedview
      id="namedview8"
      pagecolor="#ffffff"
      bordercolor="#000000"
@@ -32,9 +29,22 @@
      inkscape:window-x="2351"
      inkscape:window-y="139"
      inkscape:window-maximized="1"
-     inkscape:current-layer="svg8"
-     inkscape:export-bgcolor="#ffffff00" /><defs
-     id="defs4"><linearGradient
+     inkscape:current-layer="svg8" />
+  <defs
+     id="defs4">
+    <linearGradient
+       id="linearGradient1"
+       inkscape:collect="always">
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1"
+         offset="0"
+         id="stop5" />
+      <stop
+         style="stop-color:#ffffff;stop-opacity:1;"
+         offset="1"
+         id="stop6" />
+    </linearGradient>
+    <linearGradient
        id="bg"
        x1="-90.860931"
        y1="604.73438"
@@ -42,34 +52,58 @@
        y2="0"
        gradientUnits="userSpaceOnUse"
        gradientTransform="translate(3.8598633e-8)"
-       xlink:href="#accent"><stop
+       xlink:href="#accent">
+      <stop
          offset="0"
          style="stop-color:#ed1c24;stop-opacity:1;"
-         id="stop1" /><stop
+         id="stop1" />
+      <stop
          offset="1"
          style="stop-color:#f47920;stop-opacity:1;"
-         id="stop2" /></linearGradient><linearGradient
+         id="stop2" />
+    </linearGradient>
+    <linearGradient
        id="accent"
        x1="0%"
        y1="0%"
        x2="100%"
-       y2="100%"><stop
+       y2="100%">
+      <stop
          offset="0%"
          style="stop-color:#f47920"
-         id="stop3" /><stop
+         id="stop3" />
+      <stop
          offset="100%"
          style="stop-color:#e67e22"
-         id="stop4" /></linearGradient></defs><!-- Background circle --><rect
+         id="stop4" />
+    </linearGradient>
+    <linearGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient1"
+       id="linearGradient6"
+       x1="456.66614"
+       y1="215.38736"
+       x2="63.650703"
+       y2="219.35907"
+       gradientUnits="userSpaceOnUse" />
+  </defs>
+  <!-- Background circle -->
+  <rect
      width="512"
      height="512"
      rx="96"
      fill="url(#bg)"
      id="rect4"
-     style="fill:url(#bg);fill-opacity:1"
+     style="fill:#4d4d4f;fill-opacity:1"
      x="0"
-     y="0" /><!-- Outer ring --><!-- Cross shape --><!-- Small worship/music note accent --><!-- Letter I accent --><text
+     y="0" />
+  <!-- Outer ring -->
+  <!-- Cross shape -->
+  <!-- Small worship/music note accent -->
+  <!-- Letter I accent -->
+  <text
      xml:space="preserve"
-     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:171.174px;font-family:'Blockprint2 W00';-inkscape-font-specification:'Blockprint2 W00 Bold';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke-width:6.11337"
+     style="font-style:normal;font-variant:normal;font-weight:bold;font-stretch:normal;font-size:171.174px;font-family:'Blockprint2 W00';-inkscape-font-specification:'Blockprint2 W00 Bold';writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke-width:6.11337;fill-opacity:1"
      x="56.118942"
      y="271.88019"
      id="text8"
@@ -78,7 +112,8 @@
        id="tspan8"
        x="56.118942"
        y="271.88019"
-       style="fill:#ffffff;stroke-width:6.11337">ICHTUS</tspan></text><text
+       style="fill:#ffffff;stroke-width:6.11337;fill-opacity:1">ICHTUS</tspan></text>
+  <text
      xml:space="preserve"
      style="font-style:normal;font-variant:normal;font-weight:normal;font-stretch:normal;font-size:73.9837px;font-family:PMNCaeciliaETW08-Roman;-inkscape-font-specification:'PMNCaeciliaETW08-Roman, Normal';font-variant-ligatures:normal;font-variant-caps:normal;font-variant-numeric:normal;font-variant-east-asian:normal;writing-mode:lr-tb;direction:ltr;fill:#ffffff;stroke-width:2.64228"
      x="64.734833"
@@ -89,4 +124,5 @@
        id="tspan9"
        x="64.734833"
        y="355.58783"
-       style="fill:#ffffff;stroke-width:2.64228">workspace</tspan></text></svg>
+       style="fill:#ffffff;stroke-width:2.64228">workspace</tspan></text>
+</svg>
