@@ -103,30 +103,28 @@ self.addEventListener('fetch', event => {
     return;
   }
 
-  // Static assets → cache first, falling back to network
-  event.respondWith(cacheFirst(event.request));
+  // Static assets → stale-while-revalidate
+  // Serveert gecached eerst, update op achtergrond — geen handmatige version bumps nodig
+  event.respondWith(staleWhileRevalidate(event.request));
 });
 
 // ——— STRATEGIES ———
 
-async function cacheFirst(request) {
+async function staleWhileRevalidate(request) {
+  // Probeer cache first (direct antwoord, supersnel)
   const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-  try {
-    const networkResponse = await fetch(request);
+  
+  // Haal nieuwe versie op van netwerk (op achtergrond, blokkeert niet)
+  const fetchPromise = fetch(request).then(networkResponse => {
     if (networkResponse && networkResponse.status === 200) {
-      const cache = await caches.open(CACHE_NAME);
-      cache.put(request, networkResponse.clone());
+      const cache = caches.open(CACHE_NAME);
+      cache.then(c => c.put(request, networkResponse.clone()));
     }
     return networkResponse;
-  } catch (error) {
-    if (request.mode === 'navigate') {
-      return caches.match('/Ichtus_SPA/index.html');
-    }
-    throw error;
-  }
+  }).catch(() => cachedResponse);
+  
+  // Return cached versie direct, of wacht op netwerk als cache leeg is
+  return cachedResponse || fetchPromise;
 }
 
 async function networkFirst(request) {
