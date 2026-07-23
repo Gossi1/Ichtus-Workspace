@@ -1414,7 +1414,7 @@ button:hover, .btn-label:hover {
 }
 
 /* ==========================================================================
-   CANVAS
+   CANVAS & AGENDA OVERLAY
    ========================================================================== */
 #view-agenda .canvas-wrapper {
     background: rgba(0, 0, 0, 0.2);
@@ -1431,7 +1431,7 @@ button:hover, .btn-label:hover {
     position: relative;
     display: inline-block;
     background: #000;
-    border-radius: 12px;
+    border-radius: 6px;
     overflow: hidden;
     box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
     cursor: crosshair;
@@ -1454,11 +1454,23 @@ button:hover, .btn-label:hover {
     display: block;
     max-width: 100%;
     height: auto;
-    border-radius: 12px;
 }
 
 #view-agenda #agenda-group {
-    display: none;
+    position: absolute;
+    display: flex;
+    gap: 25px;
+    padding: 15px;
+    cursor: move;
+    user-select: none;
+    white-space: nowrap;
+    /*
+     * Anchor the JS-applied `transform: scale(N)` (see
+     * agendaModule.applyScaleForCanvas()) at the agenda-group's own
+     * top-left so the visual position of stored pixel offsets (110, 290
+     * by default) lines up with the visual top-left of the scaled group.
+     */
+    transform-origin: top left;
 }
 
 #view-agenda .column {
