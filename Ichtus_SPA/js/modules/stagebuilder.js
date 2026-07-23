@@ -197,6 +197,17 @@ const stagebuilderModule = {
         this.__sbKeyBound = false;
     },
 
+    // ------------------------------------------------------------------
+    //  WORSHIPTOOLS PLANNING NAVIGATION
+    // ------------------------------------------------------------------
+
+    /** Open WorshipTools Planning in a new tab. The user can then
+     *  navigate to the desired service and click the orange "Extract
+     *  Roster" button injected by the worshiptools-sync extension. */
+    openWorshipTools() {
+        window.open('https://planning.worshiptools.com/app', '_blank');
+    },
+
     _signalStageBuilderReady() {
         // The spa-bridge listens for this and re-dispatches the cached
         // roster — same idiom as setlistModule's ichtus-setlist-ready.
@@ -1281,9 +1292,12 @@ const stagebuilderModule = {
                 '</div>' +
                 '<div class="sb-roster-empty-title">Wachten op WorshipTools</div>' +
                 '<p class="sb-roster-empty-hint">' +
-                '   Open <strong>Planning</strong> in WorshipTools en klik op de blauwe knop <strong>Extract Roster</strong>.' +
+                '   Open <strong>Planning</strong> in WorshipTools en klik op de knop <strong>Extract Roster</strong>.' +
                 '   De lijst verschijnt automatisch hier.' +
-                '</p>';
+                '</p>' +
+                '<button class="sb-btn sb-btn-primary" onclick="stagebuilderModule.openWorshipTools()">' +
+                '   Open WorshipTools  ↗' +
+                '</button>';
             return;
         }
         // rosterStatus === 'empty'
@@ -1297,10 +1311,12 @@ const stagebuilderModule = {
             '       <circle cx="4" cy="12" r="1"/>' +
             '       <circle cx="4" cy="18" r="1"/>' +
             '   </svg>' +
-            '</div>' +
             '<div class="sb-roster-empty-title">Geen teamleden geladen</div>' +
             '<p class="sb-roster-empty-hint">Deze dienst heeft geen rol-toewijzingen.' +
-            '   Als dit onverwacht is, open WorshipTools Planning en klik opnieuw <strong>Extract Roster</strong>.</p>';
+            '   Als dit onverwacht is, open WorshipTools Planning en klik opnieuw <strong>Extract Roster</strong>.</p>' +
+            '<button class="sb-btn sb-btn-primary" onclick="stagebuilderModule.openWorshipTools()">' +
+            '   Open WorshipTools  ↗' +
+            '</button>';
     },
 
     _updateRosterMeta() {
