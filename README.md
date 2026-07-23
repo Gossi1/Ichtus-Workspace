@@ -47,38 +47,69 @@ Church service management Single Page Application (SPA) for coordinating worship
 Wil je dat de server **automatisch start wanneer je je laptop aanzet**?
 (Dus zonder dat je `start-server.bat` hoeft te draaien.)
 
-### Installatie
+### Installatie (aanbevolen)
+
+Deze stappen moet je **als Administrator** uitvoeren:
 
 ```cmd
+cd C:\Users\shami\Documents\Ichtus_apps
 install-service.bat
 ```
 
-**Dit moet als Administrator!** Rechterklik op `install-service.bat` → "Als administrator uitvoeren".
+**NB:** `install-service.bat` installeert de **SPA-only service** (`IchtusServer`).
+Voor de volledige **supervisor** (SPA + X32 bridge + mic/IEM) volg je de handmatige stappen hieronder.
 
-Wat het script automatisch doet:
-1. ✅ Downloadt **NSSM** (Non-Sucking Service Manager) als die nog niet geïnstalleerd is
-2. ✅ Maakt een Python virtual environment (`.venv`) als die nog niet werkt
-3. ✅ Installeert de **IchtusServer** Windows service
-4. ✅ Zet 'm op **automatisch starten** met Windows
-5. ✅ Start de service direct
+### Supervisor als Windows service (handmatig — aanbevolen)
+
+Als je ook de **X32 bridge** en **mic/IEM monitor** automatisch wilt laten starten:
+
+**1. Installeer de service**
+```cmd
+nssm install IchtusSupervisor "C:\Users\shami\AppData\Local\Programs\Python\Python311\python.exe" "C:\Users\shami\Documents\Ichtus_apps\supervisor.py"
+```
+
+**2. Configureer de service**
+```cmd
+nssm set IchtusSupervisor AppDirectory "C:\Users\shami\Documents\Ichtus_apps"
+nssm set IchtusSupervisor AppStdout "C:\Users\shami\Documents\Ichtus_apps\logs\supervisor-output.log"
+nssm set IchtusSupervisor AppStderr "C:\Users\shami\Documents\Ichtus_apps\logs\supervisor-error.log"
+nssm set IchtusSupervisor AppRotateFiles 1
+nssm set IchtusSupervisor AppRotateOnline 1
+nssm set IchtusSupervisor AppRotateBytes 5000000
+nssm set IchtusSupervisor AppNoConsole 1
+nssm set IchtusSupervisor Start SERVICE_AUTO_START
+nssm set IchtusSupervisor DisplayName "Ichtus Workspace Supervisor"
+nssm set IchtusSupervisor AppThrottle 3000
+nssm set IchtusSupervisor AppExit Default Exit
+```
+
+**3. Start de service**
+```cmd
+nssm start IchtusSupervisor
+```
 
 ### Beheer
 
 | Actie | Commando |
 |-------|----------|
-| Status checken | `nssm status IchtusServer` |
-| Stoppen | `nssm stop IchtusServer` |
-| Starten | `nssm start IchtusServer` |
-| Herstarten | `nssm restart IchtusServer` |
-| Configuratie wijzigen | `nssm edit IchtusServer` |
-| Logs bekijken | `type logs\service-error.log` |
-| Service verwijderen | `nssm remove IchtusServer confirm` |
+| Status checken | `nssm status IchtusSupervisor` |
+| Stoppen | `nssm stop IchtusSupervisor` |
+| Starten | `nssm start IchtusSupervisor` |
+| Herstarten | `nssm restart IchtusSupervisor` |
+| Configuratie wijzigen | `nssm edit IchtusSupervisor` |
+| Logs bekijken | `type logs\supervisor-error.log` |
+| Service verwijderen | `nssm remove IchtusSupervisor confirm` |
 
-### Waar vind je de SPA?
+### Waar vind je alles?
 
-```
-http://localhost:8080/Ichtus_SPA/
-```
+| Onderdeel | URL |
+|-----------|-----|
+| **SPA** (Ichtus Workspace) | `http://localhost:8080/Ichtus_SPA/` |
+| **Supervisor dashboard** | `http://localhost:9090/` |
+| **X32 bridge** | `http://localhost:3002/` |
+| **Mic/IEM monitor** | `http://localhost:3001/` |
+
+De supervisor herstart gecrashte services automatisch met oplopende vertraging (2s → 30s).
 
 ---
 
