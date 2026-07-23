@@ -8,19 +8,36 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ### On a NEW PC:
 
-1. **Clone the repository**
+#### Option A: Using Git (recommended)
+
+**1. Install Git** (if not already installed)
+   ```cmd
+   winget install --id Git.Git -e --source winget
+   ```
+   Or download from [git-scm.com/download/win](https://git-scm.com/download/win).
+
+**2. Clone the repository**
    ```bash
    git clone https://github.com/Gossi1/Ichtus-Workspace.git
    cd Ichtus_apps
    ```
 
-2. **Copy your Firebase config** (optional - enables data sync)
+#### Option B: Without Git (Download ZIP)
+
+1. Go to [github.com/Gossi1/Ichtus-Workspace](https://github.com/Gossi1/Ichtus-Workspace) in your browser
+2. Click **Code** → **Download ZIP**
+3. Extract the ZIP to a folder (e.g. `C:\Ichtus_apps\`)
+4. Open a **Command Prompt** in that folder and continue below
+
+**Then, continue with:**
+
+- **Copy your Firebase config** (optional — enables data sync)
    - Either copy an existing `firebase-config.txt` (or `firebase-api-key.txt`) from another installation into this project
    - Or paste your Firebase web-app config straight into `Ichtus_SPA/firebase-config.txt` — the browser fetches it on page boot, so the setup screen is skipped entirely
    - Or enter values during `install.bat` setup
    - Both files are excluded from git (.gitignore) for security
 
-3. **Run the installer**
+- **Run the installer**
    ```bash
    install.bat
    ```
@@ -30,12 +47,12 @@ Church service management Single Page Application (SPA) for coordinating worship
    - Prompt for Firebase configuration if needed
    - Check all dependencies
 
-4. **Start the server**
+- **Start the server**
    ```bash
    start-server.bat
    ```
 
-5. **Open in browser**
+- **Open in browser**
    ```
    http://localhost:8080/Ichtus_SPA/
    ```
