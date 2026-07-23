@@ -15,6 +15,7 @@
     <link rel='stylesheet' href='../shared-assets/css/branding.css'>
     <link rel='stylesheet' href='css/style.css?v=9'>
     <link rel='stylesheet' href='css/checklist-modern.css'>
+    <link rel='stylesheet' href='css/supervisor.css'>
 </head>
 <body data-app='workspace'>
 
@@ -25,6 +26,36 @@
 
     <!-- Sidebar Backdrop Overlay -->
     <div class='sidebar-backdrop' id='sidebar-backdrop'></div>
+
+    <!-- SUPERVISOR VIEW -->
+    <div id='view-supervisor' class='app-view hidden'>
+        <div class="simple-header">
+            <h1>Supervisor Dashboard</h1>
+            <div class="header-divider"></div>
+        </div>
+        
+        <div class="sv-status-bar">
+            <span class="sv-status-label">Service status — automatisch verversen elke 5s</span>
+            <button class="sv-btn sv-btn-refresh" onclick="supervisorModule._poll()">🔄 Ververs nu</button>
+        </div>
+        
+        <div class="sv-services-grid" id="sv-services-container">
+            <div class="sv-loading">🔄 Supervisor status laden…</div>
+        </div>
+
+        <!-- Log Modal -->
+        <div id="sv-log-modal" class="sv-log-modal hidden">
+            <div class="sv-log-dialog">
+                <div class="sv-log-header">
+                    <h3 id="sv-log-title">Logs</h3>
+                    <button class="sv-log-close" onclick="supervisorModule._closeLogModal()" title="Sluiten">✕</button>
+                </div>
+                <div class="sv-log-content" id="sv-log-content">
+                    <div class="sv-log-loading">Logs laden…</div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- PWA Update Notification Banner -->
     <div id='pwa-update-banner' class='pwa-update-banner hidden'>
@@ -169,8 +200,8 @@
 
             <div class='sidebar-section-label'>Systeem</div>
             <ul class='sidebar-menu'>
-                <li>
-                    <a href='http://localhost:9090/' target='_blank' rel='noopener noreferrer'>
+                <li data-view='supervisor'>
+                    <a href='#' onclick="router.navigate('supervisor'); return false;">
                         <div class='sidebar-icon'>
                             <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
                                 <rect x='2' y='3' width='20' height='14' rx='2'></rect>
@@ -181,7 +212,7 @@
                                 <circle cx='12' cy='10' r='2' fill='currentColor'></circle>
                             </svg>
                         </div>
-                        <span class='sidebar-text'>Supervisor</span>
+                        <span class='sidebar-text' data-i18n='nav_supervisor'>Supervisor</span>
                     </a>
                 </li>
             </ul>
@@ -2046,6 +2077,7 @@
     <script src='js/modules/ndi.js'></script>
     <script src='js/modules/settings.js'></script>
     <script src='js/modules/stagebuilder.js'></script>
+    <script src='js/modules/supervisor.js'></script>
     <script src='js/app.js'></script>
 
 <style>

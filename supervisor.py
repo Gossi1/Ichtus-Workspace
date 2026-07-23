@@ -587,6 +587,9 @@ class _StatusHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
         self.end_headers()
         self.wfile.write(body)
 
@@ -598,6 +601,15 @@ class _StatusHandler(BaseHTTPRequestHandler):
             return json.loads(self.rfile.read(length).decode('utf-8'))
         except Exception:
             return {}
+
+    def do_OPTIONS(self):
+        """Handle CORS preflight requests from the SPA (cross-origin :8080 -> :9090)."""
+        self.send_response(204)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+        self.send_header('Access-Control-Max-Age', '86400')
+        self.end_headers()
 
     def do_GET(self):
         supervisor = self.server.supervisor_ref  # set on the ThreadingHTTPServer
@@ -746,6 +758,7 @@ def _send_wrapped(self, code, obj):
         self.send_header('Content-Type', 'text/html; charset=utf-8')
         self.send_header('Content-Length', str(len(body)))
         self.send_header('Cache-Control', 'no-store')
+        self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(body)
         return
@@ -754,6 +767,9 @@ def _send_wrapped(self, code, obj):
     self.send_header('Content-Type', 'application/json; charset=utf-8')
     self.send_header('Content-Length', str(len(body)))
     self.send_header('Cache-Control', 'no-store')
+    self.send_header('Access-Control-Allow-Origin', '*')
+    self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+    self.send_header('Access-Control-Allow-Headers', 'Content-Type')
     self.end_headers()
     self.wfile.write(body)
 

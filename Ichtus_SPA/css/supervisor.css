@@ -1,0 +1,347 @@
+/* ============================================
+   Ichtus SPA — Supervisor Dashboard Styles
+   ============================================ */
+
+#view-supervisor .sv-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 10px;
+}
+
+#view-supervisor .sv-status-label {
+  font-size: 13px;
+  color: #8899aa;
+}
+
+#view-supervisor .sv-btn-refresh {
+  background: rgba(56,189,248,0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56,189,248,0.2);
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+}
+
+#view-supervisor .sv-btn-refresh:hover {
+  background: rgba(56,189,248,0.2);
+}
+
+/* Services Grid */
+#view-supervisor .sv-services-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+  gap: 16px;
+}
+
+#view-supervisor .sv-loading {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  color: #8899aa;
+  font-size: 15px;
+}
+
+#view-supervisor .sv-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 48px 24px;
+  color: #8899aa;
+}
+
+/* Error State */
+#view-supervisor .sv-error {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 48px 24px;
+  text-align: center;
+  background: rgba(237,28,36,0.06);
+  border: 1px solid rgba(237,28,36,0.15);
+  border-radius: 12px;
+}
+
+#view-supervisor .sv-error-icon {
+  font-size: 36px;
+}
+
+#view-supervisor .sv-error-text {
+  color: #ccc;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+#view-supervisor .sv-error-text code {
+  background: rgba(255,255,255,0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #f47920;
+}
+
+#view-supervisor .sv-error-text a {
+  color: #38bdf8;
+}
+
+#view-supervisor .sv-btn-retry {
+  background: #38bdf8;
+  color: #0a0a1a;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+/* Service Card */
+#view-supervisor .sv-card {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+#view-supervisor .sv-card:hover {
+  border-color: rgba(255,255,255,0.15);
+}
+
+#view-supervisor .sv-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 18px;
+  background: rgba(255,255,255,0.02);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+#view-supervisor .sv-card-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #eee;
+}
+
+#view-supervisor .sv-card-state {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+#view-supervisor .sv-state-running {
+  background: rgba(39,174,96,0.15);
+  color: #27ae60;
+}
+
+#view-supervisor .sv-state-backoff {
+  background: rgba(244,121,32,0.15);
+  color: #f47920;
+}
+
+#view-supervisor .sv-state-stopped {
+  background: rgba(237,28,36,0.15);
+  color: #ed1c24;
+}
+
+#view-supervisor .sv-card-body {
+  padding: 16px 18px;
+}
+
+/* Metrics Grid */
+#view-supervisor .sv-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+#view-supervisor .sv-metric {
+  text-align: center;
+  padding: 8px 4px;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+}
+
+#view-supervisor .sv-metric-label {
+  display: block;
+  font-size: 11px;
+  color: #667788;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 4px;
+}
+
+#view-supervisor .sv-metric-value {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #eee;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Action Buttons */
+#view-supervisor .sv-actions {
+  display: flex;
+  gap: 8px;
+}
+
+#view-supervisor .sv-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: #ccc;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.15s;
+  text-align: center;
+}
+
+#view-supervisor .sv-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+#view-supervisor .sv-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+#view-supervisor .sv-btn-restart {
+  border-color: rgba(244,121,32,0.3);
+  color: #f47920;
+}
+
+#view-supervisor .sv-btn-restart:hover:not(:disabled) {
+  background: rgba(244,121,32,0.15);
+}
+
+#view-supervisor .sv-btn-logs {
+  border-color: rgba(56,189,248,0.3);
+  color: #38bdf8;
+}
+
+#view-supervisor .sv-btn-logs:hover {
+  background: rgba(56,189,248,0.12);
+}
+
+/* Log Modal */
+#view-supervisor .sv-log-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+  animation: sv-fade-in 0.2s ease;
+}
+
+#view-supervisor .sv-log-modal.hidden {
+  display: none;
+}
+
+@keyframes sv-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+#view-supervisor .sv-log-dialog {
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+  background: #1e1e2e;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.5);
+}
+
+#view-supervisor .sv-log-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+#view-supervisor .sv-log-header h3 {
+  margin: 0;
+  font-size: 15px;
+  color: #eee;
+}
+
+#view-supervisor .sv-log-close {
+  background: none;
+  border: none;
+  color: #8899aa;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+#view-supervisor .sv-log-close:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+#view-supervisor .sv-log-content {
+  padding: 12px 20px;
+  overflow-y: auto;
+  max-height: 60vh;
+  font-family: 'Cascadia Code', 'Fira Code', 'JetBrains Mono', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+#view-supervisor .sv-log-loading,
+#view-supervisor .sv-log-empty,
+#view-supervisor .sv-log-error {
+  padding: 32px 16px;
+  text-align: center;
+  color: #8899aa;
+}
+
+#view-supervisor .sv-log-error {
+  color: #ed1c24;
+}
+
+#view-supervisor .sv-log-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+#view-supervisor .sv-log-line {
+  display: flex;
+  gap: 12px;
+  padding: 3px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+#view-supervisor .sv-log-ts {
+  color: #667788;
+  white-space: nowrap;
+  min-width: 80px;
+  flex-shrink: 0;
+}
+
+#view-supervisor .sv-log-msg {
+  color: #ccd;
+  word-break: break-all;
+}
