@@ -6194,11 +6194,20 @@ input:checked + .slider::before { transform: translateX(20px); }
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    transition: opacity 0.5s ease, visibility 0.5s ease;
+    /* CSS-only fallback: splash verdwijnt na 3s ook zonder JS */
+    animation: splash-auto-hide 3s ease forwards;
 }
+/* JS-controlled fade-out — overschrijft de CSS-animatie */
 #splash-screen.fade-out {
+    animation: none;
     opacity: 0;
     visibility: hidden;
+    transition: opacity 0.4s ease, visibility 0.4s ease;
+}
+@keyframes splash-auto-hide {
+    0%, 65% { opacity: 1; visibility: visible; }
+    85%     { opacity: 0; visibility: visible; }
+    100%    { opacity: 0; visibility: hidden; }
 }
 .splash-content {
     text-align: center;
