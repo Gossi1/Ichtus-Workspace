@@ -10,7 +10,7 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 1. **Clone the repository**
    ```bash
-   git clone <your-repo-url>
+   git clone https://github.com/Gossi1/Ichtus-Workspace.git
    cd Ichtus_apps
    ```
 
@@ -42,37 +42,40 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ---
 
-## 🪟 Windows Service (Auto-start met Windows)
+## 🪟 Windows Service (Auto-start with Windows)
 
-Wil je dat de server **automatisch start wanneer je je laptop aanzet**?
-(Dus zonder dat je `start-server.bat` hoeft te draaien.)
+Want the server to **start automatically when you turn on your laptop**?
+(Without having to run `start-server.bat` manually.)
 
-### Installatie (aanbevolen)
+### Installation (recommended)
 
-Deze stappen moet je **als Administrator** uitvoeren:
+Run these steps **as Administrator**:
 
 ```cmd
-cd C:\Users\shami\Documents\Ichtus_apps
+cd <project-root>\Ichtus_apps
 install-service.bat
 ```
 
-**NB:** `install-service.bat` installeert de **SPA-only service** (`IchtusServer`).
-Voor de volledige **supervisor** (SPA + X32 bridge + mic/IEM) volg je de handmatige stappen hieronder.
+**Note:** `install-service.bat` installs the **SPA-only service** (`IchtusServer`).
+For the full **supervisor** (SPA + X32 bridge + mic/IEM), follow the manual steps below.
 
-### Supervisor als Windows service (handmatig — aanbevolen)
+### Supervisor as Windows service (manual — recommended)
 
-Als je ook de **X32 bridge** en **mic/IEM monitor** automatisch wilt laten starten:
+To have the **X32 bridge** and **mic/IEM monitor** start automatically too:
 
-**1. Installeer de service**
+> Replace `<project-root>` with the full path to your Ichtus_apps directory.
+> Replace `<python-path>` with the path to Python (e.g. `%LOCALAPPDATA%\Programs\Python\Python311\python.exe` or `<project-root>\.venv\Scripts\python.exe`).
+
+**1. Install the service**
 ```cmd
-nssm install IchtusSupervisor "C:\Users\shami\AppData\Local\Programs\Python\Python311\python.exe" "C:\Users\shami\Documents\Ichtus_apps\supervisor.py"
+nssm install IchtusSupervisor "<python-path>" "<project-root>\supervisor.py"
 ```
 
-**2. Configureer de service**
+**2. Configure the service**
 ```cmd
-nssm set IchtusSupervisor AppDirectory "C:\Users\shami\Documents\Ichtus_apps"
-nssm set IchtusSupervisor AppStdout "C:\Users\shami\Documents\Ichtus_apps\logs\supervisor-output.log"
-nssm set IchtusSupervisor AppStderr "C:\Users\shami\Documents\Ichtus_apps\logs\supervisor-error.log"
+nssm set IchtusSupervisor AppDirectory "<project-root>"
+nssm set IchtusSupervisor AppStdout "<project-root>\logs\supervisor-output.log"
+nssm set IchtusSupervisor AppStderr "<project-root>\logs\supervisor-error.log"
 nssm set IchtusSupervisor AppRotateFiles 1
 nssm set IchtusSupervisor AppRotateOnline 1
 nssm set IchtusSupervisor AppRotateBytes 5000000
@@ -83,47 +86,47 @@ nssm set IchtusSupervisor AppThrottle 3000
 nssm set IchtusSupervisor AppExit Default Exit
 ```
 
-**3. Start de service**
+**3. Start the service**
 ```cmd
 nssm start IchtusSupervisor
 ```
 
-### Beheer
+### Management
 
-| Actie | Commando |
-|-------|----------|
-| Status checken | `nssm status IchtusSupervisor` |
-| Stoppen | `nssm stop IchtusSupervisor` |
-| Starten | `nssm start IchtusSupervisor` |
-| Herstarten | `nssm restart IchtusSupervisor` |
-| Configuratie wijzigen | `nssm edit IchtusSupervisor` |
-| Logs bekijken | `type logs\supervisor-error.log` |
-| Service verwijderen | `nssm remove IchtusSupervisor confirm` |
+| Action | Command |
+|--------|---------|
+| Check status | `nssm status IchtusSupervisor` |
+| Stop | `nssm stop IchtusSupervisor` |
+| Start | `nssm start IchtusSupervisor` |
+| Restart | `nssm restart IchtusSupervisor` |
+| Edit configuration | `nssm edit IchtusSupervisor` |
+| View logs | `type logs\supervisor-error.log` |
+| Remove service | `nssm remove IchtusSupervisor confirm` |
 
-### Waar vind je alles?
+### Service URLs
 
-| Onderdeel | URL |
-|-----------|-----|
+| Service | URL |
+|---------|-----|
 | **SPA** (Ichtus Workspace) | `http://localhost:8080/Ichtus_SPA/` |
 | **Supervisor dashboard** | `http://localhost:9090/` |
 | **X32 bridge** | `http://localhost:3002/` |
 | **Mic/IEM monitor** | `http://localhost:3001/` |
 
-De supervisor herstart gecrashte services automatisch met oplopende vertraging (2s → 30s).
+The supervisor automatically restarts crashed services with increasing delay (2s → 30s).
 
 ---
 
-## 💻 Handmatig starten (zonder service)
+## 💻 Manual Start (without service)
 
 ```bash
 start-server.bat
 ```
 
-Dit start de **supervisor** (Python, `:9090`) die de SPA server (`:8080`),
-de X32 OSC bridge (`:3002`) en de Mic/IEM monitor (`:3001`) bewaakt.
-Bij een crash herstart de supervisor automatisch.
+This starts the **supervisor** (Python, `:9090`) which monitors the SPA server (`:8080`),
+the X32 OSC bridge (`:3002`), and the Mic/IEM monitor (`:3001`).
+On a crash, the supervisor restarts automatically.
 
-Of start alleen de SPA:
+Or start only the SPA:
 ```bash
 python server.py --open
 ```
@@ -172,11 +175,11 @@ Access via the **Instellingen** (gear icon) in the sidebar.
 
 | Setting | Description |
 |---------|-------------|
-| Offline Modus | Work without internet |
+| Offline Mode | Work without internet |
 | NDI Auto-Discovery | Automatic NDI device scanning |
 | NDI Preview Quality | Low / Medium / High |
-| Tijd Formaat | 12-hour or 24-hour |
-| Datum Formaat | DD-MM-YYYY or MM-DD-YYYY |
+| Time Format | 12-hour or 24-hour |
+| Date Format | DD-MM-YYYY or MM-DD-YYYY |
 | Debug Panel | Show Firebase status & logs |
 
 ---
@@ -191,7 +194,7 @@ Access via the **Instellingen** (gear icon) in the sidebar.
 | **Patchbay** | Digital signal routing canvas for A/V setup |
 | **Analytics** | Service sequencing and tracking |
 | **Setlist** | ProPresenter integration with WorshipTools sync |
-| **Instellingen** | App configuration and Firebase settings |
+| **Settings** | App configuration and Firebase settings |
 | **NDI Sources** | Network device discovery and selection |
 
 ---
