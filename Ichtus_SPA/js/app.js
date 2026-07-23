@@ -41,10 +41,25 @@ document.addEventListener('fullscreenchange', () => {
         }
 });
 
+// Hide splash screen with smooth fade-out
+window.hideSplash = function() {
+    var splash = document.getElementById('splash-screen');
+    if (splash) {
+        splash.classList.add('fade-out');
+        // Fully remove from DOM after transition completes
+        setTimeout(function() {
+            if (splash.parentNode) splash.parentNode.removeChild(splash);
+        }, 600);
+    }
+};
+
+// Hide splash immediately — DOM + all scripts are loaded at this point
+hideSplash();
+
 // Start the background update checker (polls supervisor every 5 min)
 if (window.updateChecker) {
     // Delay first check to let the app fully initialize
-    setTimeout(() => window.updateChecker.start(), 5000);
+    setTimeout(function() { window.updateChecker.start(); }, 5000);
 }
 
 console.log('Ichtus Workspace SPA ready.');
