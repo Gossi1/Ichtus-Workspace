@@ -93,6 +93,13 @@ HEARTBEAT_FILE = ROOT_DIR / 'supervisor.heartbeat'
 DEFAULT_PORT     = 9090
 DEFAULT_HOST     = '127.0.0.1'
 
+# Git / update config — used by the periodic update checker and
+# /api/check-update / /api/update endpoints.
+UPDATE_CONFIG = {
+    'github_repo': 'Gossi1/Ichtus-Workspace',
+    'current_version': '2.0.0',
+}
+
 # Backoff schedule: 2s, 4s, 8s, 16s, 30s (cap). Reset after a child
 # stays alive at least RESET_AFTER_ALIVE_SEC — covers the common
 # "boot, fail, retry" case without inflating wait times for genuine
@@ -173,6 +180,132 @@ def _get_services():
             'env': {},
         },
     ]
+
+
+# ── Git update state ───────────────────────────────────────────────────
+# Shared state for the periodic git fetch check. The monitor loop runs
+# `git fetch origin` once every CHECK_INTERVAL_SEC and compares HEAD
+# with origin/<branch>. If they diverge, `_git_update_available` is set
+# to True so /api/status and the SPA can surface an "update available"
+# banner. The /api/update POST endpoint runs `git pull` + restarts the
+# supervised services.
+CHECK_INTERVAL_SEC = 1800  # 30 minutes
+
+_git_update_available = False
+_git_behind_count = 0
+_git_last_checked = None
+_git_error = None
+_git_lock = threading.Lock()
+_git_branch = None
+
+
+def _check_git_update():
+    """Run `git fetch origin` and compare HEAD with the upstream
+    branch. Sets the module-level update flags so /api/status and the
+    SPA supervisor view can show an update banner. This function is
+    called from the monitor loop every CHECK_INTERVAL_SEC seconds."""
+    global _git_update_available, _git_behind_count, _git_last_checked, _git_error, _git_branch
+    try:
+        git_dir = str(ROOT_DIR)
+        # Determine current branch
+        branch_result = subprocess.run(
+            ['git', 'rev-parse', '--abbrev-ref', 'HEAD'],
+            capture_output=True, text=True, timeout=10,
+            cwd=git_dir
+        )
+        if branch_result.returncode != 0:
+            with _git_lock:
+                _git_error = 'Kan branch niet bepalen'
+            return
+        branch = branch_result.stdout.strip()
+
+        # Fetch latest from origin
+        fetch_result = subprocess.run(
+            ['git', 'fetch', 'origin'],
+            capture_output=True, text=True, timeout=30,
+            cwd=git_dir
+        )
+        if fetch_result.returncode != 0:
+            with _git_lock:
+                _git_error = f'git fetch mislukt: {fetch_result.stderr.strip()[:200]}'
+            return
+
+        # Count how many commits we're behind
+        behind_result = subprocess.run(
+            ['git', 'rev-list', '--count', f'HEAD..origin/{branch}'],
+            capture_output=True, text=True, timeout=10,
+            cwd=git_dir
+        )
+        if behind_result.returncode != 0:
+            # Maybe branch doesn't have an upstream
+            with _git_lock:
+                _git_behind_count = 0
+                _git_update_available = False
+                _git_last_checked = datetime.now().isoformat(timespec='seconds')
+                _git_error = None
+                _git_branch = branch
+            return
+
+        count = int(behind_result.stdout.strip())
+        with _git_lock:
+            _git_behind_count = count
+            _git_update_available = count > 0
+            _git_last_checked = datetime.now().isoformat(timespec='seconds')
+            _git_error = None
+            _git_branch = branch
+
+    except subprocess.TimeoutExpired:
+        with _git_lock:
+            _git_error = 'git fetch timeout (30s)'
+    except FileNotFoundError:
+        with _git_lock:
+            _git_error = 'Git niet geïnstalleerd'
+    except Exception as e:
+        with _git_lock:
+            _git_error = str(e)[:200]
+
+
+def _do_git_pull():
+    """Run `git pull` and return the result dict. Called by the
+    /api/update endpoint. After a successful pull the caller should
+    restart the supervised services for the new code to take effect."""
+    try:
+        git_dir = str(ROOT_DIR)
+        result = subprocess.run(
+            ['git', 'pull'],
+            capture_output=True, text=True, timeout=30,
+            cwd=git_dir
+        )
+        output_lines = []
+        if result.stdout.strip():
+            for line in result.stdout.strip().split('\n'):
+                output_lines.append(line)
+        if result.stderr.strip():
+            for line in result.stderr.strip().split('\n'):
+                output_lines.append('⚠ ' + line)
+
+        success = result.returncode == 0
+
+        # Reset update flag under lock — after pull we're up to date
+        with _git_lock:
+            global _git_update_available, _git_behind_count
+            if success:
+                _git_update_available = False
+                _git_behind_count = 0
+                _git_last_checked = datetime.now().isoformat(timespec='seconds')
+
+        return {
+            'success': success,
+            'exit_code': result.returncode,
+            'output': '\n'.join(output_lines),
+            'message': 'git pull voltooid.' if success else 'git pull had fouten.'
+        }
+    except subprocess.TimeoutExpired:
+        return {'success': False, 'output': 'Timeout (30s)', 'message': 'git pull timeout.'}
+    except FileNotFoundError:
+        return {'success': False, 'output': 'Git niet geïnstalleerd.', 'message': 'Git niet gevonden.'}
+    except Exception as e:
+        return {'success': False, 'output': str(e)[:300], 'message': 'Onverwachte fout.'}
 
 
 # ── Module-level state (owned by the main supervisor thread) ───────────
@@ -486,11 +619,25 @@ def _schedule_backoff(supervisor, child):
 def _monitor_loop(supervisor):
     """Main supervisor thread. Ticks every 1s. For each child: if it
     has exited, either schedule a restart (with backoff) or mark
-    stopped if shutdown is in progress."""
+    stopped if shutdown is in progress.
+
+    Also runs a periodic git fetch check (every CHECK_INTERVAL_SEC)
+    so /api/status can report whether new commits are available on
+    the remote. This lets the SPA supervisor view show an "update
+    available" banner."""
+    _last_update_check = 0
     while not _shutdown_requested.is_set():
+        # Periodic git fetch check (every CHECK_INTERVAL_SEC seconds)
+        # We deliberately run this inside the monitor loop (instead of
+        # a separate timer thread) because git fetch is I/O-bound and
+        # the 1s tick is plenty fast for service monitoring.
+        now = time.time()
+        if now - _last_update_check >= CHECK_INTERVAL_SEC:
+            _check_git_update()
+            _last_update_check = now
+
         with _state_lock:
             children = list(supervisor.children.values())
-        now = time.time()
         for child in children:
             if child.stop_requested:
                 continue
@@ -627,6 +774,18 @@ class _StatusHandler(BaseHTTPRequestHandler):
         if path == '/api/health':
             self._send_json(200, {'status': 'ok', 'service': 'supervisor'})
             return
+        if path == '/api/check-update':
+            # Trigger an immediate git fetch check and return the result.
+            _check_git_update()
+            with _git_lock:
+                self._send_json(200, {
+                    'update_available': _git_update_available,
+                    'behind_count': _git_behind_count,
+                    'branch': _git_branch,
+                    'last_checked': _git_last_checked,
+                    'error': _git_error,
+                })
+            return
         self._send_json(404, {'error': 'not found', 'path': path})
 
     def do_POST(self):
@@ -640,12 +799,33 @@ class _StatusHandler(BaseHTTPRequestHandler):
             _shutdown_requested.set()
             self._send_json(200, {'status': 'shutting_down'})
             return
+        if path == '/api/update':
+            result = _do_git_pull()
+            self._send_json(200, result)
+            return
+        if path == '/api/restart-all':
+            # Restart all supervised services (used after git pull to
+            # apply the new code). We iterate over all children and
+            # trigger a restart via the same logic as _restart_child.
+            results = {}
+            for key, child in supervisor.children.items():
+                results[key] = _restart_child(supervisor, key)
+            self._send_json(200, {'restarted': list(results.keys()), 'results': results})
+            return
         self._send_json(404, {'error': 'not found', 'path': path})
 
 
 def _build_status(supervisor):
     with _state_lock:
         services = [c.to_status_dict() for c in supervisor.children.values()]
+    with _git_lock:
+        update_info = {
+            'update_available': _git_update_available,
+            'behind_count': _git_behind_count,
+            'branch': _git_branch,
+            'last_checked': _git_last_checked,
+            'error': _git_error,
+        }
     return {
         'status': 'shutting_down' if _shutdown_requested.is_set() else 'ok',
         'service': 'ichtus-supervisor',
@@ -654,6 +834,7 @@ def _build_status(supervisor):
         'started_at': datetime.fromtimestamp(supervisor.started_at).isoformat(),
         'hostname': socket.gethostname(),
         'services': services,
+        'update': update_info,
         'logs_dir': str(LOGS_DIR.relative_to(ROOT_DIR)),
         'pid_file': str(PID_FILE.relative_to(ROOT_DIR)),
         'heartbeat_file': str(HEARTBEAT_FILE.relative_to(ROOT_DIR)),
