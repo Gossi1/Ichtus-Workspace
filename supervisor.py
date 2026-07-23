@@ -127,41 +127,52 @@ PIPE_READ_CHUNK = 64 * 1024
 #   - True  -> log a hard error and either spawn anyway (PATH search)
 #             or surface "X is not installed, install it then retry".
 #   - False -> warn and skip; the supervisor stays alive for the rest.
-SERVICES = [
-    {
-        'key': 'spa',
-        'label': 'SPA HTTP server (server.py)',
-        'cmd': ['python', str(ROOT_DIR / 'server.py'), '--port', '8080', '--host', '0.0.0.0'],
-        'shell': False,
-        'log_name': 'server',
-        'default_port': 8080,
-        'required': False,  # python rarely missing; allow degraded mode
-        'cwd': ROOT_DIR,
-        'env': {},
-    },
-    {
-        'key': 'x32',
-        'label': 'X32 OSC bridge (x32/server.js)',
-        'cmd': ['node', str(ROOT_DIR / 'x32' / 'server.js')],
-        'shell': False,
-        'log_name': 'x32-bridge',
-        'default_port': 3002,
-        'required': False,
-        'cwd': ROOT_DIR / 'x32',
-        'env': {},
-    },
-    {
-        'key': 'mic_iem',
-        'label': 'Mic & IEM monitor (mic-iem-server/server.js)',
-        'cmd': ['node', str(ROOT_DIR / 'mic-iem-server' / 'server.js')],
-        'shell': False,
-        'log_name': 'mic-iem',
-        'default_port': 3001,
-        'required': False,
-        'cwd': ROOT_DIR / 'mic-iem-server',
-        'env': {},
-    },
-]
+#
+# NOTE: For the Python-based SPA service we use `sys.executable` (the
+# full path to the interpreter running the supervisor) rather than the
+# bare 'python' command. When the supervisor runs as a Windows service,
+# the PATH environment variable differs from the interactive user's
+# PATH and 'python' is often not found.
+def _get_services():
+    """Build the service list at runtime so Python-based services use
+    the current interpreter's full path (`sys.executable`). This is
+    critical when running as a Windows service where PATH may not
+    contain `python`."""
+    return [
+        {
+            'key': 'spa',
+            'label': 'SPA HTTP server (server.py)',
+            'cmd': [sys.executable, str(ROOT_DIR / 'server.py'), '--port', '8080', '--host', '0.0.0.0'],
+            'shell': False,
+            'log_name': 'server',
+            'default_port': 8080,
+            'required': False,
+            'cwd': ROOT_DIR,
+            'env': {},
+        },
+        {
+            'key': 'x32',
+            'label': 'X32 OSC bridge (x32/server.js)',
+            'cmd': ['node', str(ROOT_DIR / 'x32' / 'server.js')],
+            'shell': False,
+            'log_name': 'x32-bridge',
+            'default_port': 3002,
+            'required': False,
+            'cwd': ROOT_DIR / 'x32',
+            'env': {},
+        },
+        {
+            'key': 'mic_iem',
+            'label': 'Mic & IEM monitor (mic-iem-server/server.js)',
+            'cmd': ['node', str(ROOT_DIR / 'mic-iem-server' / 'server.js')],
+            'shell': False,
+            'log_name': 'mic-iem',
+            'default_port': 3001,
+            'required': False,
+            'cwd': ROOT_DIR / 'mic-iem-server',
+            'env': {},
+        },
+    ]
 
 
 # ── Module-level state (owned by the main supervisor thread) ───────────
@@ -856,7 +867,7 @@ class Supervisor:
         self.echo_to_stdout = echo_to_stdout
         self.started_at = time.time()
         self.children = {}
-        for spec in SERVICES:
+        for spec in _get_services():
             self.children[spec['key']] = SupervisorChild(spec)
 
 
@@ -873,7 +884,7 @@ def _banner(supervisor, port, host):
         '  ║                                              ║',
         '  ║  Supervised children:                        ║',
     ]
-    for spec in SERVICES:
+    for spec in _get_services():
         lines.append(f"  ║    • {spec['label'][:42]:<42} ║")
     lines += [
         '  ║                                              ║',
