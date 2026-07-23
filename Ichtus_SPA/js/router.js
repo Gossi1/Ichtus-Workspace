@@ -11,13 +11,13 @@ const router = {
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder'].includes(hash)) ? hash : 'dashboard';
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor'].includes(hash)) ? hash : 'dashboard';
         
         this.navigate(initialView);
         
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.replace('#', '');
-            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder'].includes(hash)) ? hash : 'dashboard';
+            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor'].includes(hash)) ? hash : 'dashboard';
             if (view !== this.currentView) {
                 this.navigate(view, false);
             }
@@ -44,6 +44,12 @@ const router = {
         // drag/move listeners and clears any in-progress freeform drag).
         if (this.currentView === 'stagebuilder' && typeof stagebuilderModule !== 'undefined' && stagebuilderModule.cleanup) {
             stagebuilderModule.cleanup();
+        }
+
+        // Clean up Supervisor module when navigating away (stops the polling interval
+        // so it doesn't keep fetching from :9090 on other views).
+        if (this.currentView === 'supervisor' && typeof supervisorModule !== 'undefined' && supervisorModule.cleanup) {
+            supervisorModule.cleanup();
         }
 
         // Hide all views
@@ -90,6 +96,8 @@ const router = {
             settingsModule.init();
         } else if (view === 'stagebuilder' && typeof stagebuilderModule !== 'undefined') {
             stagebuilderModule.init();
+        } else if (view === 'supervisor' && typeof supervisorModule !== 'undefined') {
+            supervisorModule.init();
         }
     }
 };
@@ -109,6 +117,7 @@ router.isAgendaActive     = () => router.currentView === 'agenda';
 router.isPatchbayActive   = () => router.currentView === 'patchbay';
 router.isSetlistActive    = () => router.currentView === 'setlist';
 router.isStageBuilderActive = () => router.currentView === 'stagebuilder';
+router.isSupervisorActive  = () => router.currentView === 'supervisor';
 
 // Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => router.init());
