@@ -1420,11 +1420,12 @@ button:hover, .btn-label:hover {
     background: rgba(0, 0, 0, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.05);
     border-radius: 14px;
-    padding: 16px;
+    padding: 0;
     display: inline-flex;
     justify-content: center;
     width: 100%;
     max-width: 800px;
+    overflow: hidden;
 }
 
 #view-agenda #container {
