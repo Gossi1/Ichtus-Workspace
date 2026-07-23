@@ -188,9 +188,9 @@ h1, h2, h3, .heading-font {
 }
 
 .sidebar-logo-wrap {
-    width: 54px;
-    min-width: 54px;
-    height: 40px;
+    width: 64px;
+    min-width: 64px;
+    height: 48px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -200,7 +200,7 @@ h1, h2, h3, .heading-font {
 
 .sidebar-logo-wrap img {
     width: auto;
-    height: 24px;
+    height: 32px;
     object-fit: contain;
 }
 
