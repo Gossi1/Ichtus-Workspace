@@ -196,12 +196,25 @@ h1, h2, h3, .heading-font {
     justify-content: center;
     flex-shrink: 0;
     overflow: hidden;
+    transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .sidebar-logo-wrap img {
     width: auto;
     height: 32px;
     object-fit: contain;
+    transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Collapsed sidebar — logo kleiner zodat-ie niet afgekapt wordt */
+.ichtus-sidebar.collapsed .sidebar-logo-wrap {
+    width: 54px;
+    min-width: 54px;
+    height: 40px;
+}
+
+.ichtus-sidebar.collapsed .sidebar-logo-wrap img {
+    height: 24px;
 }
 
 .sidebar-brand-text {
