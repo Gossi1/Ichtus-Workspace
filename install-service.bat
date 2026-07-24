@@ -32,8 +32,15 @@ echo.
 :: ──────────────────────────────────────────────────
 ::  1. NSSM — controleren / downloaden met timeout
 :: ──────────────────────────────────────────────────
-if exist "%WINDIR%\System32\nssm.exe" (
-    echo  [NSSM] ✅ Al geïnstalleerd in System32.
+
+:: Eerst oude downloads opruimen (kan achterblijven van eerdere runs)
+if exist nssm.zip del /q nssm.zip >nul 2>&1
+if exist nssm_temp rmdir /s /q nssm_temp >nul 2>&1
+
+:: Gebruik 'where' i.p.v. 'if exist %WINDIR%\System32' (omzeilt SysWOW64 redirectie op 64-bit Windows)
+where nssm.exe >nul 2>&1
+if !errorlevel! equ 0 (
+    echo  [NSSM] ✅ Al geïnstalleerd.
 ) else (
     echo  [NSSM] ⬇️  Niet gevonden — downloaden van nssm.cc...
     echo         (max 30 seconden wachttijd)
@@ -88,7 +95,14 @@ if exist "%WINDIR%\System32\nssm.exe" (
     )
 
     copy /y "nssm_temp\nssm-2.24\win64\nssm.exe" "%WINDIR%\System32\nssm.exe" >nul
-    if !errorlevel! neq 0 (
+    :: Kopieer naar System32. Als Sysnative bestaat (32-bit op 64-bit), kopieer daar ook.
+    copy /y "nssm_temp\nssm-2.24\win64\nssm.exe" "%WINDIR%\System32\nssm.exe" >nul 2>&1
+    set COPY_OK=!errorlevel!
+    if exist "%WINDIR%\Sysnative" (
+        copy /y "nssm_temp\nssm-2.24\win64\nssm.exe" "%WINDIR%\Sysnative\nssm.exe" >nul 2>&1
+        if !errorlevel! equ 0 set COPY_OK=0
+    )
+    if !COPY_OK! neq 0 (
         echo  [NSSM] ❌ Kan nssm.exe niet kopiëren naar System32.
         pause
         exit /b 1
