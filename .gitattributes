@@ -1,0 +1,19 @@
+# Force CRLF line endings for Windows batch files
+# Without this, git stores LF and cmd.exe can't parse .bat files on a fresh clone
+*.bat      text eol=crlf
+*.ps1      text eol=crlf
+
+# Python and JavaScript should use LF (standard)
+*.py       text eol=lf
+*.js       text eol=lf
+*.json     text eol=lf
+*.html     text eol=lf
+*.css      text eol=lf
+*.md       text eol=lf
+*.yml      text eol=lf
+*.yaml     text eol=lf
+
+# Text files that are actually binary or autodetected
+*.png      binary
+*.ico      binary
+*.ttf      binary
