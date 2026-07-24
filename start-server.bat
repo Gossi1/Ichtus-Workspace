@@ -135,7 +135,24 @@ if exist .venv\Scripts\python.exe (
     set PYTHON=.venv\bin\python
     echo   [PY]  using virtualenv  .venv\bin\python
 ) else (
-    echo   [PY]  using system python
+    :: Fall back to system python, but skip WindowsApps (Microsoft Store) Python
+    echo   [PY]  looking for system python (skipping WindowsApps)...
+    set FOUND_PY=
+    for /f "tokens=*" %%i in ('where python 2^>nul') do (
+        if not defined FOUND_PY (
+            echo %%i | findstr /I "WindowsApps" >nul 2>&1
+            if !errorlevel! neq 0 (
+                set PYTHON=%%i
+                set FOUND_PY=1
+            )
+        )
+    )
+    if not defined FOUND_PY (
+        echo   [PY]  warning: only WindowsApps Python found (not suitable).
+        echo   [PY]  install from https://www.python.org/downloads/
+    ) else (
+        echo   [PY]  using system python: !PYTHON!
+    )
 )
 
 :: --------- Node presence (informational, not blocky) ---------

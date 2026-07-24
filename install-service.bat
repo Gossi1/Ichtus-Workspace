@@ -120,101 +120,138 @@ echo  [LOGS] logs/ directory OK
 echo.
 
 :: ──────────────────────────────────────────────────
-::  3. Python vinden (.venv eerst, dan systeem)
+::  3. Python vinden (.venv eerst, dan systeem, NOOIT WindowsApps)
 :: ──────────────────────────────────────────────────
 set PYTHON_PATH=
 set PYTHON_IS_VENV=0
+set FOUND_PYTHON=
 
-:: 3a. .venv proberen
+:: 3a. .venv eerst — fast-path (sla systeemzoektocht over als .venv al werkt)
 if exist ".venv\Scripts\python.exe" (
-    echo  [PY]   Virtualenv gevonden - testen...
     ".venv\Scripts\python.exe" --version >nul 2>&1
     if !errorlevel! equ 0 (
         set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
         set PYTHON_IS_VENV=1
-        echo  [PY]   Gebruik virtualenv: .venv\Scripts\python.exe
-    ) else (
-        echo  [PY]   .venv verwijst naar niet-bestaande Python!
-        echo         .venv opnieuw aanmaken...
-        rmdir /s /q .venv 2>nul
-        python -m venv .venv
-        if !errorlevel! equ 0 (
-            echo  [PY]   .venv opnieuw aangemaakt
-            call .venv\Scripts\pip install zeroconf >nul 2>&1
-            set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
-            set PYTHON_IS_VENV=1
-        ) else (
-            echo  [PY]   Kon .venv niet herstellen - val terug op systeem Python.
+        echo  [PY]   .venv werkt — gebruik: .venv\Scripts\python.exe
+        goto :python_show_version
+    )
+)
+
+:: 3b. Bekende installatiepaden controleren (dit zijn ALTIJD echte Python-installaties)
+echo  [PY]   Zoeken naar geïnstalleerde Python 3.8+...
+
+for %%p in (
+    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
+    "C:\Program Files\Python313\python.exe"
+    "C:\Program Files\Python312\python.exe"
+    "C:\Program Files\Python311\python.exe"
+    "C:\Python313\python.exe"
+    "C:\Python312\python.exe"
+    "C:\Python311\python.exe"
+) do (
+    if not defined FOUND_PYTHON (
+        if exist %%p (
+            %%~p --version 2>&1 | findstr /B "Python 3\." >nul
+            if !errorlevel! equ 0 (
+                set PYTHON_PATH=%%~p
+                set FOUND_PYTHON=1
+                echo  [PY]   Gevonden via bekend pad: %%~p
+            )
         )
     )
 )
 
-:: 3b. Systeem Python zoeken (vlag-variabele ipv goto-in-loop)
-if not defined PYTHON_PATH (
-    echo  [PY]   Zoeken naar systeem Python 3.8+...
-    set FOUND_PYTHON=
-
-    :: Probeer 'python'
+:: 3c. Via PATH zoeken (MAAR Microsoft Store Python overslaan!)
+if not defined FOUND_PYTHON (
+    echo  [PY]   Zoeken via PATH (WindowsApps Python overgeslagen)...
     for /f "tokens=*" %%i in ('where python 2^>nul') do (
         if not defined FOUND_PYTHON (
-            "%%i" --version 2>&1 | findstr /B "Python 3\." >nul
-            if !errorlevel! equ 0 (
-                set PYTHON_PATH=%%i
-                set FOUND_PYTHON=1
-            )
-        )
-    )
-
-    :: Probeer 'python3'
-    if not defined FOUND_PYTHON (
-        for /f "tokens=*" %%i in ('where python3 2^>nul') do (
-            if not defined FOUND_PYTHON (
+            echo %%i | findstr /I "WindowsApps" >nul 2>&1
+            if !errorlevel! neq 0 (
                 "%%i" --version 2>&1 | findstr /B "Python 3\." >nul
                 if !errorlevel! equ 0 (
                     set PYTHON_PATH=%%i
                     set FOUND_PYTHON=1
+                    echo  [PY]   Gevonden via PATH: %%i
                 )
+            ) else (
+                echo  [PY]   Overgeslagen (WindowsApps): %%i
             )
         )
     )
+)
 
-    :: Veelvoorkomende paden
-    if not defined FOUND_PYTHON (
-        for %%p in (
-            "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
-            "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
-            "%LOCALAPPDATA%\Programs\Python\Python310\python.exe"
-            "C:\Program Files\Python312\python.exe"
-            "C:\Program Files\Python311\python.exe"
-            "C:\Python312\python.exe"
-            "C:\Python311\python.exe"
-        ) do (
-            if not defined FOUND_PYTHON (
-                if exist %%p (
-                    %%~p --version 2>&1 | findstr /B "Python 3\." >nul
-                    if !errorlevel! equ 0 (
-                        set PYTHON_PATH=%%p
-                        set FOUND_PYTHON=1
-                    )
+:: 3d. Probeer 'python3'
+if not defined FOUND_PYTHON (
+    for /f "tokens=*" %%i in ('where python3 2^>nul') do (
+        if not defined FOUND_PYTHON (
+            echo %%i | findstr /I "WindowsApps" >nul 2>&1
+            if !errorlevel! neq 0 (
+                "%%i" --version 2>&1 | findstr /B "Python 3\." >nul
+                if !errorlevel! equ 0 (
+                    set PYTHON_PATH=%%i
+                    set FOUND_PYTHON=1
+                    echo  [PY]   Gevonden via PATH: %%i
                 )
             )
         )
     )
 )
 
-:: 3c. Python gevonden?
+:: 3e. Python gevonden?
 if not defined PYTHON_PATH (
     echo  [PY]   Python 3.8 of hoger niet gevonden!
     echo.
-    echo         Installeer Python: https://www.python.org/downloads/
+    echo         Let op: De Microsoft Store Python werkt NIET voor Windows-services.
+    echo         Installeer Python van https://www.python.org/downloads/
     echo         Zet "Add Python to PATH" AAN bij installatie.
-    echo         Of draai install.bat eerst om .venv aan te maken.
     echo.
     pause
     exit /b 1
 )
 
-:: 3d. Toon versie
+:: 3f. .venv virtual environment aanmaken/gebruiken (zodat de service altijd via .venv draait)
+if not exist ".venv\Scripts\python.exe" (
+    echo  [PY]   .venv bestaat nog niet — aanmaken met "!PYTHON_PATH!" -m venv .venv...
+    "!PYTHON_PATH!" -m venv .venv
+    if !errorlevel! equ 0 (
+        echo  [PY]   .venv aangemaakt
+        echo  [PY]   Pip-packages installeren...
+        ".venv\Scripts\pip.exe" install --upgrade pip >nul 2>&1
+        ".venv\Scripts\pip.exe" install -r requirements.txt >nul 2>&1
+        set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
+        set PYTHON_IS_VENV=1
+        echo  [PY]   Gebruik .venv\Scripts\python.exe voor de service
+    ) else (
+        echo  [PY]   Kon .venv niet aanmaken — gebruik systeem Python direct
+    )
+) else (
+    :: .venv bestaat al — test of het werkt
+    echo  [PY]   .venv bestaat al — testen...
+    ".venv\Scripts\python.exe" --version >nul 2>&1
+    if !errorlevel! equ 0 (
+        set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
+        set PYTHON_IS_VENV=1
+        echo  [PY]   Gebruik .venv\Scripts\python.exe voor de service
+    ) else (
+        echo  [PY]   .venv verwijst naar niet-bestaande Python — opnieuw aanmaken...
+        rmdir /s /q .venv 2>nul
+        "!PYTHON_PATH!" -m venv .venv
+        if !errorlevel! equ 0 (
+            echo  [PY]   .venv opnieuw aangemaakt
+            ".venv\Scripts\pip.exe" install -r requirements.txt >nul 2>&1
+            set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
+            set PYTHON_IS_VENV=1
+        ) else (
+            echo  [PY]   Kon .venv niet herstellen — gebruik systeem Python
+        )
+    )
+)
+
+:python_show_version
 for /f "tokens=*" %%v in ('"!PYTHON_PATH!" --version 2^>^&1') do set PYTHON_VER=%%v
 echo  [PY]   Python: !PYTHON_PATH!  (!PYTHON_VER!)
 echo.
