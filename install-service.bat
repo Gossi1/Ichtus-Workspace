@@ -39,9 +39,15 @@ if exist "%WINDIR%\System32\nssm.exe" (
     echo         (max 30 seconden wachttijd)
     echo.
 
-    :: Download met timeout in achtergrond (max 30s polling)
-    start /b "" cmd /c "powershell -Command \"& { [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip', 'nssm.zip') }\" >nul 2>&1" >nul
+    :: PowerShell script naar een temp bestand schrijven (voorkomt complexe inline escaping)
+    set PS_DL_SCRIPT=%temp%\ichtus_dl_nssm.ps1
+    echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 > "!PS_DL_SCRIPT!"
+    echo (New-Object System.Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip', '%~dp0nssm.zip') >> "!PS_DL_SCRIPT!"
 
+    :: Download starten in achtergrond
+    start /b "" powershell -ExecutionPolicy Bypass -File "!PS_DL_SCRIPT!" >nul 2>&1
+
+    :: Wacht max 30 seconden op nssm.zip (poll elke ~1s met ping)
     set WAIT_COUNT=0
     :wait_nssm
     if exist nssm.zip goto :nssm_downloaded
@@ -55,18 +61,19 @@ if exist "%WINDIR%\System32\nssm.exe" (
     echo         ▸ Plaats nssm.zip in:  %~dp0
     echo         ▸ En draai dit script opnieuw.
     echo.
+    if exist "!PS_DL_SCRIPT!" del /q "!PS_DL_SCRIPT!" >nul 2>&1
     pause
     exit /b 1
 
     :nssm_downloaded
     echo  [NSSM] ✅ Gedownload.
+    if exist "!PS_DL_SCRIPT!" del /q "!PS_DL_SCRIPT!" >nul 2>&1
 
     :: Controleer of het echt een geldig zip-bestand is
     powershell -Command "& { try { $f = Get-Item 'nssm.zip'; if ($f.Length -lt 10000) { exit 1 } } catch { exit 1 }; exit 0 }" <nul
     if !errorlevel! neq 0 (
-        echo  [NSSM] ❌ Bestand te klein of corrupt (poging opnieuw...)
+        echo  [NSSM] ❌ Bestand te klein of corrupt — download handmatig van nssm.cc.
         del /q nssm.zip 2>nul
-        echo         Download mislukt. Download handmatig van nssm.cc.
         pause
         exit /b 1
     )
