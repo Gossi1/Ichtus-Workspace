@@ -193,9 +193,11 @@ function extractRoster() {
 function parseSongNumber(line) {
     try {
         if (typeof line !== 'string') return { name: String(line || '') };
-        // Match patterns: 1-3 uppercase letters followed by digits (optionally separated by space)
-        // e.g. O586, D143, LvK 9, Ps 150, ELB 838
-        const numberMatch = line.match(/^([A-Z]{1,3}\s*\d{1,4})\s+(.+)/);
+        // Match patterns: 1-4 letters (mixed case: "LvK", "Ps", "ELB") followed
+        // by digits (optionally separated by space) — e.g. O586, D143, LvK 9,
+        // Ps 150, ELB 838. Mixed-case prefixes are common in Dutch hymn books,
+        // so [A-Za-z] (not just [A-Z]) keeps them structured and artist-tagged.
+        const numberMatch = line.match(/^([A-Za-z]{1,4}\s*\d{1,4})\s+(.+)/);
         if (numberMatch) {
             return {
                 number: numberMatch[1].replace(/\s+/g, ' ').trim(),
@@ -214,6 +216,33 @@ function parseSongNumber(line) {
     } catch (e) {
         console.warn('[WT→SPA] parseSongNumber error for line:', line, e);
         return { name: String(line || '') };
+    }
+}
+
+/**
+ * Extract a song title's text, EXCLUDING only the key/chord badge.
+ * WorshipTools renders the song key (e.g. "D", "Am") in a separate badge
+ * element INSIDE the title heading:
+ *
+ *   <h3> D044 Great I Am <div class="ml-1 medium"> D </div></h3>
+ *
+ * Reading innerText directly would merge the badge's key into the name
+ * (and later confuse the "Am" in "Great I Am" for an A-minor chord).
+ * We clone the node and delete ONLY the known badge element(s) — no
+ * content-based heuristics, so a real word like "Am" inside the title
+ * is never touched. Falls back to the raw innerText if cloning fails.
+ */
+function extractTitleText(el) {
+    if (!el || typeof el.innerText !== 'string') return '';
+    try {
+        const clone = el.cloneNode(true);
+        // Known key-badge classes — drop regardless of internal structure.
+        // .ml-1.medium is the current WorshipTools badge; .cue-key is a
+        // defensive alias for a possible class rename.
+        clone.querySelectorAll('.ml-1.medium, .cue-key').forEach(n => n.remove());
+        return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+    } catch (e) {
+        return (el.innerText || '').trim();
     }
 }
 
@@ -240,15 +269,10 @@ function extractSetlist() {
             return;
         }
 
-        // 1. Convert to array and get raw text
+        // 1. Convert to array and get raw text — title text only, with the
+        //    key/chord badge element excluded (extractTitleText).
         const rawLines = rawElements
-            .map(el => {
-                if (!el || typeof el.innerText !== 'string') {
-                    console.warn('[WT→SPA] Element without innerText:', el);
-                    return '';
-                }
-                return el.innerText.trim();
-            })
+            .map(el => extractTitleText(el))
             .filter(text => text.length > 0);
 
         console.log('[WT→SPA] Raw lines extracted:', rawLines.length, rawLines.slice(0, 3));
@@ -269,7 +293,19 @@ function extractSetlist() {
         // 3. Final Deduplication and Length Filter
         const seen = new Set();
         const finalItems = [];
-        processed.forEach(line => {
+
+        // WorshipTools plans sometimes include an end-of-service placeholder
+        // item (e.g. "D000 - Setlist eind"). It is NOT a song, and everything
+        // AFTER it is not part of the service either — stop collecting there.
+        // Matches "Setlist eind", "Setlist einde", "D000 - Setlist eind", ...
+        const END_OF_SETLIST = /setlist\s*eind/i;
+        const endIdx = processed.findIndex(line => END_OF_SETLIST.test(line));
+        if (endIdx >= 0) {
+            console.log(`[WT→SPA] "Setlist eind" placeholder at index ${endIdx} — truncating setlist before it.`);
+        }
+        const effectiveLines = endIdx >= 0 ? processed.slice(0, endIdx) : processed;
+
+        effectiveLines.forEach(line => {
             if (line.length > 5 && !/^[A-G][b#]?$/.test(line) && !seen.has(line)) {
                 seen.add(line);
                 finalItems.push(line);
@@ -324,7 +360,146 @@ function extractSetlist() {
 }
 
 /**
- * Function to create and inject the orange button
+ * Extract the FULL song library from WorshipTools' song list page
+ * (not a setlist — the library/"Liederen" overview). Returns lines
+ * like "D044 Great I Am" and sends them to the Song ID Assigner app.
+ *
+ * WT's song list DOM uses the same .song-description h3 title pattern
+ * as the planning page; we add broader fallbacks so it keeps working
+ * if the layout changes. Everything is deduped and IDs (D, H, O, OK,
+ * K, LvK, Ps, ELB …) are preserved as-is — assigning NEW numbers is
+ * the job of the app, not the extension.
+ */
+function extractLibrary() {
+    try {
+        console.log('[WT→SPA] extractLibrary() called — scanning song library page...');
+
+        // WorshipTools song library rows look like:
+        //   <div> <div class="name">OK149 Ja Is Ja</div>
+        //         <div class="small">Marcel Zimmer</div> </div>
+        // The title lives in .name (with the ID prefix), the artist in the
+        // sibling .small. We collect .name elements and read .small from
+        // their parent so the app can store the artist too.
+        const titleSelectors = [
+            '.song-description h3',
+            '.cue-title h3',
+            '.song-title',
+            '.item-name',
+            '.planning-item-name',
+            '.wt-song-name',
+            '.planning-song-name',
+            '.library-song-name',
+            '.song-list .song-title',
+            '.song-list .name',
+            '.library-list .name',
+            '.name',
+            'h3.song-title',
+            'h4.song-title'
+        ];
+
+        const elements = [];
+        const seenEls = new Set();
+        for (const sel of titleSelectors) {
+            document.querySelectorAll(sel).forEach(el => {
+                if (!seenEls.has(el)) {
+                    seenEls.add(el);
+                    elements.push(el);
+                }
+            });
+        }
+
+        // Fallback: if the known selectors matched almost nothing (a few
+        // stray elements is suspicious — the layout may have changed), also
+        // scan any leaf-ish h3/h4 so we never return a partial library.
+        if (elements.length < 5) {
+            document.querySelectorAll('h3, h4').forEach(el => {
+                const text = (el.textContent || '').trim();
+                if (text && text.length > 1 && text.length < 120 && !seenEls.has(el)) {
+                    seenEls.add(el);
+                    elements.push(el);
+                }
+            });
+        }
+
+        console.log('[WT→SPA] Library title elements found:', elements.length);
+        if (elements.length === 0) {
+            alert('❌ Geen liederen gevonden. Ga naar de Liederen/Library-pagina in WorshipTools en probeer opnieuw.');
+            return;
+        }
+
+        // UI chrome words that are NOT songs but can match the loose .name
+        // selector (column headers, empty states, buttons).
+        const UI_WORDS = new Set([
+            'naam', 'name', 'titel', 'title', 'artiest', 'artist', 'lied', 'song',
+            'toevoegen', 'add', 'zoeken', 'search', 'filter', 'sorteren', 'sort',
+            'geen liederen', 'no songs', 'resultaten', 'results', 'loading', 'laden'
+        ]);
+
+        const structured = [];
+        const seen = new Set();
+        for (const el of elements) {
+            const text = extractTitleText(el);
+            if (!text) continue;
+            const cleaned = text.replace(/\d{1,2}:\d{2}/g, '').trim();
+            if (cleaned.length < 2 || UI_WORDS.has(cleaned.toLowerCase())) continue;
+
+            // Read artist BEFORE dedup so same-title different-artist songs
+            // are both extracted (e.g. "Holy Spirit" by Bryan Torwalt vs.
+            // "Holy Spirit" by LaRue Howard).
+            let artist = '';
+            try {
+                let row = el.parentElement;
+                while (row && !row.querySelector('.small')) {
+                    row = row.parentElement;
+                }
+                const small = row ? row.querySelector('.small') : null;
+                if (small) {
+                    artist = (small.textContent || '').trim();
+                    if (artist.length >= 80) artist = '';
+                }
+            } catch (_) { /* best-effort */ }
+
+            // Dedup by title+artist so two songs with the same name but
+            // different artists are both kept.
+            const dedupKey = cleaned + (artist ? '\x00' + artist.toLowerCase() : '');
+            if (seen.has(dedupKey)) continue;
+            seen.add(dedupKey);
+
+            const s = parseSongNumber(cleaned);
+            if (artist) s.artist = artist;
+            structured.push(s);
+        }
+
+        const lines = structured.map(s => (s.number ? s.number + ' ' : '') + s.name);
+        const output = lines.join('\n');
+        console.log('[WT→SPA] Library extracted:', lines.length, 'songs — first:', lines.slice(0, 3));
+
+        if (lines.length === 0) {
+            alert('❌ Niets bruikbaars gevonden op deze pagina.');
+            return;
+        }
+
+        navigator.clipboard.writeText(output).catch(() => {});
+        alert(`✅ ${lines.length} liederen geëxtraheerd (naar klembord + app).\n\nOpen de Song ID Assigner app om te importeren.`);
+
+        chrome.runtime.sendMessage({
+            type: 'LIBRARY_EXTRACTED',
+            data: output,          // plain lines, e.g. "OK149 Ja Is Ja"
+            songs: structured,     // [{ number?, name, artist? }]
+            count: lines.length
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.warn('[WT→SPA] Background ack failed:', chrome.runtime.lastError.message);
+            }
+        });
+    } catch (err) {
+        console.error('[WT→SPA] CRASH in extractLibrary:', err);
+        alert('❌ Fout in extractLibrary:\n' + (err?.message || String(err)));
+    }
+}
+
+/**
+ * Function to create and inject the orange buttons
  */
 function injectSyncButton() {
     // Check if the button already exists to prevent duplicates
@@ -373,6 +548,29 @@ function injectSyncButton() {
     `;
     rosterBtn.onclick = extractRoster;
     document.body.appendChild(rosterBtn);
+
+    // Check if library button already exists
+    if (document.getElementById('pro-library-btn')) return;
+
+    const libraryBtn = document.createElement('button');
+    libraryBtn.id = 'pro-library-btn';
+    libraryBtn.innerText = "Extract Song Library";
+    libraryBtn.style = `
+        position: fixed; 
+        top: 120px; 
+        right: 80px; 
+        z-index: 99999; 
+        padding: 12px 20px; 
+        background: #34d399; 
+        color: #06281c; 
+        border: none; 
+        border-radius: 8px; 
+        font-weight: bold; 
+        cursor: pointer; 
+        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    `;
+    libraryBtn.onclick = extractLibrary;
+    document.body.appendChild(libraryBtn);
 }
 
 // 1. Initial injection attempt

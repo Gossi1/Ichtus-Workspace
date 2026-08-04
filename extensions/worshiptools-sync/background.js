@@ -21,12 +21,14 @@ let inMemSetlist = null;
 let inMemDate = null;
 let inMemRoster = null;
 let inMemStructured = null;
+let inMemLibrary = null;
 
 // Storage keys for chrome.storage.session
 const STORAGE_KEYS = {
   SETLIST: 'lastExtractedSetlist',
   DATE: 'lastServiceDate',
-  ROSTER: 'lastExtractedRoster'
+  ROSTER: 'lastExtractedRoster',
+  LIBRARY: 'lastExtractedLibrary'
 };
 
 /** Persist data to chrome.storage.session so it survives SW restarts */
@@ -430,6 +432,44 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     };
     _recoverSetlist();
     return true; // keep channel open for async response
+  }
+
+  // ── Song library extracted (Song ID Assigner) ──
+  if (message.type === 'LIBRARY_EXTRACTED') {
+    console.log('[BG] Received LIBRARY_EXTRACTED, songs:', message.songs?.length, 'count:', message.count);
+
+    inMemLibrary = {
+      data: message.data || null,
+      songs: message.songs || null
+    };
+    persistToSession(STORAGE_KEYS.LIBRARY, inMemLibrary);
+
+    const senderTabId = sender.tab?.id;
+    forwardToSpaTabs(senderTabId, 'LIBRARY_RECEIVED', message.data, null, message.songs);
+
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // ── Retrieve last library ──
+  if (message.type === 'GET_LAST_LIBRARY') {
+    console.log('[BG] GET_LAST_LIBRARY — inMem:', !!inMemLibrary);
+    if (inMemLibrary) {
+      sendResponse({ data: inMemLibrary.data, songs: inMemLibrary.songs });
+      return;
+    }
+    const _recoverLibrary = async () => {
+      const lib = await readFromSession(STORAGE_KEYS.LIBRARY);
+      if (lib) {
+        console.log('[BG] GET_LAST_LIBRARY — recovered from session storage');
+        inMemLibrary = lib;
+        sendResponse({ data: lib.data, songs: lib.songs });
+      } else {
+        sendResponse({ data: null, songs: null });
+      }
+    };
+    _recoverLibrary();
+    return true;
   }
 
   // ── Retrieve last roster ──

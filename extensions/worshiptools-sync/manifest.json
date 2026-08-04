@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "WorshipTools to Ichtus SPA Sync",
-  "version": "1.2",
+  "version": "1.3",
   "description": "Extracts setlists from WorshipTools Planning and sends them directly to the Ichtus Workspace SPA.",
   "permissions": ["activeTab", "clipboardWrite", "tabs", "storage", "scripting", "alarms"],
   "action": {

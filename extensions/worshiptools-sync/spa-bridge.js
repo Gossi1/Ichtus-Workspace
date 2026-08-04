@@ -18,6 +18,7 @@ let cachedSetlist = null;
 let cachedDate = null;
 let cachedRoster = null;
 let cachedStructured = null;
+let cachedLibrary = null;
 
 /** Update the bridge status attribute on <html>.
  *  Falls back to localStorage if the DOM attribute is restricted. */
@@ -63,6 +64,17 @@ function dispatchRoster(data) {
   document.dispatchEvent(event);
 }
 
+function dispatchLibrary(data, songs) {
+  console.log('[BRIDGE] Dispatching worshiptools-library, raw lines:', data?.length, 'songs:', songs?.length || 0);
+  updateBridgeStatus('active');
+  const event = new CustomEvent('worshiptools-library', {
+    detail: { data: data, songs: songs },
+    bubbles: true,
+    composed: true
+  });
+  document.dispatchEvent(event);
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // BRIDGE_PING is used by background.js to check if the bridge is already
   // injected in this tab (dynamic injection fallback). Respond immediately.
@@ -83,6 +95,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log('[BRIDGE] Received ROSTER_RECEIVED from background, assignments:', message.data?.length);
     cachedRoster = message.data;
     dispatchRoster(message.data);
+    sendResponse({ received: true });
+  }
+  if (message.type === 'LIBRARY_RECEIVED' && (message.data || message.songs || message.structured)) {
+    // background.js forwards the structured songs as message.structured
+    // (forwardToSpaTabs passes songs through the structured slot) — accept
+    // both keys so the two sides stay in sync regardless of naming.
+    const songs = message.songs || message.structured || null;
+    console.log('[BRIDGE] Received LIBRARY_RECEIVED from background, songs:', songs?.length || 0);
+    cachedLibrary = { data: message.data || null, songs: songs };
+    dispatchLibrary(cachedLibrary.data, cachedLibrary.songs);
     sendResponse({ received: true });
   }
   return true;
@@ -111,6 +133,15 @@ chrome.runtime.sendMessage({ type: 'GET_LAST_ROSTER' }, (response) => {
   }
 });
 
+// Request any previously extracted song library (for the Song ID Assigner app).
+chrome.runtime.sendMessage({ type: 'GET_LAST_LIBRARY' }, (response) => {
+  console.log('[BRIDGE] GET_LAST_LIBRARY response — has data?', !!(response && response.data));
+  if (response && (response.data || response.songs)) {
+    cachedLibrary = { data: response.data || null, songs: response.songs || null };
+    dispatchLibrary(cachedLibrary.data, cachedLibrary.songs);
+  }
+});
+
 // Listen for the SPA page to signal it is ready to receive data.
 // This fires every time the user navigates to the Setlist or Stage Builder view.
 document.addEventListener('ichtus-setlist-ready', () => {
@@ -124,5 +155,12 @@ document.addEventListener('ichtus-stagebuilder-ready', () => {
   console.log('[BRIDGE] Heard ichtus-stagebuilder-ready — has roster cache?', !!cachedRoster);
   if (cachedRoster) {
     dispatchRoster(cachedRoster);
+  }
+});
+
+document.addEventListener('ichtus-library-ready', () => {
+  console.log('[BRIDGE] Heard ichtus-library-ready — has library cache?', !!cachedLibrary);
+  if (cachedLibrary) {
+    dispatchLibrary(cachedLibrary.data, cachedLibrary.songs);
   }
 });
