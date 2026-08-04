@@ -32,27 +32,21 @@ echo.
 ::  1. NSSM - controleren / downloaden met timeout
 :: ──────────────────────────────────────────────────
 
-:: Stale bestanden opruimen van vorige runs
 if exist nssm.zip del /q nssm.zip >nul 2>&1
 if exist nssm_temp rmdir /s /q nssm_temp >nul 2>&1
 
-:: NSSM detectie via PATH (omzeilt SysWOW64 redirectie)
-:: Gebruik GOTO i.p.v. ELSE (voorkomt dat beide branches per ongeluk lopen)
 where nssm.exe >nul 2>&1
 if !errorlevel! equ 0 goto :nssm_installed
 
 echo  [NSSM] Downloaden van nssm.cc... (max 30 sec)
 echo.
 
-:: PowerShell script naar temp bestand (geen complexe inline escaping)
-set PS_DL_SCRIPT=%temp%\ichtus_dl_nssm.ps1
+set "PS_DL_SCRIPT=%temp%\ichtus_dl_nssm.ps1"
 echo [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12 > "!PS_DL_SCRIPT!"
 echo (New-Object System.Net.WebClient).DownloadFile('https://nssm.cc/release/nssm-2.24.zip', '%~dp0nssm.zip') >> "!PS_DL_SCRIPT!"
 
-:: Download starten in achtergrond
 start /b "" powershell -ExecutionPolicy Bypass -File "!PS_DL_SCRIPT!" >nul 2>&1
 
-:: Wacht max 30 sec (poll elke ~1s)
 set WAIT_COUNT=0
 :wait_nssm
 if exist nssm.zip goto :nssm_downloaded
@@ -60,11 +54,7 @@ ping -n 2 127.0.0.1 >nul
 set /a WAIT_COUNT+=1
 if !WAIT_COUNT! lss 30 goto :wait_nssm
 
-:: Timeout
 echo  [NSSM] Download duurt te lang of is geblokkeerd.
-echo         Download zelf:  https://nssm.cc/release/nssm-2.24.zip
-echo         Plaats nssm.zip in deze map en draai opnieuw.
-echo.
 if exist "!PS_DL_SCRIPT!" del /q "!PS_DL_SCRIPT!" >nul 2>&1
 pause
 exit /b 1
@@ -73,10 +63,9 @@ exit /b 1
 echo  [NSSM] Gedownload.
 if exist "!PS_DL_SCRIPT!" del /q "!PS_DL_SCRIPT!" >nul 2>&1
 
-:: Controleer of zip geldig is (min 10KB)
 powershell -Command "& { try { $f = Get-Item 'nssm.zip'; if ($f.Length -lt 10000) { exit 1 } } catch { exit 1 }; exit 0 }" <nul
 if !errorlevel! neq 0 (
-    echo  [NSSM] Bestand te klein of corrupt - download handmatig van nssm.cc.
+    echo  [NSSM] Bestand te klein of corrupt.
     del /q nssm.zip 2>nul
     pause
     exit /b 1
@@ -91,7 +80,6 @@ if not exist "nssm_temp\nssm-2.24\win64\nssm.exe" (
     exit /b 1
 )
 
-:: Kopieer naar System32 (en Sysnative voor 32-bit cmd op 64-bit Windows)
 copy /y "nssm_temp\nssm-2.24\win64\nssm.exe" "%WINDIR%\System32\nssm.exe" >nul 2>&1
 set COPY_OK=!errorlevel!
 if exist "%WINDIR%\Sysnative" (
@@ -120,25 +108,31 @@ echo  [LOGS] logs/ directory OK
 echo.
 
 :: ──────────────────────────────────────────────────
-::  3. Python vinden (.venv eerst, dan systeem, NOOIT WindowsApps)
+::  3. Python vinden
 :: ──────────────────────────────────────────────────
-set PYTHON_PATH=
-set PYTHON_IS_VENV=0
-set FOUND_PYTHON=
+set "PYTHON_PATH="
+set "PYTHON_IS_VENV=0"
+set "FOUND_PYTHON="
 
-:: 3a. .venv eerst — fast-path (sla systeemzoektocht over als .venv al werkt)
+:: 3a. .venv controleren (moet wel werken EN mag GEEN WindowsApps zijn)
 if exist ".venv\Scripts\python.exe" (
-    ".venv\Scripts\python.exe" --version >nul 2>&1
+    ".venv\Scripts\python.exe" -c "import sys; print(sys.executable)" 2>nul | findstr /I "WindowsApps" >nul
     if !errorlevel! equ 0 (
-        set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
-        set PYTHON_IS_VENV=1
-        echo  [PY]   .venv werkt — gebruik: .venv\Scripts\python.exe
-        goto :python_show_version
+        echo  [PY]   Oude .venv gebruikt WindowsApps Python — verwijderen...
+        rmdir /s /q .venv >nul 2>&1
+    ) else (
+        ".venv\Scripts\python.exe" --version >nul 2>&1
+        if !errorlevel! equ 0 (
+            set "PYTHON_PATH=%~dp0.venv\Scripts\python.exe"
+            set "PYTHON_IS_VENV=1"
+            echo  [PY]   .venv werkt — gebruik: .venv\Scripts\python.exe
+            goto :python_show_version
+        )
     )
 )
 
-:: 3b. Bekende installatiepaden controleren (dit zijn ALTIJD echte Python-installaties)
-echo  [PY]   Zoeken naar geïnstalleerde Python 3.8+...
+:: 3b. Bekende installatiepaden controleren
+echo  [PY]   Zoeken naar geinstalleerde Python 3.8+...
 
 for %%p in (
     "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
@@ -152,48 +146,44 @@ for %%p in (
     "C:\Python312\python.exe"
     "C:\Python311\python.exe"
 ) do (
-    if not defined FOUND_PYTHON (
-        if exist %%p (
-            %%~p --version 2>&1 | findstr /B "Python 3\." >nul
-            if !errorlevel! equ 0 (
-                set PYTHON_PATH=%%~p
-                set FOUND_PYTHON=1
-                echo  [PY]   Gevonden via bekend pad: %%~p
-            )
+    if not defined FOUND_PYTHON if exist "%%~p" (
+        "%%~p" --version 2>&1 | findstr /B "Python 3." >nul
+        if !errorlevel! equ 0 (
+            set "PYTHON_PATH=%%~p"
+            set "FOUND_PYTHON=1"
+            echo  [PY]   Gevonden via bekend pad: %%~p
         )
     )
 )
 
-:: 3c. Via PATH zoeken (MAAR Microsoft Store Python overslaan!)
+:: 3c. Via PATH zoeken (WindowsApps overslaan)
 if not defined FOUND_PYTHON (
-    echo  [PY]   Zoeken via PATH (WindowsApps Python overgeslagen)...
+    echo  [PY]   Zoeken via PATH...
     for /f "tokens=*" %%i in ('where python 2^>nul') do (
         if not defined FOUND_PYTHON (
             echo %%i | findstr /I "WindowsApps" >nul 2>&1
             if !errorlevel! neq 0 (
-                "%%i" --version 2>&1 | findstr /B "Python 3\." >nul
+                "%%i" --version 2>&1 | findstr /B "Python 3." >nul
                 if !errorlevel! equ 0 (
-                    set PYTHON_PATH=%%i
-                    set FOUND_PYTHON=1
+                    set "PYTHON_PATH=%%i"
+                    set "FOUND_PYTHON=1"
                     echo  [PY]   Gevonden via PATH: %%i
                 )
-            ) else (
-                echo  [PY]   Overgeslagen (WindowsApps): %%i
             )
         )
     )
 )
 
-:: 3d. Probeer 'python3'
+:: 3d. Probeer python3
 if not defined FOUND_PYTHON (
     for /f "tokens=*" %%i in ('where python3 2^>nul') do (
         if not defined FOUND_PYTHON (
             echo %%i | findstr /I "WindowsApps" >nul 2>&1
             if !errorlevel! neq 0 (
-                "%%i" --version 2>&1 | findstr /B "Python 3\." >nul
+                "%%i" --version 2>&1 | findstr /B "Python 3." >nul
                 if !errorlevel! equ 0 (
-                    set PYTHON_PATH=%%i
-                    set FOUND_PYTHON=1
+                    set "PYTHON_PATH=%%i"
+                    set "FOUND_PYTHON=1"
                     echo  [PY]   Gevonden via PATH: %%i
                 )
             )
@@ -201,58 +191,55 @@ if not defined FOUND_PYTHON (
     )
 )
 
-:: 3e. Python gevonden?
-if not defined PYTHON_PATH (
-    echo  [PY]   Python 3.8 of hoger niet gevonden!
+:: 3e. Python niet gevonden? Automatisch downloaden & installeren!
+if not defined FOUND_PYTHON (
+    echo  [PY]   Geen geschikte Python installatie gevonden.
+    echo  [PY]   Python 3.12 downloaden en stil installeren...
     echo.
-    echo         Let op: De Microsoft Store Python werkt NIET voor Windows-services.
-    echo         Installeer Python van https://www.python.org/downloads/
-    echo         Zet "Add Python to PATH" AAN bij installatie.
-    echo.
-    pause
-    exit /b 1
+    
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('https://www.python.org/ftp/python/3.12.8/python-3.12.8-amd64.exe', '%temp%\python_installer.exe')" >nul 2>&1
+    
+    if exist "%temp%\python_installer.exe" (
+        echo  [PY]   Python installeren voor alle gebruikers...
+        "%temp%\python_installer.exe" /quiet InstallAllUsers=1 PrependPath=1 Include_test=0
+        del /q "%temp%\python_installer.exe" >nul 2>&1
+        
+        if exist "C:\Program Files\Python312\python.exe" (
+            set "PYTHON_PATH=C:\Program Files\Python312\python.exe"
+            set "FOUND_PYTHON=1"
+            echo  [PY]   Python 3.12 succesvol geinstalleerd!
+        ) else if exist "%LOCALAPPDATA%\Programs\Python\Python312\python.exe" (
+            set "PYTHON_PATH=%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+            set "FOUND_PYTHON=1"
+            echo  [PY]   Python 3.12 succesvol geinstalleerd!
+        )
+    )
+    
+    if not defined PYTHON_PATH (
+        echo  [PY]   Automatische installatie mislukt.
+        pause
+        exit /b 1
+    )
 )
 
-:: 3f. .venv virtual environment aanmaken/gebruiken (zodat de service altijd via .venv draait)
+:: 3f. Virtual environment (.venv) aanmaken
 if not exist ".venv\Scripts\python.exe" (
-    echo  [PY]   .venv bestaat nog niet — aanmaken met "!PYTHON_PATH!" -m venv .venv...
+    echo  [PY]   .venv aanmaken met "!PYTHON_PATH!"...
     "!PYTHON_PATH!" -m venv .venv
     if !errorlevel! equ 0 (
         echo  [PY]   .venv aangemaakt
         echo  [PY]   Pip-packages installeren...
         ".venv\Scripts\pip.exe" install --upgrade pip >nul 2>&1
         ".venv\Scripts\pip.exe" install -r requirements.txt >nul 2>&1
-        set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
-        set PYTHON_IS_VENV=1
-        echo  [PY]   Gebruik .venv\Scripts\python.exe voor de service
-    ) else (
-        echo  [PY]   Kon .venv niet aanmaken — gebruik systeem Python direct
+        set "PYTHON_PATH=%~dp0.venv\Scripts\python.exe"
+        set "PYTHON_IS_VENV=1"
     )
 ) else (
-    :: .venv bestaat al — test of het werkt
-    echo  [PY]   .venv bestaat al — testen...
-    ".venv\Scripts\python.exe" --version >nul 2>&1
-    if !errorlevel! equ 0 (
-        set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
-        set PYTHON_IS_VENV=1
-        echo  [PY]   Gebruik .venv\Scripts\python.exe voor de service
-    ) else (
-        echo  [PY]   .venv verwijst naar niet-bestaande Python — opnieuw aanmaken...
-        rmdir /s /q .venv 2>nul
-        "!PYTHON_PATH!" -m venv .venv
-        if !errorlevel! equ 0 (
-            echo  [PY]   .venv opnieuw aangemaakt
-            ".venv\Scripts\pip.exe" install -r requirements.txt >nul 2>&1
-            set PYTHON_PATH=%~dp0.venv\Scripts\python.exe
-            set PYTHON_IS_VENV=1
-        ) else (
-            echo  [PY]   Kon .venv niet herstellen — gebruik systeem Python
-        )
-    )
+    set "PYTHON_PATH=%~dp0.venv\Scripts\python.exe"
 )
 
 :python_show_version
-for /f "tokens=*" %%v in ('"!PYTHON_PATH!" --version 2^>^&1') do set PYTHON_VER=%%v
+for /f "tokens=*" %%v in ('"!PYTHON_PATH!" --version 2^>^&1') do set "PYTHON_VER=%%v"
 echo  [PY]   Python: !PYTHON_PATH!  (!PYTHON_VER!)
 echo.
 
@@ -290,8 +277,6 @@ echo  [SERVICE] IchtusServer installeren...
 nssm install IchtusServer "!PYTHON_PATH!" >nul 2>&1
 if !errorlevel! neq 0 (
     echo  [SERVICE] Kon service niet aanmaken!
-    echo            Probeer: nssm remove IchtusServer confirm
-    echo.
     pause
     exit /b 1
 )
@@ -316,49 +301,25 @@ echo  [SERVICE] Configuratie voltooid
 echo.
 
 :: ──────────────────────────────────────────────────
-::  7. Service starten (met retry)
+::  7. Service starten
 :: ──────────────────────────────────────────────────
 echo  [SERVICE] IchtusServer starten...
-echo           (max 5 pogingen met 2s tussentijd)
-echo.
-
 nssm start IchtusServer >nul 2>&1
 
 set RETRIES=0
 :start_retry
 set /a RETRIES+=1
-
 timeout /t 2 /nobreak >nul
 
 nssm status IchtusServer | findstr "RUNNING" >nul 2>&1
 if !errorlevel! equ 0 (
-    echo  [SERVICE] Gestart en draait!  (poging !RETRIES! van 5)
+    echo  [SERVICE] Gestart en draait!
     goto :service_ok
 )
 
-nssm status IchtusServer | findstr "STOPPED" >nul 2>&1
-if !errorlevel! equ 0 (
-    echo  [SERVICE] Service is gestopt (gestart maar gecrasht).
-    echo            Check logs:   type logs\service-error.log
-    goto :service_fail
-)
+if !RETRIES! lss 5 goto :start_retry
 
-if !RETRIES! lss 5 (
-    echo  [SERVICE] Nog bezig... (poging !RETRIES! van 5)
-    goto :start_retry
-)
-
-:service_fail
-echo.
-echo  [SERVICE] Service startte niet binnen 10 seconden.
-echo.
-echo         Wat nu?
-echo          1. Check logs:     type logs\service-error.log
-echo          2. Check poort:    netstat -ano | findstr :8080
-echo          3. Handmatig:      nssm start IchtusServer
-echo          4. Configuratie:   nssm edit IchtusServer
-echo.
-goto :cleanup
+echo  [SERVICE] Service startte niet. Check logs\service-error.log
 
 :service_ok
 echo.
@@ -366,38 +327,15 @@ echo.
 :: ──────────────────────────────────────────────────
 ::  8. Opruimen
 :: ──────────────────────────────────────────────────
-:cleanup
-echo  [CLEANUP] Opruimen tijdelijke bestanden...
 if exist nssm.zip del /q nssm.zip >nul 2>&1
 if exist nssm_temp rmdir /s /q nssm_temp >nul 2>&1
 if exist "%temp%\ichtus_dl_nssm.ps1" del /q "%temp%\ichtus_dl_nssm.ps1" >nul 2>&1
-echo  [CLEANUP] Klaar
-echo.
 
-:: ──────────────────────────────────────────────────
-::  9. Resultaat
-:: ──────────────────────────────────────────────────
 echo  ======================================================
 echo    GEREED
 echo  ======================================================
-echo.
-echo    Service:   IchtusServer
-echo    Status:    Automatisch starten met Windows
-echo    Python:    !PYTHON_PATH!
-echo    Poort:     http://localhost:8080/
-echo    PWA:       http://localhost:8080/Ichtus_SPA/
-echo.
-echo    Beheer commando's:
-echo      nssm  start     IchtusServer
-echo      nssm  stop      IchtusServer
-echo      nssm  restart   IchtusServer
-echo      nssm  status    IchtusServer
-echo      nssm  edit      IchtusServer     (configuratie wijzigen)
-echo.
-echo    Logs:
-echo      type logs\service-output.log
-echo      type logs\service-error.log
-echo.
+echo    Service: IchtusServer
+echo    Poort:   http://localhost:8080/
 echo  ======================================================
 echo.
 
