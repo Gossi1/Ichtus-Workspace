@@ -11,13 +11,13 @@ const router = {
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
-        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor'].includes(hash)) ? hash : 'dashboard';
+        const initialView = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor', 'songidassigner'].includes(hash)) ? hash : 'dashboard';
         
         this.navigate(initialView);
         
         window.addEventListener('hashchange', () => {
             const hash = window.location.hash.replace('#', '');
-            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor'].includes(hash)) ? hash : 'dashboard';
+            const view = (hash && ['agenda', 'checklist', 'patchbay', 'analytics', 'setlist', 'dashboard', 'ndi', 'settings', 'stagebuilder', 'supervisor', 'songidassigner'].includes(hash)) ? hash : 'dashboard';
             if (view !== this.currentView) {
                 this.navigate(view, false);
             }
@@ -98,6 +98,8 @@ const router = {
             stagebuilderModule.init();
         } else if (view === 'supervisor' && typeof supervisorModule !== 'undefined') {
             supervisorModule.init();
+        } else if (view === 'songidassigner' && typeof songidassignerModule !== 'undefined') {
+            songidassignerModule.init();
         }
     }
 };
@@ -118,6 +120,7 @@ router.isPatchbayActive   = () => router.currentView === 'patchbay';
 router.isSetlistActive    = () => router.currentView === 'setlist';
 router.isStageBuilderActive = () => router.currentView === 'stagebuilder';
 router.isSupervisorActive  = () => router.currentView === 'supervisor';
+router.isSongIdAssignerActive = () => router.currentView === 'songidassigner';
 
 // Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => router.init());

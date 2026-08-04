@@ -28,6 +28,9 @@ window.router = router;
 // Make NDI module globally available
 window.ndiModule = ndiModule;
 
+// Make Song ID Assigner module globally available
+window.songidassignerModule = songidassignerModule;
+
 // Keep fullscreenchange listener for updating button state
 document.addEventListener('fullscreenchange', () => {
     const btn = document.getElementById('btn-global-fullscreen');        if (btn) {

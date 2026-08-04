@@ -30,6 +30,8 @@ const PRECACHE_URLS = [
   '/Ichtus_SPA/js/modules/ndi.js',
   '/Ichtus_SPA/js/modules/settings.js',
   '/Ichtus_SPA/js/modules/stagebuilder.js',
+  '/Ichtus_SPA/js/modules/songidassigner.js',
+  '/Ichtus_SPA/css/songidassigner.css',
   '/shared-assets/js/sidebar.js',
   '/shared-assets/js/sidebar-injector.js',
   '/Ichtus_SPA/manifest.json',

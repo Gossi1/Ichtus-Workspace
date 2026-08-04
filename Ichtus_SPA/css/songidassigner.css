@@ -1,0 +1,631 @@
+/* ============================================================
+   SONG ID ASSIGNER MODULE — scoped inside #view-songidassigner
+   Accent: #f47920 (oranje) · Blue: #3b82f6 · Green: #34d399
+   ============================================================ */
+
+#view-songidassigner {
+    padding: 20px;
+    overflow-y: auto;
+}
+
+#view-songidassigner .sa-stats-bar {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+}
+
+#view-songidassigner .sa-stat {
+    display: flex;
+    flex-direction: column;
+    min-width: 64px;
+}
+
+#view-songidassigner .sa-stat-num {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--ichtus-orange, #f47920);
+}
+
+#view-songidassigner .sa-stat-num.sa-noid-num {
+    color: #fbbf24;
+}
+
+#view-songidassigner .sa-stat-label {
+    font-size: 0.72rem;
+    color: #9aa1af;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+#view-songidassigner .sa-prefix-chips {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    justify-content: flex-end;
+}
+
+#view-songidassigner .sa-chip {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 14px;
+    background: rgba(244, 121, 32, 0.12);
+    border: 1px solid rgba(244, 121, 32, 0.30);
+    color: #fbbf24;
+}
+
+/* --- Section headers --- */
+#view-songidassigner .sa-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+#view-songidassigner .sa-section-header h2 {
+    margin-bottom: 0;
+}
+
+/* --- Cards --- */
+#view-songidassigner .sa-card {
+    background: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 12px;
+    padding: 26px;
+    margin-bottom: 18px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+
+#view-songidassigner .sa-card h2 {
+    font-size: 1.02rem;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#view-songidassigner .sa-hint {
+    font-size: 0.82rem;
+    color: #9aa1af;
+    margin-bottom: 12px;
+}
+
+#view-songidassigner .sa-hint code {
+    color: #e7e9ee;
+    background: rgba(255, 255, 255, 0.07);
+    padding: 1px 6px;
+    border-radius: 5px;
+}
+
+/* --- Buttons --- */
+#view-songidassigner .sa-row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+
+#view-songidassigner .sa-btn {
+    border: none;
+    border-radius: 9px;
+    padding: 9px 16px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#view-songidassigner .sa-btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+}
+
+#view-songidassigner .sa-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#view-songidassigner .sa-btn-primary {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 1));
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+}
+
+#view-songidassigner .sa-btn-accent {
+    background: linear-gradient(135deg, rgba(244, 121, 32, 0.95), rgba(217, 95, 14, 1));
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(244, 121, 32, 0.3);
+}
+
+#view-songidassigner .sa-btn-secondary {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #e7e9ee;
+}
+
+#view-songidassigner .sa-btn-danger {
+    background: rgba(239, 68, 68, 0.14);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: #fca5a5;
+}
+
+#view-songidassigner .sa-btn-mini {
+    padding: 4px 10px;
+    font-size: 0.75rem;
+    border-radius: 7px;
+}
+
+/* --- Status bar --- */
+#view-songidassigner .sa-status-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 18px;
+}
+
+#view-songidassigner .sa-status-pill {
+    margin-left: auto;
+    font-size: 0.78rem;
+    padding: 6px 12px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    color: #9aa1af;
+    white-space: nowrap;
+    transition: all 0.2s ease;
+}
+
+#view-songidassigner .sa-status-pill.ok {
+    color: #34d399;
+    border-color: rgba(52, 211, 153, 0.35);
+    background: rgba(52, 211, 153, 0.10);
+}
+
+#view-songidassigner .sa-status-pill.err {
+    color: #fca5a5;
+    border-color: rgba(239, 68, 68, 0.35);
+    background: rgba(239, 68, 68, 0.10);
+}
+
+/* --- Search & toolbar --- */
+#view-songidassigner .sa-toolbar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+#view-songidassigner .sa-toolbar input[type="search"] {
+    flex: 1;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9px;
+    color: #e7e9ee;
+    padding: 9px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+}
+
+#view-songidassigner .sa-toolbar input[type="search"]:focus {
+    border-color: rgba(244, 121, 32, 0.55);
+    box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.15);
+}
+
+#view-songidassigner textarea {
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9px;
+    color: #e7e9ee;
+    padding: 9px 12px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    outline: none;
+    width: 100%;
+    resize: vertical;
+}
+
+#view-songidassigner textarea:focus {
+    border-color: rgba(244, 121, 32, 0.55);
+    box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.15);
+}
+
+#view-songidassigner .sa-count-badge {
+    font-size: 0.72rem;
+    background: rgba(244, 121, 32, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(244, 121, 32, 0.3);
+    padding: 1px 9px;
+    border-radius: 12px;
+}
+
+/* --- Import preview (3 columns: with ID / without ID / dupes) --- */
+#view-songidassigner #sa-import-preview {
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.09);
+}
+
+#view-songidassigner #sa-import-preview h3 {
+    font-size: 0.9rem;
+    margin-bottom: 4px;
+    color: #9aa1af;
+}
+
+#view-songidassigner #sa-import-preview .sa-hint {
+    margin-bottom: 8px;
+}
+
+#view-songidassigner #sa-import-preview-list {
+    max-height: 280px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 9px;
+    padding: 12px;
+    font-size: 0.82rem;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: start;
+}
+
+#view-songidassigner .sa-imp-col {
+    min-width: 0;
+}
+
+#view-songidassigner .sa-imp-col-title {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#view-songidassigner .sa-imp-col-withid .sa-imp-col-title {
+    color: #34d399;
+}
+
+#view-songidassigner .sa-imp-col-noid .sa-imp-col-title {
+    color: #fbbf24;
+}
+
+#view-songidassigner .sa-imp-col-dupe .sa-imp-col-title {
+    color: #fca5a5;
+}
+
+#view-songidassigner .sa-imp-col-body {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+#view-songidassigner .sa-imp-col-empty {
+    color: #9aa1af;
+    font-style: italic;
+    font-size: 0.78rem;
+    padding: 2px 0;
+}
+
+#view-songidassigner .sa-imp-line {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: baseline;
+}
+
+#view-songidassigner .sa-imp-id {
+    color: #fbbf24;
+    font-weight: 700;
+    min-width: 52px;
+}
+
+#view-songidassigner .sa-imp-no-id {
+    color: #9aa1af;
+    font-style: italic;
+}
+
+#view-songidassigner .sa-imp-dupe {
+    color: #fca5a5;
+    font-size: 0.75rem;
+    margin-left: auto;
+    text-align: right;
+}
+
+#view-songidassigner .sa-imp-artist {
+    color: #9aa1af;
+    font-size: 0.78rem;
+}
+
+/* --- Import result panel --- */
+#view-songidassigner .sa-import-result {
+    margin-top: 14px;
+    padding: 14px 16px;
+    border-radius: 10px;
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.30);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+}
+
+#view-songidassigner .sa-ir-header {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fca5a5;
+    margin-bottom: 8px;
+}
+
+#view-songidassigner .sa-ir-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding: 6px 8px;
+    margin-bottom: 10px;
+    background: rgba(0, 0, 0, 0.25);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+#view-songidassigner .sa-ir-line {
+    display: flex;
+    gap: 8px;
+    align-items: baseline;
+    font-size: 0.82rem;
+}
+
+#view-songidassigner .sa-ir-title {
+    flex: 1;
+    min-width: 0;
+}
+
+#view-songidassigner .sa-ir-reason {
+    color: #fca5a5;
+    font-size: 0.75rem;
+    font-style: italic;
+    text-align: right;
+    flex-shrink: 0;
+    max-width: 55%;
+}
+
+#view-songidassigner .sa-ir-section {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 10px 0 4px;
+}
+
+#view-songidassigner .sa-ir-section-skipped {
+    color: #fca5a5;
+}
+
+/* --- Two-column library layout --- */
+#view-songidassigner .sa-library-cols {
+    display: grid;
+    grid-template-columns: 1.25fr 1fr;
+    gap: 16px;
+    align-items: start;
+}
+
+#view-songidassigner .sa-lib-col {
+    min-width: 0;
+}
+
+#view-songidassigner .sa-lib-col-title {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9aa1af;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#view-songidassigner .sa-lib-col-noid {
+    background: rgba(244, 121, 32, 0.05);
+    border: 1px solid rgba(244, 121, 32, 0.22);
+    border-radius: 10px;
+    padding: 12px;
+}
+
+#view-songidassigner .sa-noid-badge {
+    background: rgba(244, 121, 32, 0.2);
+}
+
+#view-songidassigner .sa-noid-hint {
+    margin-bottom: 8px;
+    font-size: 0.78rem;
+    color: #9aa1af;
+}
+
+#view-songidassigner .sa-noid-empty {
+    color: #9aa1af;
+    font-size: 0.8rem;
+    font-style: italic;
+    padding: 8px 4px;
+}
+
+#view-songidassigner .sa-noid-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    transition: background-color 0.15s ease;
+}
+
+#view-songidassigner .sa-noid-row:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+#view-songidassigner .sa-noid-row-main {
+    flex: 1;
+    min-width: 0;
+}
+
+#view-songidassigner .sa-noid-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#view-songidassigner .sa-noid-sub {
+    font-size: 0.7rem;
+    color: #9aa1af;
+}
+
+#view-songidassigner .sa-noid-letter {
+    width: 64px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 7px;
+    color: #e7e9ee;
+    padding: 5px 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+#view-songidassigner .sa-noid-letter:focus {
+    border-color: rgba(244, 121, 32, 0.55);
+    box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.15);
+}
+
+#view-songidassigner .sa-noid-number {
+    width: 56px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.09);
+    border-radius: 7px;
+    color: #e7e9ee;
+    padding: 5px 6px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+#view-songidassigner .sa-noid-number:focus {
+    border-color: rgba(244, 121, 32, 0.55);
+    box-shadow: 0 0 0 3px rgba(244, 121, 32, 0.15);
+}
+
+/* --- Table --- */
+#view-songidassigner .sa-table-wrap {
+    overflow-x: auto;
+}
+
+#view-songidassigner #sa-song-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.86rem;
+}
+
+#view-songidassigner #sa-song-table th {
+    text-align: left;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #9aa1af;
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+#view-songidassigner #sa-song-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+#view-songidassigner #sa-song-table tr:hover td {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+#view-songidassigner .sa-id-cell {
+    font-weight: 800;
+    color: #fbbf24;
+    font-family: "Consolas", monospace;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    white-space: nowrap;
+}
+
+#view-songidassigner .sa-id-cell:hover {
+    background: rgba(251, 191, 36, 0.12);
+}
+
+#view-songidassigner .sa-id-cell-input {
+    font-weight: 800;
+    color: #fbbf24;
+    font-family: "Consolas", monospace;
+    letter-spacing: 0.03em;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    border-radius: 6px;
+    padding: 4px 8px;
+    font-size: inherit;
+    width: 80px;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.15);
+}
+
+#view-songidassigner .sa-artist-cell {
+    color: #9aa1af;
+    font-size: 0.82rem;
+}
+
+#view-songidassigner .sa-row-actions {
+    text-align: right;
+}
+
+#view-songidassigner .sa-song-title {
+    font-weight: 600;
+}
+
+/* --- Responsive --- */
+@media (max-width: 960px) {
+    #view-songidassigner #sa-import-preview-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 860px) {
+    #view-songidassigner .sa-library-cols {
+        grid-template-columns: 1fr;
+    }
+    #view-songidassigner #sa-import-preview-list {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 680px) {
+    #view-songidassigner .sa-prefix-chips {
+        justify-content: flex-start;
+        margin-top: 6px;
+    }
+    #view-songidassigner .sa-noid-row {
+        flex-wrap: wrap;
+    }
+}
