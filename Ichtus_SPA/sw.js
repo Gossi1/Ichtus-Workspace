@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v2';
+const CACHE_NAME = 'ichtus-spa-v3';
 
 // Static assets to pre-cache on install.
 // NOTE: Firebase SDK CDN URLs (https://www.gstatic.com/…) are intentionally
@@ -58,8 +58,8 @@ self.addEventListener('install', event => {
       });
     })
   );
-  // Note: We do NOT call self.skipWaiting() here — the page
-  // decides when to activate the new SW via the 'skip-waiting' message.
+  // Force activation of the new SW immediately so stale caches are replaced.
+  self.skipWaiting();
 });
 
 // ——— MESSAGE: listen for 'skip-waiting' from the page ———
