@@ -314,6 +314,16 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_tockify_ics()
             return
         
+        # Song ID Assigner: load the library JSON (read-only file access)
+        if self.path == '/api/library/load' or self.path.startswith('/api/library/load?'):
+            self.handle_library_load()
+            return
+
+        # Song ID Assigner: list available JSON files
+        if self.path == '/api/library/files':
+            self.handle_library_files()
+            return
+
         # Default to serving static files
         super().do_GET()
     
@@ -505,11 +515,15 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         return sources
     
     def do_POST(self):
-        """Handle POST requests — currently only /api/update (git pull)."""
+        """Handle POST requests — /api/update (git pull) and /api/library/save."""
         IchtusHandler._REQUEST_COUNT += 1
 
         if self.path == '/api/update':
             self.handle_git_pull()
+            return
+
+        if self.path == '/api/library/save':
+            self.handle_library_save()
             return
 
         self.send_response(404)
@@ -517,6 +531,199 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header('Access-Control-Allow-Origin', '*')
         self.end_headers()
         self.wfile.write(json.dumps({'error': 'Not found'}).encode('utf-8'))
+
+    def handle_library_files(self):
+        """GET /api/library/files — list all JSON files in song-id-assigner/."""
+        try:
+            lib_dir = ROOT_DIR / 'song-id-assigner'
+            files = []
+            if lib_dir.exists():
+                for f in sorted(lib_dir.iterdir()):
+                    if f.suffix.lower() == '.json' and f.is_file():
+                        stat = f.stat()
+                        files.append({
+                            'name': f.name,
+                            'size': stat.st_size,
+                            'modified': datetime.fromtimestamp(stat.st_mtime).isoformat()
+                        })
+            payload = json.dumps({'success': True, 'files': files})
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({'success': False, 'error': str(e)})
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
+    def handle_library_load(self):
+        """GET /api/library/load — read the Song ID Assigner library JSON.
+        Optional query param ?file=filename to load a specific file.
+        Serves song-id-assigner/<file>.json (or an empty library when
+        the file doesn't exist yet). The app is a local single-operator tool
+        (same trust model as /api/update), so no auth is required here.
+        """
+        try:
+            # Parse optional ?file= parameter
+            file_param = 'library-ids.json'
+            if '?' in self.path:
+                query = self.path.split('?', 1)[1]
+                for part in query.split('&'):
+                    if part.startswith('file='):
+                        file_param = urllib.request.unquote(part.split('=', 1)[1])
+                        break
+            # Sanitize: only allow .json files, no path traversal
+            file_param = os.path.basename(file_param)
+            if not file_param.endswith('.json'):
+                file_param += '.json'
+            lib_path = ROOT_DIR / 'song-id-assigner' / file_param
+            if lib_path.exists():
+                data = json.loads(lib_path.read_text(encoding='utf-8'))
+            else:
+                data = {'schemaVersion': 1, 'songs': []}
+            payload = json.dumps({'success': True, 'library': data, 'file': file_param})
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({'success': False, 'error': str(e)})
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
+    def handle_library_save(self):
+        """POST /api/library/save — persist the Song ID Assigner library.
+        Body: the full library JSON (schemaVersion + songs array + optional
+        "file" key). Written to song-id-assigner/<file>.json (defaults to
+        library-ids.json). Keep-only-valid structure: we re-validate the
+        shape so a malformed body can never overwrite the file with garbage.
+        """
+        try:
+            length = int(self.headers.get('Content-Length') or 0)
+            if length > 10 * 1024 * 1024:  # 10 MB safety cap
+                raise ValueError('Payload te groot')
+            body = self.rfile.read(length) if length else b''
+            data = json.loads(body.decode('utf-8')) if body else {}
+
+            songs = data.get('songs')
+            if not isinstance(songs, list):
+                raise ValueError('songs moet een lijst zijn')
+
+            clean = []
+            for s in songs:
+                if not isinstance(s, dict):
+                    continue
+                title = str(s.get('title') or '').strip()
+                # Preserve the original prefix case ("LvK", "Ps") — the app
+                # keeps case as-is on import, so uppercasing here would break
+                # case-sensitive duplicate detection after a save/reload.
+                prefix = str(s.get('prefix') or '').strip()
+                number = str(s.get('number') or '').strip()
+                # A song may be stored WITHOUT an ID yet ("zonder ID" — the
+                # operator assigns the letter later). Only validate fields
+                # when they are actually present: prefix 1-4 letters, number
+                # 1-4 digits. A prefix without a number (or vice versa) is
+                # malformed and gets dropped.
+                if not title:
+                    continue
+                if prefix and not re.fullmatch(r'[A-Za-z]{1,4}', prefix):
+                    continue
+                if number and not re.fullmatch(r'\d{1,4}[A-Za-z]?', number):
+                    continue
+                if bool(prefix) != bool(number):
+                    continue
+                # Alternative titles (EN original + NL translation share one ID).
+                # Keep only non-empty strings, dedupe case-insensitively to match
+                # the app's normalizeTitle behaviour, cap the count defensively.
+                alt = s.get('altTitles')
+                alt_clean = []
+                seen_lower = set()
+                if isinstance(alt, list):
+                    for t in alt[:50]:
+                        t = str(t or '').strip()
+                        key = t.lower()
+                        if t and key not in seen_lower:
+                            seen_lower.add(key)
+                            alt_clean.append(t)
+                clean.append({
+                    'uid': str(s.get('uid') or ''),  # stable row identity (delete/assign), never drop
+                    'id': (prefix + number) if (prefix and number) else '',
+                    'prefix': prefix,
+                    'number': number,
+                    'title': title,
+                    'artist': str(s.get('artist') or ''),
+                    'altTitles': alt_clean
+                })
+
+            # Determine target filename from body["file"] or default.
+            file_param = str(data.get('file') or 'library-ids.json')
+            file_param = os.path.basename(file_param)  # no path traversal
+            if not file_param.endswith('.json'):
+                file_param += '.json'
+
+            # Safety net: never let a tiny/malformed payload silently wipe a
+            # large existing library. If the current file holds >50 songs and
+            # the incoming payload has fewer than 5, refuse loudly instead of
+            # overwriting — this is the "accidental truncation" guard (a stray
+            # test POST or an empty form must not nuke the real library).
+            lib_dir = ROOT_DIR / 'song-id-assigner'
+            lib_dir.mkdir(parents=True, exist_ok=True)
+            lib_path = lib_dir / file_param
+            existing_count = 0
+            if lib_path.exists():
+                try:
+                    existing_data = json.loads(lib_path.read_text(encoding='utf-8'))
+                    existing_count = len(existing_data.get('songs') or [])
+                except Exception:
+                    existing_count = 0
+            if existing_count > 50 and len(clean) < 5:
+                raise ValueError(
+                    f'Weigering: bestand heeft {existing_count} liederen, maar payload maar '
+                    f'{len(clean)}. Bewuste leegmaak? Verwijder eerst {file_param}.'
+                )
+
+            # Backup before write (single rotating copy) so a bad write is
+            # always undoable by hand: rename the live file to .bak, then
+            # write the new content. Atomic-ish and recovery-friendly.
+            backup_path = lib_dir / (file_param + '.bak')
+            if lib_path.exists():
+                try:
+                    import shutil as _shutil
+                    _shutil.copy2(lib_path, backup_path)
+                except Exception:
+                    pass  # backup is best-effort, never blocks the save
+
+            out = {
+                'schemaVersion': int(data.get('schemaVersion') or 1),
+                'updatedAt': data.get('updatedAt') or datetime.now().isoformat(),
+                'songs': clean
+            }
+            lib_path.write_text(json.dumps(out, ensure_ascii=False, indent=2), encoding='utf-8')
+
+            payload = json.dumps({'success': True, 'count': len(clean), 'file': file_param, 'path': str(lib_path), 'backup': str(backup_path)})
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({'success': False, 'error': str(e)})
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
 
     def handle_git_pull(self):
         """

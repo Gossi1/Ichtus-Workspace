@@ -95,6 +95,11 @@ Ichtus_SPA/.tmp-*.html
 
 # Firebase Config (contains API keys)
 firebase-config.js
+
+# Song ID Assigner — local generated data file (per-laptop, not in git)
+song-id-assigner/library-ids.json
+song-id-assigner/library-ids.json.bak*
+song-id-assigner/_test_preview.html
 firebase-config.js.backup
 
 # User-dropped Firebase config file (NEVER commit — secrets leak otherwise)

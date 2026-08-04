@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Song ID Assigner</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" href="icon.png">
+    <meta name="theme-color" content="#12141a">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header class="app-header">
+        <div class="header-inner">
+            <img src="icon.png" alt="Ichtus logo" class="app-logo">
+            <div>
+                <h1>Song ID Assigner</h1>
+                <p class="tagline">Jij kiest de letter (en optioneel het nummer)</p>
+            </div>
+            <div class="header-status" id="save-status">—</div>
+        </div>
+    </header>
+
+    <main class="app-main">
+        <!-- Stats -->
+        <section class="stats-bar" id="stats-bar">
+            <div class="stat"><span class="stat-num" id="stat-total">0</span><span class="stat-label">liederen</span></div>
+            <div class="stat"><span class="stat-num stat-noid-num" id="stat-noid">0</span><span class="stat-label">zonder ID</span></div>
+            <div class="stat"><span class="stat-num" id="stat-prefixes">0</span><span class="stat-label">prefixen</span></div>
+            <div class="stat prefix-chips" id="stat-chips"></div>
+        </section>
+
+        <!-- Import -->
+        <section class="card">
+            <h2>📥 Importeren</h2>
+            <p class="hint">Klik in de WorshipTools extensie op <strong>"Extract Song Library"</strong> op de
+            liederenpagina van WorshipTools. De lijst komt hier vanzelf binnen.</p>
+            <div class="row">
+                <button id="btn-wait-wt" class="btn btn-primary">🔄 Wacht op WorshipTools-import</button>
+                <button id="btn-toggle-paste" class="btn btn-secondary">📋 Plak lijst</button>
+                <button id="btn-import-file" class="btn btn-secondary">📁 Importeer bestand</button>
+                <input type="file" id="file-input" accept=".txt,.csv,.json,application/json,text/plain" class="hidden">
+            </div>
+            <div id="paste-box" class="hidden">
+                <textarea id="paste-input" rows="6" placeholder="Plak hier je liederenlijst — één lied per regel, bijv.&#10;D044 Great I Am&#10;H101 Vaste Rots van mijn behoud&#10;Nieuw lied zonder nummer"></textarea>
+                <div class="row">
+                    <button id="btn-parse-paste" class="btn btn-primary">Parse &amp; voeg toe</button>
+                </div>
+            </div>
+            <div id="import-preview" class="hidden">
+                <h3>Voorbeeld van import</h3>
+                <p class="hint">Splitsing op basis van je huidige bibliotheek — een <strong>alternatieve titel</strong> (bijv. NL-vertaling bij een bestaand ID) wordt gekoppeld aan dat lied, <strong>dubbele</strong> liederen worden overgeslagen en <strong>zonder ID</strong> worden opgeslagen voor later.</p>
+                <div id="import-preview-list"></div>
+                <div class="row">
+                    <button id="btn-confirm-import" class="btn btn-accent">✅ Voeg toe aan bibliotheek</button>
+                    <button id="btn-cancel-import" class="btn btn-secondary">Annuleren</button>
+                </div>
+            </div>
+            <div id="import-result" class="import-result hidden"></div>
+        </section>
+
+        <!-- Library -->
+        <section class="card">
+            <div class="lib-header">
+                <h2>📚 Bibliotheek <span class="count-badge" id="lib-count">0</span></h2>
+                <div class="lib-actions">
+                    <button id="btn-open-file" class="btn btn-secondary btn-mini">📂 Open bibliotheek</button>
+                    <input type="file" id="open-file-input" accept=".json,application/json" class="hidden">
+                </div>
+            </div>
+            <div class="toolbar">
+                <input type="search" id="search-input" placeholder="Zoek op titel of ID…">
+                <button id="btn-save" class="btn btn-accent">💾 Opslaan</button>
+            </div>
+            <div class="library-cols">
+                <div class="lib-col">
+                    <h3 class="lib-col-title">🎵 Met ID <span class="count-badge" id="lib-with-id-count">0</span></h3>
+                    <div class="table-wrap">
+                        <table id="song-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Titel</th>
+                                    <th>Artiest</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="song-tbody"></tbody>
+                        </table>
+                    </div>
+                    <p class="hint" id="empty-hint">Nog geen liederen met een ID — voeg een letter toe aan de rechterkolom of importeer vanuit WorshipTools.</p>
+                </div>
+                <div class="lib-col lib-col-noid">
+                    <h3 class="lib-col-title">❓ Zonder ID <span class="count-badge noid-badge" id="lib-noid-count">0</span></h3>
+                    <p class="hint noid-hint">Deze liederen hebben nog geen ID. Kies een letter — de app stelt het eerstvolgende vrije nummer voor. Vul optioneel een nummer in om dat te gebruiken i.p.v. automatisch.</p>
+                    <div id="noid-list"></div>
+                </div>
+            </div>
+        </section>
+    <datalist id="prefix-list"></datalist>
+    </main>
+
+    <footer class="app-footer">
+        <span>Opgeslagen naar <code id="footer-file">library-ids.json</code> via de lokale server</span>
+    </footer>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
