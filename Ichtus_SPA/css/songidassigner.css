@@ -22,13 +22,17 @@
 #view-songidassigner .sa-stat {
     display: flex;
     flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
     min-width: 64px;
 }
 
 #view-songidassigner .sa-stat-num {
+    display: block;
     font-size: 1.5rem;
     font-weight: 800;
     color: var(--ichtus-orange, #f47920);
+    line-height: 1.1;
 }
 
 #view-songidassigner .sa-stat-num.sa-noid-num {
@@ -36,18 +40,23 @@
 }
 
 #view-songidassigner .sa-stat-label {
+    display: block;
     font-size: 0.72rem;
     color: #9aa1af;
     text-transform: uppercase;
     letter-spacing: 0.06em;
+    line-height: 1;
 }
 
 #view-songidassigner .sa-prefix-chips {
     flex: 1;
     display: flex;
+    flex-direction: row;
     flex-wrap: wrap;
     gap: 6px;
     justify-content: flex-end;
+    align-items: center;
+    min-height: 28px;
 }
 
 #view-songidassigner .sa-chip {
