@@ -194,7 +194,10 @@ const setlistModule = {
             try {
                 const data = JSON.parse(saved);
                 this.receivedSetlist = data.raw;
-                this.parsedSongs = data.parsed;
+                // Re-parse from the raw text instead of trusting the stored
+                // buckets — heals setlists cached before the chord-stripping
+                // fix ("Great I Am" had been cut to "Great I").
+                this.parsedSongs = data.raw ? this.parseSongs(data.raw) : data.parsed;
                 this.structuredSongs = data.structured || null;
                 this.fullItems = data.fullItems || null;
                 this.serviceDate = data.date || null;
@@ -321,8 +324,13 @@ const setlistModule = {
         /** Render a list of songs, adding number badges where available */
         const renderList = (songs) => {
             return songs.map(s => {
-                const escaped = this.escapeHtml(s);
-                const num = numberMap[s.toLowerCase()];
+                // Parsed lines keep the number prefix ("D044 Great I Am") while
+                // structured names are clean ("Great I Am") — resolve the badge
+                // against the clean name and show the number as the badge.
+                const cleanName = this.stripSongNumberPrefix(s);
+                const num = numberMap[cleanName.toLowerCase()] || numberMap[s.toLowerCase()];
+                const displayName = num ? cleanName : s;
+                const escaped = this.escapeHtml(displayName);
                 const badge = num ? `<span class="song-number-badge">${this.escapeHtml(num)}</span> ` : '';
                 return `<li>${badge}${escaped}</li>`;
             }).join('');
@@ -357,6 +365,16 @@ const setlistModule = {
         const div = document.createElement('div');
         div.textContent = text;
         return div.innerHTML;
+    },
+
+    /**
+     * Remove a leading song-number prefix (e.g. "D044 ", "O586 ") from a raw
+     * setlist line, leaving the clean song name ("Great I Am"). Used wherever
+     * a parsed line (which keeps its number) is matched against structured
+     * names (which don't) — one place to keep the pattern consistent.
+     */
+    stripSongNumberPrefix(name) {
+        return String(name || '').replace(/^[A-Z]{1,3}\s*\d{1,4}\s+/, '').trim();
     },
 
     renderTemplateDropdown() {
@@ -549,13 +567,23 @@ const setlistModule = {
                 continue;
             }
 
+            // "D000 - Setlist eind" — end-of-service placeholder. Not an item
+            // itself, and everything after it is not part of the service.
+            if (/setlist\s*eind/i.test(line)) {
+                break;
+            }
+
             // Skip noisy items
             const ignore = ["preek", "opening", "offergave", "repetities", "kerkdiensten", "worship tools", "avondmaal", "reserve"];
             if (ignore.some(word => line.toLowerCase().includes(word))) continue;
 
             let cleaned = line.replace(/^\d{1,2}:\d{2}\s*(?:\|\s*)?/, '').trim();
-            // Remove chord notation from end
-            cleaned = cleaned.replace(/\s+[A-G][b#]?(?:m|maj|min|dim|aug|sus|add|\d+)*$/i, '').trim();
+            // Strip only a trailing SINGLE-letter key (e.g. " D", " F#") — a
+            // legacy fallback for payloads that still carry the key inline.
+            // Multi-letter chords (Am, Dm, C#m, maj, sus, ...) are NEVER
+            // stripped: they collide with real words like "Am" in "Great I Am".
+            // The key badge is already excluded at extraction (content.js).
+            cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '').trim();
 
             if (cleaned) {
                 items.push({ name: cleaned, type: 'item', section: currentSection });
@@ -584,11 +612,23 @@ const setlistModule = {
                 continue;
             }
 
+            // "D000 - Setlist eind" — end-of-service placeholder. Never a song
+            // itself, and nothing after it belongs to the setlist. (Safety net:
+            // content.js already truncates at extraction time, but cached
+            // payloads from before that fix may still contain the marker.)
+            if (/setlist\s*eind/i.test(line)) {
+                break;
+            }
+
             if (ignore.some(word => line.toLowerCase().includes(word))) continue;
 
             let cleaned = line.replace(/^\d{1,2}:\d{2}\s*(?:\|\s*)?/, '').trim();
-            // Remove chord notation from end: basic (A, C#), minor (Am, Dm), extended (G7, Cmaj7), sharp/flat (C#m, Cbm)
-            cleaned = cleaned.replace(/\s+[A-G][b#]?(?:m|maj|min|dim|aug|sus|add|\d+)*$/i, '').trim();
+            // Strip only a trailing SINGLE-letter key (e.g. " D", " F#") — a
+            // legacy fallback for payloads that still carry the key inline.
+            // Multi-letter chords (Am, Dm, C#m, maj, sus, ...) are NEVER
+            // stripped: they collide with real words like "Am" in "Great I Am".
+            // The key badge is already excluded at extraction (content.js).
+            cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '').trim();
 
             if (cleaned && !seen.has(cleaned)) {
                 currentBucket.push(cleaned);
@@ -626,7 +666,7 @@ const setlistModule = {
                     const saved = JSON.parse(localStorage.getItem('ichtus_received_setlist'));
                     if (saved && saved.raw) {
                         this.receivedSetlist = saved.raw;
-                        this.parsedSongs = saved.parsed;
+                        this.parsedSongs = saved.raw ? this.parseSongs(saved.raw) : saved.parsed;
                         this.fullItems = saved.fullItems || null;
                         this.serviceDate = saved.date || null;
                         this.updateConnectionStatus('received');
@@ -736,7 +776,9 @@ const setlistModule = {
 
                         // Strategy 2: match by song number if we have structured data
                         if (!uuid && this.structuredSongs) {
-                            const structured = this.structuredSongs.find(st => st.name && st.name.toLowerCase() === processedName);
+                            // Structured names omit the number prefix ("Great I Am"
+                            // vs raw "D044 Great I Am") — compare the clean name.
+                            const structured = this.structuredSongs.find(st => st.name && st.name.toLowerCase() === this.stripSongNumberPrefix(s).toLowerCase());
                             if (structured && structured.number) {
                                 // Try matching by song number (e.g. "o586") — some libraries store just the number
                                 uuid = libraryMap[structured.number.toLowerCase()];
@@ -749,7 +791,7 @@ const setlistModule = {
                         // Strategy 3: if the name has a prefix like "O586 Hij is Heer", 
                         // strip the number prefix and try matching the clean name
                         if (!uuid) {
-                            const nameWithoutNumber = s.replace(/^[A-Z]{1,3}\s*\d{1,4}\s+/, '').trim();
+                            const nameWithoutNumber = this.stripSongNumberPrefix(s);
                             if (nameWithoutNumber && nameWithoutNumber !== s) {
                                 uuid = libraryMap[nameWithoutNumber.toLowerCase()];
                                 if (uuid) {
