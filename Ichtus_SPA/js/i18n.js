@@ -236,6 +236,10 @@ const i18n = {
             settings_config_source_server: 'Server Injected',
             settings_config_source_global: 'Global Variable',
             settings_config_source_none: 'Niet geconfigureerd',
+            settings_sidebar_customization: 'Sidebar Aanpassen',
+            settings_sidebar_customization_desc: 'Kies welke apps zichtbaar zijn in de sidebar',
+            settings_sidebar_apps: 'Zichtbare Apps',
+            nav_songids: 'Song IDs',
 
             // ==================== FULLSCREEN ====================
             fullscreen_enter: 'Volledig scherm',
@@ -579,6 +583,10 @@ const i18n = {
             settings_config_source_server: 'Server Injected',
             settings_config_source_global: 'Global Variable',
             settings_config_source_none: 'Not configured',
+            settings_sidebar_customization: 'Customize Sidebar',
+            settings_sidebar_customization_desc: 'Choose which apps are visible in the sidebar',
+            settings_sidebar_apps: 'Visible Apps',
+            nav_songids: 'Song IDs',
 
             // ==================== FULLSCREEN ====================
             fullscreen_enter: 'Toggle Fullscreen',

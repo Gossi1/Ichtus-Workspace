@@ -17,7 +17,21 @@ const settingsModule = {
         dateFormat: 'DD-MM-YYYY', // DD-MM-YYYY or MM-DD-YYYY
         showDebugPanel: false,
         proPresenterIp: '127.0.0.1',
-        proPresenterPort: '50001'
+        proPresenterPort: '50001',
+        // Sidebar app visibility - all apps visible by default
+        sidebarApps: {
+            dashboard: true,
+            agenda: true,
+            checklist: true,
+            patchbay: true,
+            analytics: true,
+            setlist: true,
+            ndi: true,
+            stagebuilder: true,
+            songidassigner: true,
+            supervisor: true,
+            settings: true
+        }
     },
 
     // Current settings (loaded from localStorage)
@@ -121,6 +135,9 @@ const settingsModule = {
         
         // Apply offline mode - update app behavior
         window.OfflineMode = this.getSetting('offlineMode');
+
+        // Apply sidebar visibility
+        this.applySidebarVisibility();
     },
 
     getFirebaseConfig() {
@@ -370,7 +387,12 @@ const settingsModule = {
         }
 
         // ==========================================
-        // 7. Debug panel
+        // 7. Sidebar Customization
+        // ==========================================
+        this.renderSidebarCustomization();
+
+        // ==========================================
+        // 8. Debug panel
         // ==========================================
         this.renderDebugPanel();
 
@@ -403,6 +425,68 @@ const settingsModule = {
         return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
     },
     
+    renderSidebarCustomization() {
+        const container = document.getElementById('settings-sidebar-apps');
+        if (!container) return;
+
+        const sidebarApps = this.getSetting('sidebarApps') || this.defaults.sidebarApps;
+        const appNames = [
+            { key: 'dashboard', label: __('nav_dashboard'), icon: '📊' },
+            { key: 'agenda', label: __('nav_agenda'), icon: '📅' },
+            { key: 'checklist', label: __('nav_checklist'), icon: '✅' },
+            { key: 'patchbay', label: __('nav_patchbay'), icon: '🔌' },
+            { key: 'analytics', label: __('nav_analytics'), icon: '📈' },
+            { key: 'setlist', label: __('nav_setlist'), icon: '🎵' },
+            { key: 'ndi', label: __('nav_ndi'), icon: '📡' },
+            { key: 'stagebuilder', label: __('nav_stagebuilder'), icon: '🎭' },
+            { key: 'songidassigner', label: __('nav_songids'), icon: '🎹' },
+            { key: 'supervisor', label: __('nav_supervisor'), icon: '🖥️' },
+            { key: 'settings', label: __('nav_settings'), icon: '⚙️' }
+        ];
+
+        container.innerHTML = appNames.map(app => {
+            const isVisible = sidebarApps[app.key] !== false;
+            return `
+                <div class="sidebar-app-item">
+                    <div class="sidebar-app-info">
+                        <span class="sidebar-app-icon">${app.icon}</span>
+                        <span class="sidebar-app-name">${app.label}</span>
+                    </div>
+                    <label class="toggle-item-switch">
+                        <input type="checkbox" 
+                               ${isVisible ? 'checked' : ''} 
+                               onchange="settingsModule.toggleSidebarApp('${app.key}', this.checked)">
+                        <span class="toggle-slider-engine"></span>
+                    </label>
+                </div>
+            `;
+        }).join('');
+    },
+
+    toggleSidebarApp(appKey, isVisible) {
+        let sidebarApps = this.getSetting('sidebarApps') || { ...this.defaults.sidebarApps };
+        sidebarApps[appKey] = isVisible;
+        this.settings.sidebarApps = sidebarApps;
+        this.saveSettings();
+        this.applySidebarVisibility();
+    },
+
+    applySidebarVisibility() {
+        const sidebarApps = this.getSetting('sidebarApps') || this.defaults.sidebarApps;
+        const sidebarItems = document.querySelectorAll('#ichtus-sidebar .sidebar-menu li[data-view]');
+        
+        sidebarItems.forEach(item => {
+            const view = item.getAttribute('data-view');
+            if (view && sidebarApps[view] === false) {
+                item.classList.add('hidden');
+                item.style.display = 'none';
+            } else {
+                item.classList.remove('hidden');
+                item.style.display = '';
+            }
+        });
+    },
+
     renderDebugPanel() {
         // Create debug panel if it doesn't exist
         if (!document.getElementById('debug-panel')) {

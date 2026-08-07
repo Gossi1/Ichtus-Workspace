@@ -66,6 +66,12 @@ window.hideSplash = function() {
 // Start splash cleanup — app.js is het laatste script
 hideSplash();
 
+// Apply sidebar visibility settings on page load
+if (typeof settingsModule !== 'undefined') {
+    settingsModule.loadSettings();
+    settingsModule.applySidebarVisibility();
+}
+
 // Start the background update checker (polls supervisor every 5 min)
 if (window.updateChecker) {
     // Delay first check to let the app fully initialize

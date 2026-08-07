@@ -328,6 +328,27 @@
         }
     })();
     </script>
+    <script>
+    (function(){
+        try {
+            var saved = localStorage.getItem('ichtus_settings');
+            if (saved) {
+                var settings = JSON.parse(saved);
+                var sidebarApps = settings.sidebarApps;
+                if (sidebarApps) {
+                    var items = document.querySelectorAll('#ichtus-sidebar .sidebar-menu li[data-view]');
+                    items.forEach(function(item) {
+                        var view = item.getAttribute('data-view');
+                        if (view && sidebarApps[view] === false) {
+                            item.classList.add('hidden');
+                            item.style.display = 'none';
+                        }
+                    });
+                }
+            }
+        } catch(e) {}
+    })();
+    </script>
 
     <!-- Main Content Area -->
     <main class='main-content' id='app-container'>
@@ -974,7 +995,18 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 7: METRIC SYSTEM APPLICATION INFO
+                     SECTION 7: SIDEBAR CUSTOMIZATION
+                     ========================================== -->
+                <div class="action-bar settings-panel-block">
+                    <strong class="section-title">🎨 Sidebar Aanpassen</strong>
+                    <p class="control-desc" style="margin-bottom: 12px;">Kies welke apps zichtbaar zijn in de sidebar. Uitgeschakelde apps worden verborgen uit de navigatie.</p>
+                    <div id="settings-sidebar-apps" class="sidebar-customization-grid">
+                        <!-- Sidebar apps rendered by settingsModule.renderSidebarCustomization() -->
+                    </div>
+                </div>
+
+                <!-- ==========================================
+                     SECTION 8: METRIC SYSTEM APPLICATION INFO
                      ========================================== -->
                 <div id="settings-app-info-wrapper" class="canvas-wrapper settings-wrapper-info">
                     <div class="table-card-inner">

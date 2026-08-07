@@ -332,6 +332,56 @@ html, body {
 .settings-panel-block.orange-edge { border-color: rgba(244, 121, 32, 0.25) !important; }
 .settings-panel-block.blue-edge   { border-color: rgba(52, 152, 219, 0.25) !important; }
 
+/* ==========================================================================
+   SIDEBAR CUSTOMIZATION GRID — Settings Panel
+   ========================================================================== */
+.sidebar-customization-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+    width: 100%;
+}
+
+.sidebar-app-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 10px;
+    padding: 14px 18px;
+    transition: all 0.25s ease;
+}
+
+.sidebar-app-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sidebar-app-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sidebar-app-icon {
+    font-size: 1.4rem;
+    width: 32px;
+    text-align: center;
+}
+
+.sidebar-app-name {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-main);
+}
+
+@media (max-width: 680px) {
+    .sidebar-customization-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .settings-empty {
     text-align: center;
     padding: 2rem;
