@@ -440,21 +440,24 @@ const settingsModule = {
             { key: 'ndi', label: __('nav_ndi'), icon: '📡' },
             { key: 'stagebuilder', label: __('nav_stagebuilder'), icon: '🎭' },
             { key: 'songidassigner', label: __('nav_songids'), icon: '🎹' },
-            { key: 'supervisor', label: __('nav_supervisor'), icon: '🖥️' },
-            { key: 'settings', label: __('nav_settings'), icon: '⚙️' }
+            { key: 'supervisor', label: __('nav_supervisor'), icon: '🖥️' }
+            // Settings intentionally excluded — always visible, not user-configurable
         ];
 
         container.innerHTML = appNames.map(app => {
-            const isVisible = sidebarApps[app.key] !== false;
+            const isLocked = app.key === 'settings'; // Settings always visible
+            const isVisible = isLocked || sidebarApps[app.key] !== false;
             return `
-                <div class="sidebar-app-item">
+                <div class="sidebar-app-item${isLocked ? ' sidebar-app-locked' : ''}">
                     <div class="sidebar-app-info">
                         <span class="sidebar-app-icon">${app.icon}</span>
                         <span class="sidebar-app-name">${app.label}</span>
+                        ${isLocked ? '<span class="sidebar-app-locked-tag">altijd aan</span>' : ''}
                     </div>
                     <label class="toggle-item-switch">
                         <input type="checkbox" 
                                ${isVisible ? 'checked' : ''} 
+                               ${isLocked ? 'disabled' : ''}
                                onchange="settingsModule.toggleSidebarApp('${app.key}', this.checked)">
                         <span class="toggle-slider-engine"></span>
                     </label>
@@ -464,6 +467,7 @@ const settingsModule = {
     },
 
     toggleSidebarApp(appKey, isVisible) {
+        if (appKey === 'settings') return; // Settings cannot be disabled
         let sidebarApps = this.getSetting('sidebarApps') || { ...this.defaults.sidebarApps };
         sidebarApps[appKey] = isVisible;
         this.settings.sidebarApps = sidebarApps;
@@ -477,6 +481,7 @@ const settingsModule = {
         
         sidebarItems.forEach(item => {
             const view = item.getAttribute('data-view');
+            if (view === 'settings') return; // Settings always visible
             if (view && sidebarApps[view] === false) {
                 item.classList.add('hidden');
                 item.style.display = 'none';

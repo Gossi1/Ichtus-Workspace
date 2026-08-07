@@ -57,18 +57,47 @@
                 <div class="splash-loader-dot"></div>
             </div>
         </div>
-    </div>
+    </div>    <script>
+    (function(){
+        var s = document.getElementById('splash-screen');
+        if (s && sessionStorage.getItem('splashShown')) {
+            // Refresh binnen dezelfde sessie → splash overslaan
+            s.style.display = 'none';
+        } else if (s) {
+            // Nieuwe sessie (PWA launch) → splash tonen, flag zetten
+            try { sessionStorage.setItem('splashShown', '1'); } catch(e){}
+        }
+    })();
+    </script>
     <script>
-        (function(){
-            var s = document.getElementById('splash-screen');
-            if (s && sessionStorage.getItem('splashShown')) {
-                // Refresh binnen dezelfde sessie → splash overslaan
-                s.style.display = 'none';
-            } else if (s) {
-                // Nieuwe sessie (PWA launch) → splash tonen, flag zetten
-                try { sessionStorage.setItem('splashShown', '1'); } catch(e){}
+    // Apply sidebar visibility BEFORE first paint to prevent flash of disabled items
+    (function(){
+        try {
+            var saved = localStorage.getItem('ichtus_settings');
+            if (saved) {
+                var settings = JSON.parse(saved);
+                var sidebarApps = settings.sidebarApps;
+                if (sidebarApps) {
+                    var style = document.createElement('style');
+                    var css = '';
+                    var selectors = [];
+                    var keys = Object.keys(sidebarApps);
+                    for (var i = 0; i < keys.length; i++) {
+                        // Settings always visible — never hide it
+                        if (keys[i] === 'settings') continue;
+                        if (sidebarApps[keys[i]] === false) {
+                            selectors.push(".sidebar-menu li[data-view='" + keys[i] + "']");
+                        }
+                    }
+                    if (selectors.length > 0) {
+                        css = selectors.join(', ') + ' { display: none !important; }';
+                        style.textContent = css;
+                        document.head.appendChild(style);
+                    }
+                }
             }
-        })();
+        } catch(e) {}
+    })();
     </script>
 
     <!-- Mobile Hamburger Menu Button -->
@@ -328,27 +357,7 @@
         }
     })();
     </script>
-    <script>
-    (function(){
-        try {
-            var saved = localStorage.getItem('ichtus_settings');
-            if (saved) {
-                var settings = JSON.parse(saved);
-                var sidebarApps = settings.sidebarApps;
-                if (sidebarApps) {
-                    var items = document.querySelectorAll('#ichtus-sidebar .sidebar-menu li[data-view]');
-                    items.forEach(function(item) {
-                        var view = item.getAttribute('data-view');
-                        if (view && sidebarApps[view] === false) {
-                            item.classList.add('hidden');
-                            item.style.display = 'none';
-                        }
-                    });
-                }
-            }
-        } catch(e) {}
-    })();
-    </script>
+
 
     <!-- Main Content Area -->
     <main class='main-content' id='app-container'>
