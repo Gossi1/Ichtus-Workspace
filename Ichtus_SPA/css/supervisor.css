@@ -26,7 +26,7 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 #view-supervisor .sv-btn-refresh:hover {
@@ -203,7 +203,7 @@
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  transition: all 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
   text-align: center;
 }
 
@@ -398,7 +398,7 @@
   cursor: pointer;
   padding: 4px 8px;
   border-radius: 6px;
-  transition: all 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 #view-supervisor .sv-log-close:hover {

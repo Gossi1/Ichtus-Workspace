@@ -91,6 +91,10 @@ const checklistModule = {
         this.initialized = true;
     },
 
+    cleanup() {
+        if (this._timersInterval) { clearInterval(this._timersInterval); this._timersInterval = null; }
+    },
+
     setupEventListeners() {
         // Date/Time inputs
         document.getElementById('inp-date')?.addEventListener('input', (e) => {

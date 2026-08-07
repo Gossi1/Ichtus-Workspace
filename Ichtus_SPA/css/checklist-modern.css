@@ -6,7 +6,7 @@
   --glass-bg-hover: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
   --glass-edge: rgba(255, 255, 255, 0.2);
   --glass-edge-bright: rgba(255, 255, 255, 0.38);
-  --fluid-blur: blur(20px) saturate(130%);
+  --fluid-blur: blur(10px) saturate(120%);
   
   /* Ichtus Brand Accents */
   --ichtus-orange: #f47920;
@@ -101,7 +101,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   justify-content: center;
   gap: 8px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.1);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .cl-btn:hover, .btn-switch-role:hover, .cl-action-btn:hover {
@@ -146,7 +146,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   border-radius: 20px;
   padding: 22px;
   box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.1);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -286,7 +286,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow: inset 0 0 0 2px var(--tag-color), 0 4px 10px rgba(0,0,0,0.1);
-  transition: all 0.25s ease;
+  transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
 }
 .cl-tag-pill:hover {
   transform: translateY(-1px);
@@ -340,7 +340,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 .cl-item-card:hover {
   background: rgba(255, 255, 255, 0.08);
@@ -364,7 +364,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   background: rgba(0,0,0,0.2);
   cursor: pointer;
   position: relative;
-  transition: all 0.2s;
+  transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .cl-item-checkbox:checked {
   background: var(--ichtus-orange);
@@ -422,8 +422,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   z-index: 1000;
   display: flex;
   justify-content: center;
@@ -476,7 +476,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   color: #ffffff;
   font-size: 0.95rem;
   outline: none;
-  transition: all 0.2s;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .form-input:focus, .modal-input:focus, .manage-input:focus {
   border-color: var(--ichtus-orange);
@@ -543,8 +543,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
     rgba(45, 45, 45, 0.5) 0%, 
     rgba(30, 30, 30, 0.25) 100%
   );
-  backdrop-filter: blur(26px) saturate(145%);
-  -webkit-backdrop-filter: blur(26px) saturate(145%);
+  backdrop-filter: blur(10px) saturate(120%);
+  -webkit-backdrop-filter: blur(10px) saturate(120%);
   border-right: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 10px 0 45px rgba(0, 0, 0, 0.4);
   display: flex;
@@ -606,8 +606,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   width: 100%;
   box-sizing: border-box;
   background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   
   /* Scherpe, lichtreflecterende randen die glasdikte simuleren */
   border: 1px solid rgba(255, 255, 255, 0.15);
@@ -621,7 +621,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   font-size: 0.95rem;
   font-weight: 500;
   outline: none;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Interactieve Hover & Focus states met subtiele gloed */
@@ -648,7 +648,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  transition: all 0.2s ease;
+  transition: opacity 0.2s ease, filter 0.2s ease;
 }
 
 .form-input::-webkit-calendar-picker-indicator:hover {
@@ -700,7 +700,7 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   align-items: center;
   gap: 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-dropdown-trigger:hover {
@@ -736,8 +736,8 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
     rgba(45, 45, 45, 0.92) 0%,
     rgba(30, 30, 30, 0.85) 100%
   );
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  backdrop-filter: blur(6px) saturate(120%);
+  -webkit-backdrop-filter: blur(6px) saturate(120%);
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-top: 1px solid rgba(255, 255, 255, 0.4);
   border-left: 1px solid rgba(255, 255, 255, 0.4);
@@ -776,7 +776,7 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   display: flex;
   align-items: center;
   gap: 12px;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .modern-dropdown-item:hover {
@@ -822,7 +822,7 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   padding: 12px; 
   border-radius: 10px; 
   cursor: pointer; 
-  transition: all 0.2s;
+  transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease;
 }
 .btn-reset:hover { background: rgba(255, 255, 255, 0.08); border-color: rgba(255,255,255,0.3); color: #ffffff; }
 
@@ -917,8 +917,8 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
     rgba(255, 255, 255, 0.07) 0%, 
     rgba(255, 255, 255, 0.02) 100%
   );
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-top: 1px solid rgba(255, 255, 255, 0.35);
   border-left: 1px solid rgba(255, 255, 255, 0.35);
@@ -933,7 +933,7 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
   box-shadow: 
     0 10px 25px rgba(0, 0, 0, 0.2),
     inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .btn-role:hover {

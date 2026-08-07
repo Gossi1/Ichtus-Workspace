@@ -35,6 +35,16 @@ const router = {
             document.body.classList.remove('pb-sidebar-open');
         }
 
+        // Clean up Analytics module when navigating away (stops polling)
+        if (this.currentView === 'analytics' && typeof analyticsModule !== 'undefined' && analyticsModule.cleanup) {
+            analyticsModule.cleanup();
+        }
+
+        // Clean up Checklist module when navigating away (stops timer interval)
+        if (this.currentView === 'checklist' && typeof checklistModule !== 'undefined' && checklistModule.cleanup) {
+            checklistModule.cleanup();
+        }
+
         // Clean up NDI module when navigating away
         if (this.currentView === 'ndi' && typeof ndiModule !== 'undefined' && ndiModule.cleanup) {
             ndiModule.cleanup();

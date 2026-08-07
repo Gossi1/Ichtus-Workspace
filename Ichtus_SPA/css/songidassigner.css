@@ -135,7 +135,7 @@
     border: 1px solid rgba(239, 68, 68, 0.35);
     color: #fca5a5;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
 }
 
 #view-songidassigner .sa-gap-chip:hover {
@@ -271,7 +271,7 @@
     border: 1px solid rgba(255, 255, 255, 0.09);
     color: #9aa1af;
     white-space: nowrap;
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
 }
 
 #view-songidassigner .sa-status-pill.ok {
@@ -536,7 +536,7 @@
     border-radius: 8px;
     border: 1px solid rgba(255, 255, 255, 0.06);
     background: rgba(255, 255, 255, 0.02);
-    transition: all 0.2s ease;
+    transition: background 0.2s ease, border-color 0.2s ease;
 }
 
 #view-songidassigner .sa-imp-maybe-info {

@@ -44,6 +44,11 @@ const analyticsModule = {
         }, 1000);
     },
 
+    cleanup() {
+        if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
+        if (this.autoStartTimeout) { clearTimeout(this.autoStartTimeout); this.autoStartTimeout = null; }
+    },
+
     // --- API Functions ---
 
     async fetchCurrentLook() {
