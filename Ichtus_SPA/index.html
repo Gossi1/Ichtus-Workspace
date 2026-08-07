@@ -16,7 +16,7 @@
     <link rel='stylesheet' href='css/style.css?v=10'>
     <link rel='stylesheet' href='css/checklist-modern.css'>
     <link rel='stylesheet' href='css/supervisor.css'>
-    <link rel='stylesheet' href='css/songidassigner.css?v=1'>
+    <link rel='stylesheet' href='css/songidassigner.css?v=3'>
     <!-- Critical CSS: splash screen — geladen voor eerste paint -->
     <style>
         #splash-screen {
@@ -2154,12 +2154,31 @@
                     <div id="sa-status-pill" class="sa-status-pill">—</div>
                 </div>
 
+                <!-- File location -->
+                <div class="sa-path-bar">
+                    <span class="sa-path-label">📂 Opslaglocatie:</span>
+                    <span class="sa-path-value" id="sa-file-path" title=""></span>
+                    <button id="sa-btn-change-path" class="sa-btn sa-btn-secondary sa-btn-mini hidden">🔄 Wijzig locatie</button>
+                    <div class="sa-path-setup-hint hidden" id="sa-setup-hint">
+                        Kies waar je bibliotheek wilt opslaan (bijv. OneDrive voor synchronisatie tussen apparaten).
+                    </div>
+                </div>
+
                 <!-- Stats -->
                 <section class="sa-stats-bar" id="sa-stats-bar">
                     <div class="sa-stat"><span class="sa-stat-num" id="sa-stat-total">0</span><span class="sa-stat-label">liederen</span></div>
                     <div class="sa-stat"><span class="sa-stat-num sa-noid-num" id="sa-stat-noid">0</span><span class="sa-stat-label">zonder ID</span></div>
                     <div class="sa-stat"><span class="sa-stat-num" id="sa-stat-prefixes">0</span><span class="sa-stat-label">prefixen</span></div>
                     <div class="sa-stat sa-prefix-chips" id="sa-stat-chips"></div>
+                </section>
+
+                <!-- Gaps -->
+                <section class="sa-card sa-gaps-card hidden" id="sa-gaps-container">
+                    <div class="sa-gaps-header">
+                        <h2>🔢 Gaten in nummering <span class="sa-count-badge" id="sa-gaps-badge">0</span></h2>
+                        <button id="sa-gaps-toggle" class="sa-btn sa-btn-secondary sa-btn-mini"></button>
+                    </div>
+                    <div id="sa-gaps-body" class="sa-gaps-body"></div>
                 </section>
 
                 <!-- Import -->

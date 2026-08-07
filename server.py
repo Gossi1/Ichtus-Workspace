@@ -324,6 +324,11 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_library_files()
             return
 
+        # Song ID Assigner: get library config (chosen file path)
+        if self.path == '/api/library/config':
+            self.handle_library_config_get()
+            return
+
         # Default to serving static files
         super().do_GET()
     
@@ -526,6 +531,10 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             self.handle_library_save()
             return
 
+        if self.path == '/api/library/config':
+            self.handle_library_config_post()
+            return
+
         self.send_response(404)
         self.send_header('Content-Type', 'application/json; charset=utf-8')
         self.send_header('Access-Control-Allow-Origin', '*')
@@ -561,32 +570,154 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload.encode('utf-8'))
 
-    def handle_library_load(self):
-        """GET /api/library/load — read the Song ID Assigner library JSON.
-        Optional query param ?file=filename to load a specific file.
-        Serves song-id-assigner/<file>.json (or an empty library when
-        the file doesn't exist yet). The app is a local single-operator tool
-        (same trust model as /api/update), so no auth is required here.
+    # ── Library config (adaptive path) ──────────────────────────
+    def _get_library_config_path(self):
+        """Path to the config file that stores the chosen library location."""
+        return ROOT_DIR / 'library-config.json'
+
+    def _load_library_config(self):
+        """Read the config, returning {'libraryPath': '...'} or empty dict."""
+        cfg_path = self._get_library_config_path()
+        if cfg_path.exists():
+            try:
+                return json.loads(cfg_path.read_text(encoding='utf-8'))
+            except Exception:
+                pass
+        return {}
+
+    def _get_library_path(self):
+        """Return the Path where the library JSON lives.
+
+        Priority:
+          1. Configured absolute path from library-config.json
+          2. Fallback: song-id-assigner/library-ids.json (legacy)
+        """
+        cfg = self._load_library_config()
+        configured = cfg.get('libraryPath') or ''
+        if configured:
+            p = Path(configured)
+            if p.parent.exists():  # dir must exist
+                return p
+            # Parent gone (e.g. OneDrive folder moved) — fall through
+        return ROOT_DIR / 'song-id-assigner' / 'library-ids.json'
+
+    def handle_library_config_get(self):
+        """GET /api/library/config — return the configured library path."""
+        try:
+            cfg = self._load_library_config()
+            lib_path = self._get_library_path()
+            payload = json.dumps({
+                'success': True,
+                'libraryPath': cfg.get('libraryPath', ''),
+                'resolvedPath': str(lib_path),
+                'fileExists': lib_path.exists()
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({'success': False, 'error': str(e)})
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
+    def handle_library_config_post(self):
+        """POST /api/library/config — save the chosen library file path.
+
+        Body: { "libraryPath": "C:\\Users\\...\\library-ids.json" }
+        The server stores an absolute path so every future load/save
+        hits the same file — perfect for OneDrive / shared folders.
         """
         try:
-            # Parse optional ?file= parameter
-            file_param = 'library-ids.json'
+            length = int(self.headers.get('Content-Length') or 0)
+            body = self.rfile.read(length) if length else b''
+            data = json.loads(body.decode('utf-8')) if body else {}
+
+            raw_path = (data.get('libraryPath') or '').strip()
+            if not raw_path:
+                raise ValueError('libraryPath mag niet leeg zijn')
+
+            # Normalise to absolute path
+            lib_path = Path(raw_path).resolve()
+
+            # Ensure parent directory exists
+            lib_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # If the file doesn't exist yet, create it with an empty schema
+            if not lib_path.exists():
+                lib_path.write_text(
+                    json.dumps({'schemaVersion': 1, 'updatedAt': datetime.now().isoformat(), 'songs': []},
+                               ensure_ascii=False, indent=2),
+                    encoding='utf-8'
+                )
+
+            # Persist config
+            cfg = {
+                'libraryPath': str(lib_path),
+                'updatedAt': datetime.now().isoformat()
+            }
+            self._get_library_config_path().write_text(
+                json.dumps(cfg, ensure_ascii=False, indent=2), encoding='utf-8'
+            )
+
+            payload = json.dumps({
+                'success': True,
+                'libraryPath': str(lib_path),
+                'message': f'Bibliotheek gekoppeld aan {lib_path.name}'
+            })
+            self.send_response(200)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Cache-Control', 'no-store')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+        except Exception as e:
+            payload = json.dumps({'success': False, 'error': str(e)})
+            self.send_response(500)
+            self.send_header('Content-Type', 'application/json; charset=utf-8')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.end_headers()
+            self.wfile.write(payload.encode('utf-8'))
+
+    def handle_library_load(self):
+        """GET /api/library/load — read the Song ID Assigner library JSON.
+        Uses the adaptive path from library-config.json when available,
+        falling back to song-id-assigner/library-ids.json (legacy).
+        Optional query param ?file=filename overrides the configured path.
+        """
+        try:
+            # If ?file= is explicitly passed, use it (legacy compat)
+            file_override = None
             if '?' in self.path:
                 query = self.path.split('?', 1)[1]
                 for part in query.split('&'):
                     if part.startswith('file='):
-                        file_param = urllib.request.unquote(part.split('=', 1)[1])
+                        file_override = urllib.request.unquote(part.split('=', 1)[1])
                         break
-            # Sanitize: only allow .json files, no path traversal
-            file_param = os.path.basename(file_param)
-            if not file_param.endswith('.json'):
-                file_param += '.json'
-            lib_path = ROOT_DIR / 'song-id-assigner' / file_param
+
+            if file_override:
+                file_override = os.path.basename(file_override)
+                if not file_override.endswith('.json'):
+                    file_override += '.json'
+                lib_path = ROOT_DIR / 'song-id-assigner' / file_override
+            else:
+                lib_path = self._get_library_path()
+
             if lib_path.exists():
                 data = json.loads(lib_path.read_text(encoding='utf-8'))
             else:
                 data = {'schemaVersion': 1, 'songs': []}
-            payload = json.dumps({'success': True, 'library': data, 'file': file_param})
+            payload = json.dumps({
+                'success': True,
+                'library': data,
+                'file': lib_path.name,
+                'path': str(lib_path)
+            })
             self.send_response(200)
             self.send_header('Content-Type', 'application/json; charset=utf-8')
             self.send_header('Access-Control-Allow-Origin', '*')
@@ -665,20 +796,24 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
                     'altTitles': alt_clean
                 })
 
-            # Determine target filename from body["file"] or default.
-            file_param = str(data.get('file') or 'library-ids.json')
-            file_param = os.path.basename(file_param)  # no path traversal
-            if not file_param.endswith('.json'):
-                file_param += '.json'
+            # Determine target path.
+            # Priority: adaptive path from config > body["file"] > default
+            lib_path = self._get_library_path()  # uses config if available
+            file_param = str(data.get('file') or '')
+            if file_param:
+                file_param = os.path.basename(file_param)  # no path traversal
+                if not file_param.endswith('.json'):
+                    file_param += '.json'
+                # If body specifies a file AND it differs from configured,
+                # only use body override when no config exists yet.
+                cfg = self._load_library_config()
+                if not cfg.get('libraryPath'):
+                    lib_dir = ROOT_DIR / 'song-id-assigner'
+                    lib_dir.mkdir(parents=True, exist_ok=True)
+                    lib_path = lib_dir / file_param
 
-            # Safety net: never let a tiny/malformed payload silently wipe a
-            # large existing library. If the current file holds >50 songs and
-            # the incoming payload has fewer than 5, refuse loudly instead of
-            # overwriting — this is the "accidental truncation" guard (a stray
-            # test POST or an empty form must not nuke the real library).
-            lib_dir = ROOT_DIR / 'song-id-assigner'
-            lib_dir.mkdir(parents=True, exist_ok=True)
-            lib_path = lib_dir / file_param
+            # Ensure parent directory exists
+            lib_path.parent.mkdir(parents=True, exist_ok=True)
             existing_count = 0
             if lib_path.exists():
                 try:
@@ -695,7 +830,7 @@ class IchtusHandler(http.server.SimpleHTTPRequestHandler):
             # Backup before write (single rotating copy) so a bad write is
             # always undoable by hand: rename the live file to .bak, then
             # write the new content. Atomic-ish and recovery-friendly.
-            backup_path = lib_dir / (file_param + '.bak')
+            backup_path = lib_path.parent / (lib_path.name + '.bak')
             if lib_path.exists():
                 try:
                     import shutil as _shutil

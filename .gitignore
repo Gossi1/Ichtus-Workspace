@@ -109,3 +109,6 @@ Ichtus_SPA/firebase-config.txt
 
 # Service Account Keys (sensitive credentials!)
 mic-iem-server/serviceAccountKey.json
+
+# Song ID Assigner — user-specific library path config
+library-config.json

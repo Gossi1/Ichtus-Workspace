@@ -157,19 +157,23 @@ const songidassignerModule = (() => {
                 }
                 return { bucket: 'dupe', reason: 'ID ' + existing.id + ' is al in gebruik voor "' + (existing.title || '?') + '" — titel "' + p.title + '" zou een tweede rij met hetzelfde ID veroorzaken' };
             }
+            // Same title exists at a DIFFERENT ID — not necessarily a dupe;
+            // let the user decide (e.g. "Abba" at H005 vs D083).
             const titleSong = findSongByTitle(norm, null, p.artist) ||
                 [...ctx.seenIds.values()].find(s => songHasTitle(s, norm));
             if (titleSong) {
-                return { bucket: 'dupe', reason: '"' + p.title + '" bestaat al als ' + titleSong.id };
+                return { bucket: 'maybe', reason: '"' + p.title + '" bestaat al als ' + titleSong.id + ' — zelfde titel, ander ID. Is dit een dubbel?' };
             }
             if (prev) return { bucket: 'dupe', reason: 'komt al voor in deze import als ' + prev };
             if (!ctx.seenTitles.has(batchKey)) ctx.seenTitles.set(batchKey, id);
             return { bucket: 'withId', id };
         }
+        // No ID — same title exists in library. Could be a translation
+        // or a different song. Ask the user.
         const libSame = findSongByTitle(norm, null, p.artist) ||
             [...ctx.seenIds.values()].find(s => songHasTitle(s, norm));
         if (libSame) {
-            return { bucket: 'dupe', reason: '"' + libSame.title + '" staat al in de bibliotheek als ' + (libSame.id || 'zonder ID') };
+            return { bucket: 'maybe', reason: '"' + libSame.title + '" staat al in de bibliotheek als ' + (libSame.id || 'zonder ID') + ' — zelfde titel. Is dit een dubbel?' };
         }
         if (prev) return { bucket: 'dupe', reason: 'komt al voor in deze import als ' + prev };
         if (!ctx.seenTitles.has(batchKey)) ctx.seenTitles.set(batchKey, p.title);
@@ -310,6 +314,7 @@ const songidassignerModule = (() => {
     function renderAll() {
         renderStats();
         renderPrefixList();
+        renderGaps();
         renderTable();
     }
 
@@ -458,7 +463,7 @@ const songidassignerModule = (() => {
         const prevResult = $('import-result');
         if (prevResult) { prevResult.classList.add('hidden'); prevResult.innerHTML = ''; }
 
-        const buckets = { withId: [], noId: [], dupe: [] };
+        const buckets = { withId: [], noId: [], dupe: [], maybe: [] };
         const ctx = { seenTitles: new Map(), seenIds: new Map() };
         parsedList.forEach(p => {
             if (!p) return;
@@ -468,6 +473,8 @@ const songidassignerModule = (() => {
                 buckets.withId.push(p);
             } else if (cls.bucket === 'dupe') {
                 buckets.dupe.push({ p, reason: cls.reason });
+            } else if (cls.bucket === 'maybe') {
+                buckets.maybe.push({ p, reason: cls.reason });
             } else {
                 buckets[cls.bucket].push(p);
             }
@@ -495,9 +502,65 @@ const songidassignerModule = (() => {
             return c;
         };
 
+        // "Maybe" column — two checkboxes per item: Overslaan / Toevoegen.
+        // Default: nothing checked → skip. They are mutually exclusive.
+        const maybeCol = el(`<div class="sa-imp-col sa-imp-col-maybe">
+            <h4 class="sa-imp-col-title">\u2753 Mogelijk dubbel <span class="sa-count-badge">${buckets.maybe.length}</span></h4>
+            <div class="sa-imp-maybe-hint">Niets aangevinkt = overslaan. Kies er een per lied.</div>
+        </div>`);
+        const maybeBody = el('<div class="sa-imp-col-body"></div>');
+        if (buckets.maybe.length === 0) {
+            maybeBody.appendChild(el('<div class="sa-imp-col-empty">\u2014</div>'));
+        } else {
+            buckets.maybe.forEach(item => {
+                const artistPart = item.p.artist ? ` — <span class="sa-imp-artist">${escapeHtml(item.p.artist)}</span>` : '';
+                const idLabel = item.p.id ? escapeHtml(item.p.id) : '<span class="sa-imp-no-id">(geen ID)</span>';
+                const row = el(`<div class="sa-imp-line sa-imp-maybe-line" data-maybe="1">
+                    <div class="sa-imp-maybe-info">
+                        <span class="sa-imp-id">${idLabel}</span>
+                        <span>${escapeHtml(item.p.title)}${artistPart}</span>
+                        <div class="sa-imp-maybe-reason">${escapeHtml(item.reason)}</div>
+                    </div>
+                    <label class="sa-imp-check-label sa-imp-check-skip" title="Overslaan">
+                        <input type="checkbox" class="sa-imp-check sa-maybe-skip-cb">
+                        <span>Overslaan</span>
+                    </label>
+                    <label class="sa-imp-check-label sa-imp-check-add" title="Toevoegen aan bibliotheek">
+                        <input type="checkbox" class="sa-imp-check sa-maybe-add-cb">
+                        <span>Toevoegen</span>
+                    </label>
+                </div>`);
+                const skipCb = row.querySelector('.sa-maybe-skip-cb');
+                const addCb = row.querySelector('.sa-maybe-add-cb');
+                skipCb.addEventListener('change', () => { if (skipCb.checked) addCb.checked = false; });
+                addCb.addEventListener('change', () => { if (addCb.checked) skipCb.checked = false; });
+                maybeBody.appendChild(row);
+            });
+            // Bulk actions
+            const actions = el(`<div class="sa-imp-maybe-actions">
+                <button class="sa-btn sa-btn-accent sa-btn-mini sa-maybe-add-all">Alles toevoegen</button>
+                <button class="sa-btn sa-btn-secondary sa-btn-mini sa-maybe-skip-all">Alles overslaan</button>
+            </div>`);
+            actions.querySelector('.sa-maybe-add-all').addEventListener('click', () => {
+                maybeBody.querySelectorAll('.sa-imp-maybe-line').forEach(row => {
+                    row.querySelector('.sa-maybe-add-cb').checked = true;
+                    row.querySelector('.sa-maybe-skip-cb').checked = false;
+                });
+            });
+            actions.querySelector('.sa-maybe-skip-all').addEventListener('click', () => {
+                maybeBody.querySelectorAll('.sa-imp-maybe-line').forEach(row => {
+                    row.querySelector('.sa-maybe-skip-cb').checked = false;
+                    row.querySelector('.sa-maybe-add-cb').checked = false;
+                });
+            });
+            maybeBody.appendChild(actions);
+        }
+        maybeCol.appendChild(maybeBody);
+
         list.appendChild(col('\ud83c\udfb5 Met ID', 'withid', buckets.withId, p => renderItem(p)));
         list.appendChild(col('\u2753 Zonder ID', 'noid', buckets.noId, p => renderItem(p)));
         list.appendChild(col('\u26a0\ufe0f Dubbele', 'dupe', buckets.dupe, i => renderItem(i.p, i.reason)));
+        list.appendChild(maybeCol);
 
         preview.classList.remove('hidden');
     }
@@ -506,12 +569,40 @@ const songidassignerModule = (() => {
         let added = 0, skipped = 0, noId = 0;
         const skippedList = [];
         const ctx = { seenTitles: new Map(), seenIds: new Map() };
+
+        // Read which "maybe" items the user decided to add (checked "Toevoegen")
+        const previewList = $('import-preview-list');
+        const maybeCol = previewList ? previewList.querySelector('.sa-imp-col-maybe') : null;
+        const maybeLines = maybeCol ? [...maybeCol.querySelectorAll('.sa-imp-maybe-line')] : [];
+        const maybeCheckedFlags = maybeLines.map(line => line.querySelector('.sa-maybe-add-cb')?.checked === true);
+
+        let maybeIdx = 0;
         for (const p of state.pendingImport) {
             if (!p) continue;
             const cls = classifyImport(p, ctx);
             if (cls.bucket === 'dupe') {
                 skipped++;
                 skippedList.push({ id: p.id, title: p.title, artist: p.artist, reason: cls.reason });
+                continue;
+            }
+            if (cls.bucket === 'maybe') {
+                // Only add if the user checked the box
+                if (maybeCheckedFlags[maybeIdx]) {
+                    if (p.prefix && p.number) {
+                        const number = formatNumber(p.prefix, parseInt(p.number, 10));
+                        const song = { uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: p.artist || '' };
+                        state.songs.push(song);
+                        ctx.seenIds.set(song.id, song);
+                    } else {
+                        state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: p.artist || '' });
+                        noId++;
+                    }
+                    added++;
+                } else {
+                    skipped++;
+                    skippedList.push({ id: p.id, title: p.title, artist: p.artist, reason: cls.reason });
+                }
+                maybeIdx++;
                 continue;
             }
             if (cls.bucket === 'noId') {
@@ -570,6 +661,130 @@ const songidassignerModule = (() => {
         if (dismiss) dismiss.addEventListener('click', () => box.classList.add('hidden'));
     }
 
+    // ── Library config (adaptive path) ────────────────────────
+    let _libraryConfig = { libraryPath: '', resolvedPath: '', fileExists: false };
+
+    async function loadLibraryConfig() {
+        try {
+            const resp = await fetch('/api/library/config');
+            const json = await resp.json();
+            if (json.success) {
+                _libraryConfig = json;
+                renderPathDisplay();
+                return json;
+            }
+        } catch (e) { /* first run, no config yet */ }
+        _libraryConfig = { libraryPath: '', resolvedPath: '', fileExists: false };
+        renderPathDisplay();
+        return _libraryConfig;
+    }
+
+    async function setLibraryPath(filePath) {
+        try {
+            const resp = await fetch('/api/library/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ libraryPath: filePath })
+            });
+            const json = await resp.json();
+            if (json.success) {
+                _libraryConfig = { libraryPath: json.libraryPath, resolvedPath: json.libraryPath, fileExists: true };
+                renderPathDisplay();
+                setStatus('\u2705 Bibliotheek gekoppeld aan ' + filePath.split(/[\\/]/).pop(), 'ok');
+                return true;
+            } else {
+                setStatus('\u274c ' + (json.error || 'Kon pad niet opslaan'), 'err');
+                return false;
+            }
+        } catch (e) {
+            setStatus('\u274c Server niet bereikbaar', 'err');
+            return false;
+        }
+    }
+
+    function renderPathDisplay() {
+        const el = $('file-path');
+        const changeBtn = $('btn-change-path');
+        const setupHint = $('setup-hint');
+        if (!el) return;
+
+        // Always show the button so the user can set/change the location
+        if (changeBtn) changeBtn.classList.remove('hidden');
+
+        if (_libraryConfig.libraryPath) {
+            // Show friendly path: just filename + parent folder
+            let display = _libraryConfig.libraryPath;
+            try {
+                const parts = display.replace(/\\/g, '/').split('/');
+                const fileName = parts.pop();
+                const parentFolder = parts.pop() || '';
+                display = parentFolder + '/' + fileName;
+            } catch (_) { /* keep full path */ }
+            el.textContent = display;
+            el.title = _libraryConfig.libraryPath;
+            el.classList.remove('sa-path-unset');
+            changeBtn.textContent = '\ud83d\udd04 Wijzig locatie';
+            changeBtn.classList.remove('sa-btn-accent');
+            changeBtn.classList.add('sa-btn-secondary');
+            if (setupHint) setupHint.classList.add('hidden');
+        } else {
+            el.textContent = 'Nog niet ingesteld — kies een bestand';
+            el.title = '';
+            el.classList.add('sa-path-unset');
+            changeBtn.textContent = '\ud83d\udcc2 Kies opslaglocatie';
+            changeBtn.classList.add('sa-btn-accent');
+            changeBtn.classList.remove('sa-btn-secondary');
+            if (setupHint) setupHint.classList.remove('hidden');
+        }
+    }
+
+    function handlePickLibraryLocation() {
+        // Build a small inline form so the user can paste/type the path
+        // directly — no need for a file picker (browsers can't read the
+        // full path from it).
+        const existing = $('path-input-form');
+        if (existing) { existing.remove(); return; }
+
+        const form = el(`<div class="sa-path-input-form" id="sa-path-input-form">
+            <input type="text" class="sa-path-input" id="sa-path-input"
+                   placeholder="C:\\Users\\jouw-naam\\OneDrive\\Ichtus\\library-ids.json"
+                   value="${escapeHtml(_libraryConfig.libraryPath || '')}">
+            <div class="sa-path-input-btns">
+                <button class="sa-btn sa-btn-accent sa-btn-mini" id="sa-path-save-btn">Opslaan</button>
+                <button class="sa-btn sa-btn-secondary sa-btn-mini" id="sa-path-cancel-btn">Annuleren</button>
+            </div>
+        </div>`);
+
+        // Insert after the path bar
+        const pathBar = document.querySelector('.sa-path-bar');
+        if (pathBar && pathBar.parentNode) {
+            pathBar.parentNode.insertBefore(form, pathBar.nextSibling);
+        } else {
+            $('view-songidassigner')?.prepend(form);
+        }
+
+        const input = $('path-input');
+        input?.focus();
+        input?.select();
+
+        $('path-save-btn')?.addEventListener('click', async () => {
+            const raw = input?.value.trim();
+            if (!raw) { setStatus('\u26a0\ufe0f Voer een pad in', 'err'); return; }
+            form.remove();
+            const saved = await setLibraryPath(raw);
+            if (saved) {
+                await loadLibrary();
+            }
+        });
+
+        $('path-cancel-btn')?.addEventListener('click', () => form.remove());
+
+        input?.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') $('path-save-btn')?.click();
+            if (e.key === 'Escape') form.remove();
+        });
+    }
+
     // ── Save / Load via server ─────────────────────────────────
     async function saveLibrary() {
         const payload = {
@@ -597,7 +812,12 @@ const songidassignerModule = (() => {
 
     async function loadLibrary(file) {
         try {
-            const url = file ? '/api/library/load?file=' + encodeURIComponent(file) : '/api/library/load';
+            // If a custom path is configured, always use it (no ?file= override)
+            // so the server reads from the configured location.
+            const useConfigured = _libraryConfig.libraryPath;
+            const url = (!useConfigured && file)
+                ? '/api/library/load?file=' + encodeURIComponent(file)
+                : '/api/library/load';
             const resp = await fetch(url);
             const json = await resp.json();
             if (json && json.library && Array.isArray(json.library.songs)) {
@@ -632,7 +852,15 @@ const songidassignerModule = (() => {
 
     function updateFileFooter() {
         const el = $('footer-file');
-        if (el) el.textContent = state.currentFile;
+        if (!el) return;
+        if (_libraryConfig.libraryPath) {
+            const parts = _libraryConfig.libraryPath.replace(/\\/g, '/').split('/');
+            el.textContent = parts.pop() || state.currentFile;
+            el.title = _libraryConfig.libraryPath;
+        } else {
+            el.textContent = state.currentFile;
+            el.title = '';
+        }
     }
 
     // ── File import (.txt / .csv / .json) ──────────────────────
@@ -698,6 +926,80 @@ const songidassignerModule = (() => {
         if (preview) preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    // ── Gap detection ──────────────────────────────────────────
+    function detectGaps() {
+        const gaps = {};
+        const byPrefix = {};
+        state.songs.forEach(s => {
+            if (!s.prefix || !s.number) return;
+            if (!byPrefix[s.prefix]) byPrefix[s.prefix] = [];
+            const n = parseInt(s.number, 10);
+            if (!isNaN(n)) byPrefix[s.prefix].push(n);
+        });
+        const SKIP_PREFIXES = new Set(['O', 'OK']);
+        for (const prefix of Object.keys(byPrefix).sort()) {
+            if (SKIP_PREFIXES.has(prefix)) continue;
+            const nums = [...new Set(byPrefix[prefix])].sort((a, b) => a - b);
+            if (nums.length < 2) continue;
+            const min = nums[0];
+            const max = nums[nums.length - 1];
+            const taken = new Set(nums);
+            const missing = [];
+            for (let i = min + 1; i < max; i++) {
+                if (!taken.has(i)) missing.push(i);
+            }
+            if (missing.length > 0) gaps[prefix] = missing;
+        }
+        return gaps;
+    }
+
+    function renderGaps() {
+        const container = $('gaps-container');
+        const toggleBtn = $('gaps-toggle');
+        const body = $('gaps-body');
+        if (!container || !body) return;
+
+        const gaps = detectGaps();
+        const totalGaps = Object.values(gaps).reduce((sum, arr) => sum + arr.length, 0);
+        const prefixCount = Object.keys(gaps).length;
+
+        const badgeEl = $('gaps-badge');
+        if (badgeEl) badgeEl.textContent = totalGaps;
+
+        if (totalGaps === 0) {
+            container.classList.add('hidden');
+            return;
+        }
+        container.classList.remove('hidden');
+
+        body.innerHTML = '';
+        for (const prefix of Object.keys(gaps).sort()) {
+            const nums = gaps[prefix];
+            const group = el(`<div class="sa-gap-group"></div>`);
+            group.appendChild(el(`<span class="sa-gap-prefix">${escapeHtml(prefix)}</span>`));
+            const numsEl = el('<span class="sa-gap-nums"></span>');
+            nums.forEach(n => {
+                const chip = el(`<span class="sa-gap-chip" title="Klik om te kopiëren" data-copy="${escapeHtml(prefix)}${String(n).padStart(3, '0')}">${String(n).padStart(3, '0')}</span>`);
+                chip.addEventListener('click', () => {
+                    navigator.clipboard.writeText(chip.dataset.copy).catch(() => {});
+                    chip.classList.add('sa-gap-copied');
+                    setTimeout(() => chip.classList.remove('sa-gap-copied'), 600);
+                });
+                numsEl.appendChild(chip);
+            });
+            group.appendChild(numsEl);
+            body.appendChild(group);
+        }
+
+        if (toggleBtn) {
+            toggleBtn.onclick = () => {
+                const collapsed = body.classList.toggle('sa-gap-collapsed');
+                toggleBtn.textContent = collapsed ? `\u25B6 ${prefixCount} prefixen, ${totalGaps} gaten` : `\u25BC Gaten sluiten`;
+            };
+            toggleBtn.textContent = `\u25BC Gaten sluiten`;
+        }
+    }
+
     // ── Init (called by router) ────────────────────────────────
     function init() {
         if (state._initialized) {
@@ -731,11 +1033,15 @@ const songidassignerModule = (() => {
         $('search-input')?.addEventListener('input', renderTable);
         $('btn-open-file')?.addEventListener('click', () => $('open-file-input')?.click());
         $('open-file-input')?.addEventListener('change', handleOpenFile);
+        $('btn-change-path')?.addEventListener('click', handlePickLibraryLocation);
 
         // Extension bridge
         document.addEventListener('worshiptools-library', onLibraryEvent);
 
-        loadLibrary(state.currentFile).then(() => {
+        // Load config first, then library
+        loadLibraryConfig().then(() => {
+            return loadLibrary(state.currentFile);
+        }).then(() => {
             document.dispatchEvent(new CustomEvent('ichtus-library-ready'));
         });
     }
