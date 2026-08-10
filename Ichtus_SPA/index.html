@@ -1943,92 +1943,32 @@
 
         <!-- DASHBOARD VIEW -->
         <div id='view-dashboard' class='app-view hidden'>
-            <div class='dashboard-header'>
-                <button id='dash-add-widget-btn' class='dash-add-widget-btn' onclick="dashboardModule.addWidget()" title='Add widget'>+</button>
-                <div class='custom-select-container'>
-                    <button id='custom-select-trigger' class='custom-select-trigger heading-font' onclick="dashboardModule.toggleCustomDropdown()">
-                        <span id='custom-select-text'>Default</span>
-                        <span class='custom-select-arrow-line'></span>
-                    </button>
-                    <div id='custom-select-options' class='custom-select-options'>
-                        <div class='custom-option' data-value='__default__' onclick="dashboardModule.selectCustomOption(this)">Default</div>
+            <div class='header-wrapper' id='headerWrapper'>
+                <div class='dashboard-header'>
+                    <div class='header-left'>
+                        <div class='custom-dropdown' id='dashboardDropdown'>
+                            <div class='dropdown-trigger' onclick="dashboardModule.toggleCustomDropdown()">
+                                <span id='custom-select-text'>Main Service Dashboard</span>
+                                <span class='dropdown-arrow'>▼</span>
+                            </div>
+                            <div class='dropdown-menu' id='custom-select-options'>
+                                <div class='dropdown-option selected' data-value='__default__' onclick="dashboardModule.selectCustomOption(this)">Main Service Dashboard</div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-                <div class='dashboard-header-actions'>
-                    <button class='dash-header-btn dash-edit-btn' onclick="dashboardModule.toggleEditMode()" title='Edit'>✎</button>
-                    <button class='dash-header-btn dash-manage-btn' onclick="dashboardModule.manageLayout()" title='Manage layouts'>⚙</button>
+                    <div class='btn-group'>
+                        <button class='btn-secondary' id='dash-add-widget-btn' onclick="dashboardModule.addWidget()" style='display:none;'>+ Widget</button>
+                        <button class='btn-icon-square dash-edit-btn' onclick="dashboardModule.toggleEditMode()" title='Bewerken'>
+                            <svg viewBox='0 0 24 24'><path d='M12 20h9'></path><path d='M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z'></path></svg>
+                        </button>
+                        <button class='btn-icon-square' onclick="dashboardModule.manageLayout()" title='Instellingen'>
+                            <svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='3'></circle><path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z'></path></svg>
+                        </button>
+                        <button class='btn-icon-square btn-toggle-header' id='headerToggleBtn' onclick="dashboardModule.toggleHeader()" title='Verberg/Toon Balk'>▲</button>
+                    </div>
                 </div>
             </div>
             <div id='widget-grid' class='widget-grid'>
-                <!-- Quick Links Widget -->
-                <div class='widget-card' draggable='true' data-widget-id='quicklinks'>
-                    <div class='widget-body'>
-                        <div class='quick-links'>
-                            <a href='#' class='quick-link' onclick="router.navigate('agenda'); return false;">
-                                <span class='quick-icon'>📅</span>
-                                <span>Agenda</span>
-                            </a>
-                            <a href='#' class='quick-link' onclick="router.navigate('checklist'); return false;">
-                                <span class='quick-icon'>✅</span>
-                                <span>Checklist</span>
-                            </a>
-                            <a href='#' class='quick-link' onclick="router.navigate('patchbay'); return false;">
-                                <span class='quick-icon'>🔌</span>
-                                <span>Patchbay</span>
-                            </a>
-                            <a href='#' class='quick-link' onclick="router.navigate('analytics'); return false;">
-                                <span class='quick-icon'>📊</span>
-                                <span>Analytics</span>
-                            </a>
-                            <a href='#' class='quick-link' onclick="router.navigate('setlist'); return false;">
-                                <span class='quick-icon'>🎵</span>
-                                <span>Setlist</span>
-                            </a>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Service Timer Widget -->
-                <div class='widget-card' draggable='true' data-widget-id='servicetimer'>
-                    <div class='widget-body'>
-                        <div class='timer-widget'>
-                            <div id='dash-timer-display' class='dash-timer-display heading-font'>00:00:00</div>
-                            <div class='timer-controls'>
-                                <button id='dash-timer-start' class='timer-btn timer-start'>Start</button>
-                                <button id='dash-timer-stop' class='timer-btn timer-stop' disabled>Stop</button>
-                                <button id='dash-timer-reset' class='timer-btn timer-reset'>Reset</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Status Widget -->
-                <div class='widget-card' draggable='true' data-widget-id='status'>
-                    <div class='widget-body'>
-                        <div class='status-list'>
-                            <div class='status-item'>
-                                <span class='status-dot online'></span>
-                                <span>Agenda Module</span>
-                            </div>
-                            <div class='status-item'>
-                                <span class='status-dot online'></span>
-                                <span>Checklist Module</span>
-                            </div>
-                            <div class='status-item'>
-                                <span class='status-dot online'></span>
-                                <span>Patchbay Module</span>
-                            </div>
-                            <div class='status-item'>
-                                <span class='status-dot online'></span>
-                                <span>Analytics Module</span>
-                            </div>
-                            <div class='status-item'>
-                                <span class='status-dot online'></span>
-                                <span>Setlist Module</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -2323,6 +2263,55 @@
     <script src='js/firebase-init.js'></script>
     <script src='js/state.js'></script>
     <script src='js/modules/dashboard.js?v=3'></script>
+    <!-- Dashboard sub-modules (widgets) -->
+    <script src='js/modules/dashboard/widgets/propresenter.js'></script>
+    <script src='js/modules/dashboard/widgets/playlist-overview.js'></script>
+    <script src='js/modules/dashboard/widgets/mic-monitor.js'></script>
+    <script src='js/modules/dashboard/widgets/timer.js'></script>
+    <!-- Delegation: bind widget module methods to dashboardModule (must run AFTER widget scripts) -->
+    <script>
+    (function() {
+        var w = window.dashboardWidgets || {};
+
+        // --- ProPresenter module ---
+        if (w.propresenter) {
+            Object.keys(w.propresenter).forEach(function(key) {
+                if (typeof w.propresenter[key] === 'function') {
+                    dashboardModule[key] = w.propresenter[key].bind(dashboardModule);
+                }
+            });
+        }
+
+        // --- Playlist Overview module ---
+        if (w.playlistOverview) {
+            Object.keys(w.playlistOverview).forEach(function(key) {
+                if (typeof w.playlistOverview[key] === 'function') {
+                    dashboardModule[key] = w.playlistOverview[key].bind(dashboardModule);
+                }
+            });
+        }
+
+        // --- Mic Monitor module ---
+        if (w.micMonitor) {
+            Object.keys(w.micMonitor).forEach(function(key) {
+                if (typeof w.micMonitor[key] === 'function') {
+                    dashboardModule[key] = w.micMonitor[key].bind(dashboardModule);
+                }
+            });
+        }
+
+        // --- Timer module (uses global DashboardTimer) ---
+        if (typeof DashboardTimer !== 'undefined') {
+            Object.keys(DashboardTimer).forEach(function(key) {
+                if (typeof DashboardTimer[key] === 'function') {
+                    dashboardModule[key] = DashboardTimer[key].bind(dashboardModule);
+                }
+            });
+        }
+
+        console.log('[DASHBOARD] Sub-modules loaded:', Object.keys(w).join(', ') || 'none');
+    })();
+    </script>
     <script src='js/modules/agenda.js'></script>
     <script src='js/modules/checklist.js'></script>
     <script src='js/modules/setlist.js?v=4'></script>
