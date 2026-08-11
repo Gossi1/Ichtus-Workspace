@@ -5,7 +5,7 @@ const dashboardModule = {
     timerStartTime: null,
     timerRunning: false,
     draggedEl: null,
-    _defaultWidgetIds: ['quicklinks', 'servicetimer', 'status', 'propresenter', 'playlist-overview', 'mic-iem-monitor'],
+    _defaultWidgetIds: ['propresenter-playlist', 'playlist-overview', 'mic-iem-monitor'],
     _editMode: false,
     _widgetInstance: 0,
 
@@ -40,12 +40,10 @@ const dashboardModule = {
         this._lastView = 'dashboard';
 
         this.setupDragAndDrop();
-        this.setupTimer();
-        this.setupCountdown();
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
-        this._initMicMonitor();
-        this._initRosterListener();
+        try { this._initMicMonitor(); } catch (e) { console.warn('[DASHBOARD] Mic monitor init failed:', e); }
+        try { this._initRosterListener(); } catch (e) { console.warn('[DASHBOARD] Roster listener init failed:', e); }
 
         const activeLayout = this.getActiveLayoutName();
         this.applyLayout(activeLayout);
@@ -53,20 +51,32 @@ const dashboardModule = {
         localStorage.removeItem('ichtus_dashboard_collapsed');
         this._updateRowHeight();
         this._restoreWidgetSizes();
+        this._restoreWidgetZoom();
         this.initLayoutSelector();
         this._initDropdownCloseListener();
-        if (document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
-            this._startProPresenterPolling();
-        }            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
+
+        // Start ProPresenter polling — wrapped in try/catch so network errors don't break init
+        try {
+            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
+                this._startProPresenterPolling();
+            }
+        } catch (e) { console.warn('[DASHBOARD] ProPresenter polling start failed:', e); }
+
+        try {
+            if (document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
                 this._loadProPresenterPlaylist();
                 this._startPlaylistChangeDetection();
                 this._startPlaylistSlideTracking();
             }
-        if (document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
-            this._startPlaylistOverviewPolling();
-            this._loadPlaylistOverview();
-            this._startPlaylistSlideTracking();
-        }
+        } catch (e) { console.warn('[DASHBOARD] ProPresenter playlist init failed:', e); }
+
+        try {
+            if (document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
+                this._startPlaylistOverviewPolling();
+                this._loadPlaylistOverview();
+                this._startPlaylistSlideTracking();
+            }
+        } catch (e) { console.warn('[DASHBOARD] Playlist overview init failed:', e); }
 
         this._resizeHandler = () => {
             if (document.getElementById('view-dashboard')?.classList.contains('active')) {
@@ -93,6 +103,7 @@ const dashboardModule = {
         const grid = document.getElementById('widget-grid');
         if (!grid) return null;
         const rect = grid.getBoundingClientRect();
+        // With grid-template-columns: 1fr, each column fills 1/36 of the container
         const colWidth = (rect.width - this.GAP_PX * (this.COL_COUNT - 1)) / this.COL_COUNT;
         const rowHeight = colWidth + this.GAP_PX;
         const maxRows = Math.max(1, Math.floor(rect.height / rowHeight));
@@ -100,8 +111,7 @@ const dashboardModule = {
     },
 
     _getDefaultRowSpan(widgetId) {
-        const defaults = { quicklinks: 3, servicetimer: 4, status: 4, propresenter: 8, 'propresenter-playlist': 8, 'playlist-overview': 10, servicecountdown: 4, 'mic-iem-monitor': 6 };
-        return defaults[widgetId] || 3;
+        return 7; // Universal: 140px (7 × 20px grid rows)
     },
 
     /**
@@ -248,13 +258,16 @@ const dashboardModule = {
         grid.addEventListener('mousedown', (e) => {
             if (!this._editMode) return;
             if (e.target.closest('.widget-resize-handle')) return;
-            if (e.target.closest('.widget-delete-btn')) return;
-            if (e.target.closest('.widget-zoom-control')) return;
+            if (e.target.closest('.resizer')) return;
+            if (e.target.closest('.btn-delete')) return;
+            if (e.target.closest('[data-action]')) return;
             
             const card = e.target.closest('.widget-card');
             if (!card) return;
+            // In edit mode, drag initiates from the overlay; in normal mode, from the header
+            const overlay = e.target.closest('.edit-overlay');
             const header = e.target.closest('.widget-header');
-            if (!header) return;
+            if (!overlay && !header) return;
 
             e.preventDefault();
             
@@ -268,16 +281,17 @@ const dashboardModule = {
             card.classList.add('interacting');
             this.draggedEl = card;
 
-            const STEP = 32; // 20px grid + 12px gap
-
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
                 const dy = moveE.clientY - startY;
 
+                // Use dynamic step from actual grid metrics instead of hardcoded 32px
+                const metrics = this._getGridMetrics();
+                const STEP = metrics ? metrics.colWidth + metrics.gap : 32;
+
                 const colDelta = Math.round(dx / STEP);
                 const rowDelta = Math.round(dy / STEP);
 
-                const metrics = this._getGridMetrics();
                 const maxCol = metrics ? metrics.totalCols - span + 1 : this.COL_COUNT;
                 const maxRow = metrics ? metrics.maxRows - rowSpan + 1 : 100;
                 let newCol = Math.max(1, Math.min(maxCol, initCol + colDelta));
@@ -379,11 +393,11 @@ const dashboardModule = {
             const onMove = (moveE) => {
                 const dx = moveE.clientX - startX;
                 const spanDelta = Math.round(dx / colWidth);
-                let newSpan = Math.max(1, Math.min(currentSpan + spanDelta, this.COL_COUNT - initCol + 1));
+                let newSpan = Math.max(7, Math.min(currentSpan + spanDelta, this.COL_COUNT - initCol + 1));
 
                 const dy = moveE.clientY - startY;
                 const rowDelta = Math.round(dy / colWidth);
-                let newRowSpan = Math.max(1, Math.min(currentRowSpan + rowDelta, maxRowsAvail));
+                let newRowSpan = Math.max(4, Math.min(currentRowSpan + rowDelta, maxRowsAvail));
 
                 const isGrowingWider = dx > 0;
                 const isGrowingTaller = dy > 0;
@@ -503,13 +517,12 @@ const dashboardModule = {
     },
 
     _getDefaultSpan(widgetId) {
-        const defaults = { quicklinks: 12, servicetimer: 18, status: 18, propresenter: 24, 'propresenter-playlist': 24, 'playlist-overview': 24, servicecountdown: 18, 'mic-iem-monitor': 18 };
-        return defaults[widgetId] || 6;
+        return 14; // Universal: 280px (14 × 20px grid columns)
     },
 
     _getDefaultHeight(widgetId) {
-        const defaults = { quicklinks: 140, servicetimer: 200, status: 200, propresenter: 320, 'propresenter-playlist': 320, 'playlist-overview': 480, servicecountdown: 200, 'mic-iem-monitor': 320 };
-        return defaults[widgetId] || 140;
+        const m = this._getGridMetrics();
+        return this._getDefaultRowSpan(widgetId) * (m ? m.rowHeight : 32);
     },
 
     // Upgrade old propresenter span by clearing saved sizes (now 24)
@@ -662,17 +675,19 @@ const dashboardModule = {
                         const card = wrapper.firstElementChild;
                         if (card) {
                             grid.appendChild(card);
-                            if (id === 'propresenter' || id === 'propresenter-playlist' || id === 'playlist-overview') this._startProPresenterPolling();
-                            if (id === 'propresenter-playlist') {
-                                this._loadProPresenterPlaylist();
-                                this._startPlaylistChangeDetection();
-                                this._startPlaylistSlideTracking();
-                            }
-                            if (id === 'playlist-overview') {
-                                this._startPlaylistOverviewPolling();
-                                this._startPlaylistSlideTracking();
-                            }
-                            if (id === 'servicecountdown') this.setupCountdown();
+                            try {
+                                if (id === 'propresenter' || id === 'propresenter-playlist' || id === 'playlist-overview') this._startProPresenterPolling();
+                                if (id === 'propresenter-playlist') {
+                                    this._loadProPresenterPlaylist();
+                                    this._startPlaylistChangeDetection();
+                                    this._startPlaylistSlideTracking();
+                                }
+                                if (id === 'playlist-overview') {
+                                    this._startPlaylistOverviewPolling();
+                                    this._startPlaylistSlideTracking();
+                                }
+
+                            } catch (e) { console.warn('[DASHBOARD] Widget init for', id, 'failed:', e); }
                         }
                     }
                 }
@@ -722,19 +737,61 @@ const dashboardModule = {
 
         card.dataset.widgetZoom = newScale;
 
-        const zoomContainer = card.querySelector('.widget-content-zoom');
-        if (zoomContainer) {
-            zoomContainer.style.transform = `scale(${newScale})`;
-            zoomContainer.style.width = `${(1 / newScale) * 100}%`;
-            zoomContainer.style.height = `${(1 / newScale) * 100}%`;
+        this._applyZoom(card, newScale);
+        this._saveWidgetZoom();
+    },
+
+    resetWidgetZoom(widgetId, e) {
+        if (e) e.stopPropagation();
+        const card = document.querySelector(`[data-widget-id="${widgetId}"]`);
+        if (!card) return;
+
+        card.dataset.widgetZoom = 1;
+        this._applyZoom(card, 1);
+        this._saveWidgetZoom();
+    },
+
+    _applyZoom(card, scale) {
+        const inner = card.querySelector('.widget-body-inner');
+        if (inner) {
+            inner.style.transform = `scale(${scale})`;
+            inner.style.transformOrigin = 'top left';
+            inner.style.width = `${(1 / scale) * 100}%`;
+            inner.style.height = `${(1 / scale) * 100}%`;
         }
 
         const label = card.querySelector('.zoom-label');
         if (label) {
-            label.textContent = `${Math.round(newScale * 100)}%`;
+            label.textContent = `${Math.round(scale * 100)}%`;
         }
+    },
 
-        this.saveWidgetOrder();
+    _saveWidgetZoom() {
+        try {
+            const zooms = {};
+            document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                if (!id) return;
+                const zoom = parseFloat(card.dataset.widgetZoom);
+                if (zoom && zoom !== 1) zooms[id] = zoom;
+            });
+            localStorage.setItem('ichtus_dashboard_widget_zoom', JSON.stringify(zooms));
+        } catch (e) {}
+    },
+
+    _restoreWidgetZoom() {
+        try {
+            const zooms = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_zoom') || '{}');
+            document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
+                const id = card.dataset.widgetId;
+                if (!id) return;
+                const scale = zooms[id];
+                if (scale && scale !== 1) {
+                    card.dataset.widgetZoom = scale;
+                    this._applyZoom(card, scale);
+                }
+            });
+        } catch (e) {}
     },
 
 
@@ -813,7 +870,9 @@ const dashboardModule = {
         });
         const sizes = {};
         try { const s = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_sizes') || '{}'); Object.assign(sizes, s); } catch (e) {}
-        return { order, positions, sizes };
+        const zooms = {};
+        try { const z = JSON.parse(localStorage.getItem('ichtus_dashboard_widget_zoom') || '{}'); Object.assign(zooms, z); } catch (e) {}
+        return { order, positions, sizes, zooms };
     },
 
     applyLayout(layoutName) {
@@ -891,10 +950,16 @@ const dashboardModule = {
                 try { localStorage.setItem('ichtus_dashboard_widget_sizes', JSON.stringify(state.sizes)); } catch (e) {}
                 this._restoreWidgetSizes();
             }
+
+            // Apply zooms
+            if (state.zooms) {
+                try { localStorage.setItem('ichtus_dashboard_widget_zoom', JSON.stringify(state.zooms)); } catch (e) {}
+            }
+            this._restoreWidgetZoom();
         } else {
             // Fallback for default layout if no saved state exists yet:
             // Just restore all hardcoded/default widgets in their initial state.
-            const defaultWidgetIds = ['quicklinks', 'servicetimer', 'status'];
+            const defaultWidgetIds = ['propresenter-playlist', 'playlist-overview', 'mic-iem-monitor'];
             defaultWidgetIds.forEach(id => {
                 const card = grid.querySelector(`[data-widget-id="${id}"]`);
                 if (!card) {
@@ -1001,33 +1066,82 @@ const dashboardModule = {
 
         if (grid) grid.classList.toggle('edit-mode', this._editMode);
         if (addBtn) addBtn.style.display = this._editMode ? 'block' : 'none';
-        if (editBtn) editBtn.classList.toggle('active', this._editMode);
+        if (editBtn) {
+            editBtn.classList.toggle('active', this._editMode);
+            editBtn.innerHTML = this._editMode ? '✔ Klaar' : '✏️ Bewerken';
+        }
+        document.body.classList.toggle('is-editing', this._editMode);
         this._createGridOverlay();
 
         document.querySelectorAll('#widget-grid .widget-card').forEach(card => {
-            // Toggle .editing class on each card
             card.classList.toggle('editing', this._editMode);
-            // Remove old handles
-            card.querySelectorAll('.widget-delete-btn, .widget-resize-handle').forEach(el => el.remove());
-            if (this._editMode) {
-                const delBtn = document.createElement('button');
-                delBtn.className = 'widget-delete-btn';
-                delBtn.innerHTML = '×';
-                delBtn.title = 'Delete widget';
-                delBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteWidget(card);
-                });
-                const header = card.querySelector('.widget-header');
-                if (header) header.appendChild(delBtn);
-                else card.appendChild(delBtn);
+            // Remove old handles and overlays
+            card.querySelectorAll('.widget-delete-btn, .widget-resize-handle, .edit-overlay').forEach(el => el.remove());
 
-                const resizeHandle = document.createElement('div');
-                resizeHandle.className = 'widget-resize-handle';
-                card.appendChild(resizeHandle);
-                this._initResizeHandle(card);
+            if (this._editMode) {
+                this._applyEditOverlay(card);
+            } else {
+                // Normal mode: re-show header zoom controls
+                card.querySelectorAll('.widget-zoom-control').forEach(el => el.style.display = '');
             }
         });
+    },
+
+    /**
+     * Apply the edit overlay, resize handle, and hide header zoom for a single card.
+     */
+    _applyEditOverlay(card) {
+        // Hide header zoom controls (they now live on overlay)
+        card.querySelectorAll('.widget-zoom-control').forEach(el => el.style.display = 'none');
+
+        const overlay = document.createElement('div');
+        overlay.className = 'edit-overlay';
+
+        const widgetId = card.dataset.widgetId || '';
+        const title = card.querySelector('.widget-title')?.textContent || widgetId;
+        const currentZoom = Math.round((parseFloat(card.dataset.widgetZoom) || 1) * 100);
+
+        overlay.innerHTML = `
+            <div class="overlay-top-left">
+                <div class="widget-zoom-control overlay-zoom">
+                    <button class="zoom-btn" data-action="zoom-out" title="Uitzoomen">-</button>
+                    <span class="zoom-label" data-action="zoom-reset" title="Reset zoom">${currentZoom}%</span>
+                    <button class="zoom-btn" data-action="zoom-in" title="Inzoomen">+</button>
+                </div>
+            </div>
+            <div class="overlay-top-right">
+                <button class="btn-delete" data-action="delete" title="Verwijder widget">🗑</button>
+            </div>                    <div class="overlay-center">
+                        <div class="overlay-title">${title.toUpperCase()}</div>
+                        <div class="overlay-subtitle">Sleep om te verplaatsen</div>
+                    </div>
+                `;
+
+        // Overlay event delegation
+        overlay.addEventListener('click', (e) => {
+            const action = e.target.closest('[data-action]')?.dataset.action;
+            if (action === 'delete') {
+                e.stopPropagation();
+                this.deleteWidget(card);
+            } else if (action === 'zoom-in') {
+                e.stopPropagation();
+                this.changeWidgetZoom(widgetId, 0.1, e);
+            } else if (action === 'zoom-out') {
+                e.stopPropagation();
+                this.changeWidgetZoom(widgetId, -0.1, e);
+            } else if (action === 'zoom-reset') {
+                e.stopPropagation();
+                this.resetWidgetZoom(widgetId, e);
+            }
+        });
+
+        card.appendChild(overlay);
+
+        // Resize handle
+        const resizeHandle = document.createElement('div');
+        resizeHandle.className = 'widget-resize-handle';
+        card.appendChild(resizeHandle);
+        this._initResizeHandle(card);
     },
 
     // ===============================
@@ -1039,7 +1153,7 @@ const dashboardModule = {
             card.remove();
             this.setupDragAndDrop();
             this.saveWidgetOrder();
-            if (!document.querySelector('.widget-card[data-widget-id="propresenter"], .widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
+            if (!document.querySelector('.widget-card[data-widget-id="propresenter-playlist"], .widget-card[data-widget-id="playlist-overview"]')) {
                 this._stopProPresenterPolling();
             }
             if (!document.querySelector('.widget-card[data-widget-id="propresenter-playlist"]')) {
@@ -1096,12 +1210,7 @@ const dashboardModule = {
         picker.className = 'widget-picker';
 
         const items = [
-            { id: 'quicklinks', icon: '🔗', label: 'Quick Links' },
-            { id: 'servicetimer', icon: '⏱', label: 'Service Timer' },
-            { id: 'status', icon: '📊', label: 'Workspace Status' },
-            { id: 'propresenter', icon: '🖥', label: 'ProPresenter Presentation' },
             { id: 'propresenter-playlist', icon: '📋', label: 'ProPresenter Playlist' },
-            { id: 'servicecountdown', icon: '⏳', label: 'Service Countdown' },
             { id: 'playlist-overview', icon: '📄', label: 'Playlist Overzicht' },
             { id: 'mic-iem-monitor', icon: '🎤', label: 'Mic & IEM Monitor' }
         ];
@@ -1137,115 +1246,38 @@ const dashboardModule = {
     // ===============================
     getWidgetTemplate(widgetId) {
         switch (widgetId) {
-            case 'quicklinks':
-                return `<div class="widget-card" data-widget-id="quicklinks">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('quicklinks', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('quicklinks', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Quick Links</h3></div></div>
-                    <div class="widget-body">
-                        <div class="quick-links">
-                            <a href="#" onclick="router.navigate('agenda')">📅 Agenda</a>
-                            <a href="#" onclick="router.navigate('checklist')">✅ Checklist</a>
-                            <a href="#" onclick="router.navigate('patchbay')">🔌 Patchbay</a>
-                            <a href="#" onclick="router.navigate('setlist')">🎵 Setlist</a>
-                            <a href="#" onclick="router.navigate('ndi')">📡 NDI</a>
-                            <a href="#" onclick="router.navigate('settings')">⚙ Settings</a>
-                        </div>
-                    </div>
-                </div>`;
-            case 'servicetimer':
-                return `<div class="widget-card" data-widget-id="servicetimer">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('servicetimer', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('servicetimer', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Service Timer</h3></div></div>
-                    <div class="widget-body">
-                        <div class="timer-widget">
-                            <div id="dash-timer-display" class="dash-timer-display">00:00:00</div>
-                            <div class="timer-controls">
-                                <button id="dash-timer-start" class="btn">Start</button>
-                                <button id="dash-timer-stop" class="btn" disabled>Stop</button>
-                                <button id="dash-timer-reset" class="btn">Reset</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>`;
-            case 'status':
-                return `<div class="widget-card" data-widget-id="status">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('status', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('status', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Workspace Status</h3></div></div>
-                    <div class="widget-body">
-                        <div class="status-list">
-                            <div class="status-item"><span class="status-label">ProPresenter:</span><span class="status-value" id="status-propresenter">-</span></div>
-                            <div class="status-item"><span class="status-label">NDI:</span><span class="status-value" id="status-ndi">-</span></div>
-                            <div class="status-item"><span class="status-label">Firebase:</span><span class="status-value" id="status-firebase">-</span></div>
-                        </div>
-                    </div>
-                </div>`;
-            case 'propresenter':
-                return `<div class="widget-card" data-widget-id="propresenter">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title"></h3></div><button class="pp-layout-toggle" onclick="dashboardModule._toggleSlidesLayout(this)" title="Toggle slides layout">⊞</button></div>
-                    <div class="widget-body widget-propresenter" id="propresenter-slides-container">
-                        <div class="pp-loading">Loading slides…</div>
-                    </div>
-                </div>`;
             case 'propresenter-playlist':
                 const autoscrollPref = (() => { try { return localStorage.getItem('ichtus_pp_autoscroll'); } catch(e) { return null; } })();
                 const autoscrollActive = autoscrollPref === null || autoscrollPref === '1';
                 return `<div class="widget-card" data-widget-id="propresenter-playlist">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter-playlist', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter-playlist', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title"></h3></div><div class="pp-settings-wrap"><button class="pp-settings-btn" onclick="dashboardModule._togglePlaylistSettingsDropdown(event)" title="Playlist instellingen">⚙</button><div class="pp-settings-dropdown"><button class="pp-layout-toggle" onclick="dashboardModule._togglePlaylistLayout(this)" title="Toggle layout">⊞ Weergave</button><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylist(this)" title="Refresh playlist">↻ Verversen</button><button class="pp-autoscroll-btn${autoscrollActive ? ' active' : ''}" onclick="dashboardModule._toggleAutoScroll(this)" title="${autoscrollActive ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit'}">◎ Auto-scroll</button></div></div></div>
+                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter-playlist', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label" onclick="dashboardModule.resetWidgetZoom('propresenter-playlist', event)" title="Reset zoom">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('propresenter-playlist', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title"></h3></div><div class="pp-settings-wrap"><button class="pp-settings-btn" onclick="dashboardModule._togglePlaylistSettingsDropdown(event)" title="Playlist instellingen">⚙</button><div class="pp-settings-dropdown"><button class="pp-layout-toggle" onclick="dashboardModule._togglePlaylistLayout(this)" title="Toggle layout">⊞ Weergave</button><button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylist(this)" title="Refresh playlist">↻ Verversen</button><button class="pp-autoscroll-btn${autoscrollActive ? ' active' : ''}" onclick="dashboardModule._toggleAutoScroll(this)" title="${autoscrollActive ? 'Auto-scroll naar actieve slide' : 'Auto-scroll uit'}">◎ Auto-scroll</button></div></div></div>
                     <div class="widget-body widget-propresenter" id="propresenter-playlist-container">
-                        <div class="pp-loading">Loading playlist…</div>
+                        <div class="widget-body-inner"><div class="pp-loading">Loading playlist…</div></div>
                     </div>
                 </div>`;
             case 'playlist-overview':
                 return `<div class="widget-card" data-widget-id="playlist-overview">
-                    <div class="widget-header plo-v2-header">
-                        <div class="plo-v2-header-left">
-                            <h3 class="widget-title plo-v2-title">ProPresenter Control</h3>
-                            <p class="plo-v2-subtitle">Active Playlist Feed</p>
-                        </div>
-                        <div class="plo-v2-header-right">
-                            <div class="plo-v2-live-badge" id="plo-live-badge">
-                                <span class="plo-v2-live-dot"></span>
-                                LIVE
-                            </div>
-                            <button class="pp-refresh-btn" onclick="dashboardModule._refreshPlaylistOverview(this)" title="Vernieuwen">↻</button>
-                        </div>
-                    </div>
                     <div class="widget-body plo-control-body">
-                        <!-- Playlist Section -->
-                        <div class="plo-v2-section-title">PLAYLIST</div>
-                        <div id="playlist-overview-container" class="plo-v2-playlist-list">
-                            <div class="pp-loading">Laden…</div>
-                        </div>
-
-                        <!-- Bottom Status Bar -->
-                        <div class="plo-v2-status-bar">
-                            <span id="plo-v2-item-count" class="plo-v2-status-count">0 ITEMS</span>
-                            <span id="plo-v2-active-name" class="plo-v2-status-active">ACTIVE: —</span>
-                        </div>
-                    </div>
-                </div>`;
-            case 'servicecountdown':
-                return `<div class="widget-card" data-widget-id="servicecountdown">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('servicecountdown', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('servicecountdown', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Service Countdown</h3></div></div>
-                    <div class="widget-body">
-                        <div class="countdown-widget">
-                            <div class="countdown-labels" style="opacity: 1;">
-                                <span class="countdown-target-info" id="countdown-target-info">Geen dienst gepland</span>
+                        <div class="widget-body-inner">
+                            <div id="playlist-overview-container" class="plo-v2-playlist-list">
+                                <div class="pp-loading">Laden…</div>
                             </div>
-                            <div class="countdown-display heading-font" id="countdown-display">00:00:00</div>
-                            <div class="countdown-settings hidden" id="countdown-settings-panel">
-                                <input type="datetime-local" id="countdown-target-input" class="countdown-input">
-                                <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem; width: 100%;">
-                                    <button class="btn-save" onclick="dashboardModule.saveCountdownTarget(this)" style="flex: 1;">Opslaan</button>
-                                    <button class="btn-cancel" onclick="dashboardModule.cancelCountdownSettings(this)" style="flex: 1; background: var(--border-light, #444); color: var(--text-main, #fff); border: none; border-radius: 6px; cursor: pointer; font-weight: 600; padding: 0.5rem; font-size: 0.9rem; transition: opacity 0.2s ease;">Annuleren</button>
-                                </div>
+
+                            <div class="plo-v2-status-bar">
+                                <span id="plo-v2-item-count" class="plo-v2-status-count">0 ITEMS</span>
+                                <span id="plo-v2-active-name" class="plo-v2-status-active">ACTIVE: —</span>
                             </div>
                         </div>
                     </div>
                 </div>`;
             case 'mic-iem-monitor':
                 return `<div class="widget-card" data-widget-id="mic-iem-monitor">
-                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('mic-iem-monitor', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('mic-iem-monitor', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Mic & IEM Monitor</h3></div></div>
+                    <div class="widget-header"><div class="widget-title-wrapper"><div class="widget-zoom-control"><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('mic-iem-monitor', -0.1, event)" title="Uitzoomen">-</button><span class="zoom-label" onclick="dashboardModule.resetWidgetZoom('mic-iem-monitor', event)" title="Reset zoom">100%</span><button class="zoom-btn" onclick="dashboardModule.changeWidgetZoom('mic-iem-monitor', 0.1, event)" title="Inzoomen">+</button></div><h3 class="widget-title">Mic & IEM Monitor</h3></div></div>
                     <div class="widget-body">
-                        <div id="mic-monitor-grid" class="mic-monitor-grid">
-                            <div class="pp-loading">Laden…</div>
+                        <div class="widget-body-inner">
+                            <div id="mic-monitor-grid" class="mic-monitor-grid">
+                                <div class="pp-loading">Laden…</div>
+                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -1306,35 +1338,22 @@ const dashboardModule = {
         grid.appendChild(card);
 
         // Initialize widget-specific functionality
-        if (widgetId === 'servicetimer') this.setupTimer();
-        if (widgetId === 'servicecountdown') this.setupCountdown();
-        if (widgetId === 'propresenter' || widgetId === 'propresenter-playlist' || widgetId === 'playlist-overview') this._startProPresenterPolling();
-        if (widgetId === 'propresenter-playlist') {
-            this._loadProPresenterPlaylist();
-            this._startPlaylistChangeDetection();
-            this._startPlaylistSlideTracking();
-        }
-        if (widgetId === 'playlist-overview') {
-            this._startPlaylistOverviewPolling();
-            this._startPlaylistSlideTracking();
-        }
+        try {
+            if (widgetId === 'propresenter-playlist' || widgetId === 'playlist-overview') this._startProPresenterPolling();
+            if (widgetId === 'propresenter-playlist') {
+                this._loadProPresenterPlaylist();
+                this._startPlaylistChangeDetection();
+                this._startPlaylistSlideTracking();
+            }
+            if (widgetId === 'playlist-overview') {
+                this._startPlaylistOverviewPolling();
+                this._startPlaylistSlideTracking();
+            }
+        } catch (e) { console.warn('[DASHBOARD] Widget init for', widgetId, 'failed:', e); }
 
-        // Add edit-mode class and controls if edit mode is active
+        // Add edit-mode overlay if edit mode is active
         if (this._editMode) {
-            card.classList.add('editing');
-            const delBtn = document.createElement('button');
-            delBtn.className = 'widget-delete-btn';
-            delBtn.innerHTML = '×';
-            delBtn.title = 'Delete widget';
-            delBtn.addEventListener('click', (e) => { e.stopPropagation(); this.deleteWidget(card); });
-            const header = card.querySelector('.widget-header');
-            if (header) header.appendChild(delBtn);
-            else card.appendChild(delBtn);
-
-            const resizeHandle = document.createElement('div');
-            resizeHandle.className = 'widget-resize-handle';
-            card.appendChild(resizeHandle);
-            this._initResizeHandle(card);
+            this._applyEditOverlay(card);
         }
 
         this.setupDragAndDrop();
@@ -1687,11 +1706,6 @@ const dashboardModule = {
                 // Apply active layout and reload view
                 const active = this.getActiveLayoutName();
                 this.applyLayout(active);
-                
-                // Re-setup countdown in case it changed
-                if (typeof this.setupCountdown === 'function') {
-                    this.setupCountdown();
-                }
 
                 this.showStatus('☁️ Dashboard geladen uit Cloud ✓', 'success');
                 return true;

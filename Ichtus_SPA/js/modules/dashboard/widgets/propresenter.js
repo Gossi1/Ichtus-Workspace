@@ -114,13 +114,13 @@ window.dashboardWidgets.propresenter = {
                     .catch(() => {});
             })
             .catch(err => {
-                const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+                const container = widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
                 container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${err.message}</div></div>`;
             });
     },
 
     _renderSlides(widgetEl, slides, currentIdx, uuid, playlistName) {
-        const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+        const container = widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
         if (!slides.length) {
             container.innerHTML = `<div class="pp-loading">No slides found</div>`;
             return;
@@ -206,7 +206,7 @@ window.dashboardWidgets.propresenter = {
                 }
                 if (idx !== this._proPresenterLastIndex) {
                     this._proPresenterLastIndex = idx;
-                    const container = widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+                    const container = widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
                     container.querySelectorAll('.pp-slide-item').forEach(el => {
                         el.classList.toggle('active', parseInt(el.dataset.slideIndex) === idx);
                     });
@@ -226,6 +226,45 @@ window.dashboardWidgets.propresenter = {
 
     _updateAllProPresenterIndexes() {
         document.querySelectorAll('.widget-card[data-widget-id="propresenter"]').forEach(el => this._pollProPresenterIndex(el));
+    },
+
+    // ===============================
+    //  PROPRESENTER POLLING (single slides)
+    // ===============================
+
+    _startProPresenterPolling() {
+        this._stopProPresenterPolling();
+        if (!router.isDashboardActive()) return;
+
+        // Fast polling: check slide index every 500ms for active single-slide widgets
+        this._proPresenterFastInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            try {
+                document.querySelectorAll('.widget-card[data-widget-id="propresenter"]').forEach(el => {
+                    this._pollProPresenterIndex(el);
+                });
+            } catch (e) { /* polling error — silent */ }
+        }, 500);
+
+        // Slow polling: full slide refresh every 15s for all propresenter widgets
+        this._proPresenterInterval = setInterval(() => {
+            if (!router.isDashboardActive()) return;
+            try {
+                this._updateAllProPresenterWidgets();
+                this._updateAllProPresenterIndexes();
+            } catch (e) { /* polling error — silent */ }
+        }, 15000);
+    },
+
+    _stopProPresenterPolling() {
+        if (this._proPresenterFastInterval) {
+            clearInterval(this._proPresenterFastInterval);
+            this._proPresenterFastInterval = null;
+        }
+        if (this._proPresenterInterval) {
+            clearInterval(this._proPresenterInterval);
+            this._proPresenterInterval = null;
+        }
     },
 
     _toggleSlidesLayout(btn) {
@@ -315,8 +354,14 @@ window.dashboardWidgets.propresenter = {
                                 activeEl.classList.add('active');
                                 const counterEl = activeEl.querySelector('.plo-v2-slide-counter');
                                 if (counterEl) {
-                                    counterEl.style.display = '';
-                                    counterEl.textContent = `${(activeSlideIdx ?? 0) + 1}/${this._playlistOverviewSlidesData?.length || '?'}`;
+                                    const totalSlides = window.dashboardWidgets.playlistOverview?._playlistOverviewSlidesData?.length;
+                                    if (totalSlides) {
+                                        counterEl.style.display = '';
+                                        counterEl.textContent = `${(activeSlideIdx ?? 0) + 1}/${totalSlides}`;
+                                    } else {
+                                        counterEl.style.display = '';
+                                        counterEl.textContent = `${(activeSlideIdx ?? 0) + 1}/—`;
+                                    }
                                 }
                                 const rect = activeEl.getBoundingClientRect();
                                 const containerRect = container.getBoundingClientRect();
@@ -488,7 +533,7 @@ window.dashboardWidgets.propresenter = {
     _fetchProPresenterPlaylist(widgetEl) {
         this._hasPlaylistData = false;
         const baseUrl = this._getProPresenterBaseUrl();
-        const container = widgetEl.querySelector('#propresenter-playlist-container') || widgetEl.querySelector('.widget-body') || widgetEl;
+        const container = widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('#propresenter-playlist-container') || widgetEl.querySelector('.widget-body') || widgetEl;
 
         fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())

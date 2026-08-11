@@ -38,19 +38,13 @@ window.dashboardWidgets.playlistOverview = {
 
     _fetchPlaylistOverview(widgetEl) {
         const baseUrl = this._getProPresenterBaseUrl();
-        const container = widgetEl.querySelector('#playlist-overview-container') || widgetEl.querySelector('.widget-body') || widgetEl;
-        const liveBadge = widgetEl.querySelector('#plo-live-badge');
+        const container = widgetEl.querySelector('#playlist-overview-container') || widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('.widget-body') || widgetEl;
 
         fetch(`${baseUrl}/v1/playlist/active`, { headers: { 'Accept': 'application/json' } })
             .then(r => r.json())
             .then(activeData => {
                 const pres = activeData?.presentation;
                 const ann = activeData?.announcements;
-
-                if (liveBadge) {
-                    liveBadge.classList.remove('offline');
-                    liveBadge.innerHTML = '<span class="plo-v2-live-dot"></span> LIVE';
-                }
 
                 const playlists = [];
                 let activeItemIds = [];
@@ -93,10 +87,6 @@ window.dashboardWidgets.playlistOverview = {
                     });
             })
             .catch(() => {
-                if (liveBadge) {
-                    liveBadge.classList.add('offline');
-                    liveBadge.innerHTML = '<span class="plo-v2-live-dot"></span> OFFLINE';
-                }
                 if (!container.querySelector('.pl-slide-header, .plo-item, .plo-v2-item')) {
                     container.innerHTML = '<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div></div>';
                 }
@@ -115,12 +105,17 @@ window.dashboardWidgets.playlistOverview = {
                 const itemName = item.id?.name || item.name || '';
                 const itemUuid = isHeader ? null : (item.id?.uuid || item.uuid || '');
                 const isActive = itemUuid && playlist.activeItemIds?.includes(itemUuid);
-                const headerColor = isHeader && item.header_color
-                    ? `rgba(${Math.round(item.header_color.red * 255)}, ${Math.round(item.header_color.green * 255)}, ${Math.round(item.header_color.blue * 255)}, 0.3)`
-                    : 'rgba(255,255,255,0.05)';
+                let headerBg = 'rgba(255,255,255,0.04)';
+                let headerTextCol = '#ffffff';
+                if (isHeader && item.header_color) {
+                    const r = Math.round(item.header_color.red * 255);
+                    const g = Math.round(item.header_color.green * 255);
+                    const b = Math.round(item.header_color.blue * 255);
+                    headerBg = `rgba(${r}, ${g}, ${b}, 0.3)`;
+                }
 
                 if (isHeader) {
-                    html += `<div class="plo-v2-header-label" style="border-left: 3px solid ${headerColor}; padding-left: 10px;">${setlistModule.escapeHtml(itemName)}</div>`;
+                    html += `<div class="plo-v2-header-label" style="background: ${headerBg}; color: ${headerTextCol};">${setlistModule.escapeHtml(itemName)}</div>`;
                 } else {
                     totalItems++;
                     const presUuid = item.presentation_info?.presentation_uuid || item.target_uuid || '';
@@ -156,10 +151,8 @@ window.dashboardWidgets.playlistOverview = {
         if (widgetCard) {
             const countEl = widgetCard.querySelector('#plo-v2-item-count');
             const activeEl = widgetCard.querySelector('#plo-v2-active-name');
-            const titleEl = widgetCard.querySelector('.plo-v2-title');
             if (countEl) countEl.textContent = `${totalItems} ITEMS`;
             if (activeEl) activeEl.textContent = `ACTIVE: ${activeItemName}`;
-            if (titleEl && playlists[0]?.playlistName) titleEl.textContent = playlists[0].playlistName;
         }
 
         const activeItem = container.querySelector('.plo-v2-item.active');
@@ -240,6 +233,7 @@ window.dashboardWidgets.playlistOverview = {
 
                 document.querySelectorAll('.widget-card[data-widget-id="playlist-overview"] .plo-v2-slide-counter').forEach(el => {
                     if (el.dataset.counterUuid === activePresUuid && el.closest('.plo-v2-item.active')) {
+                        el.style.display = '';
                         el.textContent = `${(activeSlideIdx ?? 0) + 1}/${slides.length}`;
                     }
                 });
