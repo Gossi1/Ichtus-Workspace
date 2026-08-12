@@ -310,9 +310,8 @@ h1, h2, h3, .heading-font {
 }
 
 .sidebar-menu li.active a {
-    background: rgba(244, 121, 32, 0.1);
-    color: #f47920;
-    border-left-color: #f47920;
+    background: rgba(255, 255, 255, 0.06);
+    color: #ddd;
 }
 
 .sidebar-menu li.active a::after {
@@ -409,6 +408,55 @@ h1, h2, h3, .heading-font {
     opacity: 0;
     width: 0;
     overflow: hidden;
+}
+
+/* Admin expandable section */
+.sidebar-admin-group {
+    position: relative;
+    overflow: hidden;
+    max-height: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+    opacity: 0;
+}
+
+.sidebar-admin-group::before {
+    content: '';
+    position: absolute;
+    left: 26px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-admin-group.expanded {
+    max-height: 200px;
+    opacity: 1;
+}
+
+.sidebar-admin-group .sidebar-menu li {
+    padding-left: 46px;
+}
+
+.sidebar-admin-group .sidebar-menu li a {
+    height: 36px;
+    padding-left: 8px;
+}
+
+/* Admin button arrow indicator */
+.admin-arrow {
+    margin-left: auto;
+    margin-right: 12px;
+    transition: transform 0.2s ease;
+    opacity: 0.5;
+}
+
+.admin-arrow.expanded {
+    transform: rotate(90deg);
+}
+
+.ichtus-sidebar.collapsed .admin-arrow {
+    display: none;
 }
 
 /* Body margin */

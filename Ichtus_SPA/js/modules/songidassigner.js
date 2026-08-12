@@ -14,6 +14,7 @@ const songidassignerModule = (() => {
     const state = {
         songs: [],              // [{ uid, id, prefix, number, title, artist }]
         pendingImport: [],      // parsed lines awaiting confirmation
+        cachedPendingFromExt: [], // queue replayed from extension once the assigner signals ready
         currentFile: 'library-ids.json',
         _initialized: false
     };
@@ -926,6 +927,54 @@ const songidassignerModule = (() => {
         if (preview) preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
+    // ── Pending-IDs queue from the WorshipTools Sync extension ─
+    //
+    // The extension looks at the setlist against our local library and
+    // tells us which songs have no internal ID yet. Each item is either:
+    //   • { code: 'O638',     title: 'Tienduizend redenen' }  (had a WT code)
+    //   • { code: null,       title: 'Throne Room Song'    }  (no WT code — orphan)
+    //
+    // We feed them through parseLine() so they enter the existing
+    // import pipeline. classifyImport() then automatically buckets them:
+    //   • 'withId' → ID-clash-free, ready to import with new ID
+    //   • 'noId'   → truly new, user picks a prefix + auto-number
+    //   • 'dupe'   → already in the library (visible but won't be added on confirm)
+    //   • 'maybe'  → title collision at a different ID (user decides)
+    function onPendingSongsEvent(e) {
+        const songs = (e.detail && e.detail.songs) || [];
+        console.log('[SongID] worshiptools-pending-songs event, count:', songs.length);
+
+        if (!songs.length) {
+            // Empty queue — usually means everything got assigned. Don't
+            // touch pendingImport (the user might still be reviewing),
+            // but show a friendly status so they know things cleared.
+            setStatus('\u2705 Geen openstaande IDs meer', 'ok');
+            return;
+        }
+
+        // Map extension payload → parseLine-compatible lines.
+        const parsedList = songs.map(s => {
+            const title = s.title || s.name || '';
+            if (s.code && title) {
+                return parseLine(s.code + ' ' + title);
+            }
+            return parseLine(title);
+        }).filter(Boolean);
+
+        if (parsedList.length === 0) {
+            setStatus('\u26a0\ufe0f Lege import ontvangen van extensie', 'err');
+            return;
+        }
+
+        // Replace any previous pendingImport — the extension's queue is
+        // authoritative (single source of truth for what IDs are open).
+        showImportPreview(parsedList);
+        const dateNote = e.detail && e.detail.date ? ' (dienst ' + e.detail.date + ')' : '';
+        setStatus('\ud83d\udce5 ' + parsedList.length + ' openstaande IDs ontvangen' + dateNote + ' — controleer en importeer', 'ok');
+        const preview = $('import-preview');
+        if (preview) preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
     // ── Gap detection ──────────────────────────────────────────
     function detectGaps() {
         const gaps = {};
@@ -1037,12 +1086,18 @@ const songidassignerModule = (() => {
 
         // Extension bridge
         document.addEventListener('worshiptools-library', onLibraryEvent);
+        document.addEventListener('worshiptools-pending-songs', onPendingSongsEvent);
 
         // Load config first, then library
         loadLibraryConfig().then(() => {
             return loadLibrary(state.currentFile);
         }).then(() => {
             document.dispatchEvent(new CustomEvent('ichtus-library-ready'));
+            // Signal that the assigner is ready to receive cached pending
+            // songs from the extension's bridge. The bridge replays any
+            // cached queue through this event so the import preview
+            // populates the moment the operator opens the assigner.
+            document.dispatchEvent(new CustomEvent('ichtus-assigner-ready'));
         });
     }
 

@@ -1,0 +1,423 @@
+/* ==========================================================================
+   INTEGRATIONS VIEW — Ichtus design system, no Tailwind
+   ========================================================================== */
+
+#view-integration.active {
+    display: flex;
+    justify-content: center;
+    padding: 30px 24px;
+    width: 100%;
+    background-color: var(--bg-main, #1e1e1e);
+}
+
+#view-integration .integration-dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+    max-width: 1100px;
+}
+
+/* ---------- Header (matches other views) ---------- */
+
+#view-integration .simple-header {
+    width: 100%;
+    margin-bottom: 4px;
+    text-align: left;
+}
+
+#view-integration .simple-header h1 {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main, #f9f9f7);
+    margin-bottom: 8px;
+    letter-spacing: 0.02em;
+}
+
+#view-integration .simple-header .integration-subtitle {
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.9rem;
+    font-weight: 400;
+    margin: 0;
+}
+
+#view-integration .header-divider {
+    width: 100%;
+    height: 2px;
+    background: var(--ichtus-orange, #f47920);
+    border-radius: 2px;
+    opacity: 0.8;
+}
+
+/* ---------- Tab navigation ---------- */
+
+#view-integration .integration-tabs {
+    display: flex;
+    gap: 24px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding: 0;
+    margin-bottom: 0;
+}
+
+#view-integration .integration-tabs a {
+    display: inline-block;
+    padding: 12px 4px;
+    color: var(--text-muted, #9ca3af);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: 'PMN Caecilia', serif;
+    border-bottom: 2px solid transparent;
+    transition: color 0.2s ease, border-color 0.2s ease;
+    letter-spacing: 0.02em;
+}
+
+#view-integration .integration-tabs a:hover {
+    color: var(--text-main, #f9f9f7);
+}
+
+#view-integration .integration-tabs a.active {
+    color: var(--text-main, #f9f9f7);
+    font-weight: 700;
+    border-bottom-color: var(--text-main, #f9f9f7);
+}
+
+/* ---------- Card grid ---------- */
+
+#view-integration .integration-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 14px;
+    padding-top: 4px;
+}
+
+@media (min-width: 640px) {
+    #view-integration .integration-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (min-width: 960px) {
+    #view-integration .integration-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
+/* ---------- Individual card ---------- */
+
+#view-integration .integration-card {
+    background: var(--bg-card, #242424);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    border-radius: 12px;
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 14px;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    transition: border-color 0.2s ease, transform 0.18s ease, box-shadow 0.2s ease;
+    min-height: 168px;
+}
+
+#view-integration .integration-card:hover {
+    border-color: rgba(244, 121, 32, 0.45);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+}
+
+#view-integration .integration-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+}
+
+#view-integration .integration-card-icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.05rem;
+    font-family: 'Blockprint', sans-serif;
+}
+
+/* Theme-specific icon containers (used by integration palette) */
+#view-integration .int-icon-yellow { background: rgba(244, 195, 32, 0.15); color: #f4c320; }
+#view-integration .int-icon-orange { background: rgba(244, 121, 32, 0.18); color: var(--ichtus-orange); }
+#view-integration .int-icon-blue   { background: rgba(52, 152, 219, 0.18); color: #58a6e0; }
+#view-integration .int-icon-purple { background: rgba(155, 89, 182, 0.18); color: #b07cd6; }
+#view-integration .int-icon-slate  { background: rgba(255, 255, 255, 0.08); color: #cbd5e1; }
+
+#view-integration .integration-card-title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+#view-integration .integration-card-title {
+    color: var(--text-main, #f9f9f7);
+    font-family: 'Blockprint', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    letter-spacing: 0.02em;
+    margin: 0;
+    line-height: 1.25;
+}
+
+#view-integration .integration-card-extlink {
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.7rem;
+    transition: color 0.15s ease;
+}
+
+#view-integration .integration-card-extlink:hover {
+    color: var(--text-main, #f9f9f7);
+}
+
+#view-integration .integration-card-tagline {
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    margin-top: 2px;
+}
+
+#view-integration .integration-card-desc {
+    color: #cbd5e1;
+    font-size: 0.8rem;
+    line-height: 1.4;
+    margin: 0;
+}
+
+/* ---------- Status row (account/device) ---------- */
+
+#view-integration .integration-card-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: #cbd5e1;
+    min-width: 0;
+}
+
+#view-integration .integration-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    background: var(--ichtus-green, #00a651);
+    box-shadow: 0 0 8px rgba(0, 166, 81, 0.55);
+}
+
+#view-integration .integration-dot.idle {
+    background: var(--text-muted, #9ca3af);
+    box-shadow: none;
+}
+
+#view-integration .integration-card-status span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ---------- Footer (action button) ---------- */
+
+#view-integration .integration-card-footer {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+#view-integration .integration-btn {
+    width: 100%;
+    padding: 9px 14px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 9px;
+    color: var(--text-main, #f9f9f7);
+    font-family: inherit;
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+#view-integration .integration-btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+}
+
+#view-integration .integration-btn.primary {
+    background: rgba(244, 121, 32, 0.14);
+    border-color: rgba(244, 121, 32, 0.45);
+    color: var(--ichtus-orange, #f47920);
+}
+
+#view-integration .integration-btn.primary:hover {
+    background: rgba(244, 121, 32, 0.22);
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+#view-integration .integration-btn svg {
+    width: 10px;
+    height: 10px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2.2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+/* ---------- ProPresenter configuration panel (moved from Settings) ---------- */
+
+#view-integration .integration-proconfig {
+    margin-top: 4px;
+}
+
+#view-integration .integration-proconfig-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 16px;
+    width: 100%;
+    align-items: center;
+}
+
+@media (min-width: 640px) {
+    #view-integration .integration-proconfig-grid {
+        grid-template-columns: minmax(0, 1fr) auto;
+    }
+}
+
+#view-integration .integration-proconfig-grid .btn-load {
+    width: 100%;
+}
+
+@media (min-width: 640px) {
+#view-integration .integration-proconfig-grid .btn-load {
+    width: auto;
+    min-width: 180px;
+    justify-self: end;
+}
+
+/* ---------- ProPresenter connect modal ---------- */
+
+#integration-pp-modal .task-modal-dialog {
+    max-width: 480px;
+}
+
+#integration-pp-modal .form-group {
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+#integration-pp-modal .form-group label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #9ca3af);
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+
+#integration-pp-modal .form-group .control-desc {
+    display: inline;
+    margin-left: 6px;
+    color: #6b7280;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 500;
+}
+
+#integration-pp-modal .form-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-family: 'PMN Caecilia', serif;
+    font-weight: 600;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+
+#integration-pp-modal .form-input:focus {
+    outline: none;
+    border-color: var(--ichtus-orange, #f47920);
+    box-shadow: 0 0 10px rgba(244, 121, 32, 0.35);
+}
+
+.integration-pp-pwd-wrapper {
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+}
+
+.integration-pp-pwd-wrapper .form-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.integration-pp-pwd-toggle {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    color: var(--text-main, #f9f9f7);
+    border-radius: 6px;
+    padding: 0 12px;
+    cursor: pointer;
+    font-size: 1rem;
+    line-height: 1;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.integration-pp-pwd-toggle:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.integration-pp-status {
+    display: none;
+    margin-top: 12px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.integration-pp-status.status-pending {
+    display: block;
+    background: rgba(244, 121, 32, 0.10);
+    border: 1px solid rgba(244, 121, 32, 0.30);
+    color: var(--ichtus-orange, #f47920);
+}
+
+.integration-pp-status.status-success {
+    display: block;
+    background: rgba(0, 166, 81, 0.10);
+    border: 1px solid rgba(0, 166, 81, 0.30);
+    color: #2ecc71;
+}
+
+.integration-pp-status.status-error {
+    display: block;
+    background: rgba(237, 28, 36, 0.10);
+    border: 1px solid rgba(237, 28, 36, 0.30);
+    color: #ff6b6b;
+}
+}

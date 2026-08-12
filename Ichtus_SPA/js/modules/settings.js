@@ -18,6 +18,7 @@ const settingsModule = {
         showDebugPanel: false,
         proPresenterIp: '127.0.0.1',
         proPresenterPort: '50001',
+        proPresenterPassword: '',
         // Sidebar app visibility - all apps visible by default
         sidebarApps: {
             dashboard: true,

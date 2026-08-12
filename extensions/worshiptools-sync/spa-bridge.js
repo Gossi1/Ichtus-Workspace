@@ -19,6 +19,7 @@ let cachedDate = null;
 let cachedRoster = null;
 let cachedStructured = null;
 let cachedLibrary = null;
+let cachedPending = null;     // [{ code, title, key, noCode, source }] — extension-side ID assigner queue
 
 /** Update the bridge status attribute on <html>.
  *  Falls back to localStorage if the DOM attribute is restricted. */
@@ -75,6 +76,21 @@ function dispatchLibrary(data, songs) {
   document.dispatchEvent(event);
 }
 
+// Pending-IDs queue from the WorshipTools Sync extension goes directly
+// into the Song ID Assigner module's import preview. The assigner
+// classifies each item (withId / noId / dupe / maybe) using its own
+// library, so the existing operator workflow handles everything.
+function dispatchPendingSongs(songs) {
+  console.log('[BRIDGE] Dispatching worshiptools-pending-songs, count:', songs?.length || 0);
+  updateBridgeStatus('active');
+  const event = new CustomEvent('worshiptools-pending-songs', {
+    detail: { songs: songs || [], date: cachedDate },
+    bubbles: true,
+    composed: true
+  });
+  document.dispatchEvent(event);
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // BRIDGE_PING is used by background.js to check if the bridge is already
   // injected in this tab (dynamic injection fallback). Respond immediately.
@@ -106,6 +122,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     cachedLibrary = { data: message.data || null, songs: songs };
     dispatchLibrary(cachedLibrary.data, cachedLibrary.songs);
     sendResponse({ received: true });
+  }
+  if (message.type === 'PENDING_SONGS_FOR_ASSIGNER') {
+    const songs = (message.payload && message.payload.songs) || [];
+    console.log('[BRIDGE] Received PENDING_SONGS_FOR_ASSIGNER from background, count:', songs.length);
+    cachedPending = songs;
+    dispatchPendingSongs(cachedPending);
+    sendResponse({ received: true, count: songs.length });
   }
   return true;
 });
@@ -142,6 +165,18 @@ chrome.runtime.sendMessage({ type: 'GET_LAST_LIBRARY' }, (response) => {
   }
 });
 
+// Request any pending-IDs queue the extension side already has cached.
+// (If the user opens the Song ID Assigner AFTER a sync already
+//  finished, we don't want them to think the queue is empty.)
+chrome.runtime.sendMessage({ type: 'GET_PENDING_SONGS' }, (response) => {
+  const songs = (response && response.songs) || [];
+  console.log('[BRIDGE] GET_PENDING_SONGS response — count:', songs.length);
+  if (songs.length > 0) {
+    cachedPending = songs;
+    dispatchPendingSongs(cachedPending);
+  }
+});
+
 // Listen for the SPA page to signal it is ready to receive data.
 // This fires every time the user navigates to the Setlist or Stage Builder view.
 document.addEventListener('ichtus-setlist-ready', () => {
@@ -162,5 +197,16 @@ document.addEventListener('ichtus-library-ready', () => {
   console.log('[BRIDGE] Heard ichtus-library-ready — has library cache?', !!cachedLibrary);
   if (cachedLibrary) {
     dispatchLibrary(cachedLibrary.data, cachedLibrary.songs);
+  }
+});
+
+// The Song ID Assigner module fires ichtus-assigner-ready after it
+// has loaded its library (so title-matching works against a real
+// dataset). Replay the cached pending queue on this signal so the
+// songs land directly in the import preview.
+document.addEventListener('ichtus-assigner-ready', () => {
+  console.log('[BRIDGE] Heard ichtus-assigner-ready — has pending cache?', !!cachedPending, 'count:', cachedPending?.length || 0);
+  if (cachedPending && cachedPending.length > 0) {
+    dispatchPendingSongs(cachedPending);
   }
 });

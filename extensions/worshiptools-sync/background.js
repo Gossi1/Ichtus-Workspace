@@ -237,133 +237,293 @@ chrome.tabs.query({}, (tabs) => {
   }
 });
 
-// ───── Auto-update from GitHub ─────
+// ───── Static action metadata ─────
 //
-// Periodically checks the GitHub releases page and notifies the operator
-// when a new version is available. Since unpacked extensions can't modify
-// their own files, the update is manual (git pull / re-download), but the
-// detection + notification is fully automatic via the extension icon.
+// Update notifications were removed: the extension is unpacked / loaded
+// from disk, so the operator already updates via git pull + chrome://
+// extensions → 🔄. We just keep the action title static and clear any
+// stale badge that might be left over from a previous build.
+chrome.runtime.onInstalled.addListener(() => {
+  try {
+    chrome.action.setBadgeText({ text: '' });
+    chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
+    chrome.action.setTitle({
+      title: 'WorshipTools Sync (v' + (chrome.runtime.getManifest().version || '?') + ')'
+    });
+  } catch (_) {}
+});
+
+// ───── Pending unmatched songs (id assigner queue) ─────
 //
 // Flow:
-//   1. On install / startup: schedule an alarm and check immediately
-//   2. Alarm fires → fetch latest release tag from GitHub API
-//   3. Compare versions (semver) → if newer, set badge "!" + tooltip
-//   4. Operator hovers icon → sees "Update: vX.Y.Z beschikbaar" tooltip
-//   5. Operator clicks icon → opens GitHub releases page in new tab
+//   1. SPA receives SETLIST_RECEIVED from us, runs its song-library
+//      lookup, and finds some WT items with no matching internal ID.
+//   2. SPA sends UNMATCHED_SONGS back to us (chrome.runtime.sendMessage
+//      from a SPA tab; lands in this listener).
+//   3. We merge into session storage (deduped by WT code) and
+//      broadcast PENDING_SONGS_UPDATED to the popup.
+//   4. Popup shows the queue and lets the operator click a chip to
+//      send OPEN_ASSIGNER_FOR_SONG back to the SPA, which opens
+//      its assigner UI with the WT song data prefilled.
+//   5. When the SPA finishes assigning, it sends ID_ASSIGNED and we
+//      remove that entry from the queue, broadcasting again so the
+//      popup updates live.
 //
-const UPDATE_CONFIG = {
-  GITHUB_REPO: 'Gossi1/Ichtus-Workspace',
-  CURRENT_VERSION: chrome.runtime.getManifest().version || '1.0',
-  ALARM_NAME: 'extension-update-check',
-  CHECK_INTERVAL_MINUTES: 60,  // once per hour
-  STORAGE_KEY_LATEST: 'latestAvailableVersion',
-  STORAGE_KEY_RELEASE_URL: 'latestReleaseUrl',
-  STORAGE_KEY_LAST_CHECK: 'lastUpdateCheck',
-};
+let inMemPendingSongs = [];        // [{ code, title, key?, addedAt }]
+const PENDING_KEY = 'pendingUnmatchedSongs';
 
-/** Parse a semver string like "v1.2.3" or "1.2.3" into a comparable tuple */
-function parseVersion(v) {
-  if (!v) return [0, 0, 0];
-  const cleaned = String(v).replace(/^v/i, '');
-  const parts = cleaned.split('.').map(n => parseInt(n, 10));
-  while (parts.length < 3) parts.push(0);
-  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+async function loadPendingSongs() {
+    if (inMemPendingSongs.length) return inMemPendingSongs;
+    inMemPendingSongs = await readFromSession(PENDING_KEY) || [];
+    return inMemPendingSongs;
 }
 
-/** Compare two version tuples: returns >0 if a is newer, <0 if older, 0 if equal */
-function compareVersions(a, b) {
-  for (let i = 0; i < 3; i++) {
-    if (a[i] !== b[i]) return a[i] - b[i];
-  }
-  return 0;
+async function savePendingSongs() {
+    await persistToSession(PENDING_KEY, inMemPendingSongs);
 }
 
-/** Fetch the latest release info from GitHub API */
-async function fetchLatestRelease() {
-  const url = `https://api.github.com/repos/${UPDATE_CONFIG.GITHUB_REPO}/releases/latest`;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10000);
-  try {
-    const resp = await fetch(url, {
-      headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'Ichtus-Extension' },
-      signal: controller.signal
+// Dedupe key: a coded item is identified by its WT code.
+// An uncoded item (songs that show up in the setlist with no
+// "O638"/"D131" prefix at all, e.g. "Throne Room Song") can't use
+// `code` because every such item would collapse to the same key.
+// For those, fall back to the title so each unique title is one entry.
+function pendingKeyOf(s) {
+    if (s.code) return 'code:' + String(s.code).toLowerCase();
+    const t = String(s.title || '').trim().toLowerCase();
+    return t ? 'title:' + t : null;
+}
+
+async function mergePendingSongs(newSongs) {
+    if (!Array.isArray(newSongs)) return [];
+    const incoming = newSongs
+        .filter(s => s && (s.code || s.title || s.name))
+        .map(s => ({
+            code: s.code ? String(s.code) : null,
+            title: String(s.title || s.name || ''),
+            key: s.key ? String(s.key) : null,
+            noCode: !s.code,
+            source: s.source || (s.code ? 'spa' : 'extension'),
+            addedAt: Date.now()
+        }))
+        .filter(s => pendingKeyOf(s));
+    const existingKeys = new Set(inMemPendingSongs.map(pendingKeyOf));
+    const fresh = incoming.filter(s => !existingKeys.has(pendingKeyOf(s)));
+    inMemPendingSongs = inMemPendingSongs.concat(fresh);
+    await savePendingSongs();
+    return fresh;
+}
+
+// Remove a single pending entry. `codeOrKey` may be either the WT
+// code (e.g. "O638") or, for orphan items (code: null), the song
+// title. Match is case-insensitive on both fields to maximize chance
+// of hitting the right entry when the popup sends whatever it has on
+// the chip's data attributes.
+async function removePendingSong(codeOrKey) {
+    const before = inMemPendingSongs.length;
+    const needle = String(codeOrKey || '').toLowerCase().trim();
+    if (!needle) return false;
+    inMemPendingSongs = inMemPendingSongs.filter(s => {
+        const code = String(s.code || '').toLowerCase();
+        const title = String(s.title || '').toLowerCase();
+        return code !== needle && title !== needle;
     });
-    clearTimeout(timeout);
-    if (!resp.ok) {
-      console.log('[UPDATE] GitHub API returned', resp.status, '- skipping check');
-      return null;
+    if (inMemPendingSongs.length !== before) {
+        await savePendingSongs();
+        return true;
     }
-    const data = await resp.json();
-    return {
-      version: (data.tag_name || '').replace(/^v/i, ''),
-      url: data.html_url || ''
-    };
-  } catch (err) {
-    clearTimeout(timeout);
-    console.log('[UPDATE] GitHub fetch failed:', err?.message);
-    return null;
-  }
+    return false;
 }
 
-/** Check for updates and update badge/tooltip if a newer version exists */
-async function checkForUpdate() {
-  const release = await fetchLatestRelease();
-  if (!release || !release.version) {
-    return;
-  }
-
-  const current = parseVersion(UPDATE_CONFIG.CURRENT_VERSION);
-  const latest = parseVersion(release.version);
-  const comparison = compareVersions(latest, current);
-
-  await persistToSession(UPDATE_CONFIG.STORAGE_KEY_LAST_CHECK, Date.now());
-
-  try {
-    if (comparison <= 0) {
-      // Up to date — clear any stale badge + color
-      await persistToSession(UPDATE_CONFIG.STORAGE_KEY_LATEST, null);
-      await persistToSession(UPDATE_CONFIG.STORAGE_KEY_RELEASE_URL, null);
-      chrome.action.setBadgeText({ text: '' });
-      chrome.action.setBadgeBackgroundColor({ color: [0, 0, 0, 0] });
-      chrome.action.setTitle({ title: 'Ichtus Extensie — up-to-date (v' + UPDATE_CONFIG.CURRENT_VERSION + ')' });
-    } else {
-      // New version available!
-      console.log('[UPDATE] New version available:', release.version, '(current:', UPDATE_CONFIG.CURRENT_VERSION + ')');
-      await persistToSession(UPDATE_CONFIG.STORAGE_KEY_LATEST, release.version);
-      await persistToSession(UPDATE_CONFIG.STORAGE_KEY_RELEASE_URL, release.url);
-      chrome.action.setBadgeText({ text: '!' });
-      chrome.action.setBadgeBackgroundColor({ color: '#f47920' });
-      chrome.action.setTitle({ title: '📦 Update v' + release.version + ' beschikbaar! (huidig: v' + UPDATE_CONFIG.CURRENT_VERSION + ')' });
+function broadcastPendingSongs() {
+    try {
+        chrome.runtime.sendMessage({
+            type: 'PENDING_SONGS_UPDATED',
+            payload: { songs: inMemPendingSongs }
+        });
+    } catch (_) {
+        // popup not open — ignore (popup pulls via GET_PENDING_SONGS on init)
     }
-  } catch (_) {}
 }
 
-// Schedule periodic update checks using chrome.alarms (persists across SW restarts)
-chrome.runtime.onInstalled.addListener(async () => {
-  try {
-    const existing = await chrome.alarms.get(UPDATE_CONFIG.ALARM_NAME);
-    if (!existing) {
-      await chrome.alarms.create(UPDATE_CONFIG.ALARM_NAME, {
-        delayInMinutes: 1,
-        periodInMinutes: UPDATE_CONFIG.CHECK_INTERVAL_MINUTES
-      });
+// Forward the current pending-IDs queue to every open SPA tab so the
+// SPA-side ID assigner can:
+//   - show a banner: "Er wachten 3 liedjes op een ID — bekijk ze"
+//   - light up its own badge in the tab title
+//   - pre-populate its filters when the user opens the assigner
+//
+// We send the FULL queue every time (not just deltas) so the SPA can
+// reconcile its own internal state from this single source of truth.
+async function forwardPendingSongsToSpaTabs() {
+    try {
+        const spaTabs = await findSpaTabs();
+        if (!spaTabs.length) {
+            console.log('[BG] PENDING_SONGS_FOR_ASSIGNER — no SPA tabs open');
+            return;
+        }
+        const msg = {
+            type: 'PENDING_SONGS_FOR_ASSIGNER',
+            payload: {
+                songs: inMemPendingSongs || [],
+                serviceDate: inMemDate || null
+            }
+        };
+        const results = await Promise.allSettled(
+            spaTabs.map(tab => sendWithRetry(tab.id, msg))
+        );
+        const ok = results.filter(r => r.value === true).length;
+        console.log('[BG] PENDING_SONGS_FOR_ASSIGNER delivered to',
+                    ok, '/', spaTabs.length, 'SPA tab(s)');
+    } catch (err) {
+        console.warn('[BG] forwardPendingSongsToSpaTabs failed:', err && err.message || err);
     }
-  } catch (_) {}
+}
 
-  // Run the first check immediately
-  checkForUpdate();
+// One call to fan out a queue change everywhere it needs to be seen:
+//   1. popup (broadcast)
+//   2. toolbar badge + desktop notification (chrome.action / chrome.notifications)
+//   3. every open SPA tab (chrome.tabs.sendMessage via forwardPendingSongsToSpaTabs)
+async function notifyPendingChange() {
+    broadcastPendingSongs();
+    reflectPendingOnChromeUi();
+    // SPA tab push is async; don't block the message handler.
+    forwardPendingSongsToSpaTabs().catch(err =>
+        console.warn('[BG] notifyPendingChange SPA push failed:', err && err.message || err));
+}
+
+// ───── Orphan sweep ─────
+//
+// Some WT setlist items have NO code at all (no "O638", no "D131"
+// prefix), e.g. an MC speaking cue or a custom label like
+// "Throne Room Song". These items can NEVER be looked up by code,
+// so a code-based library match on the SPA side skips them entirely —
+// they would never appear in UNMATCHED_SONGS, even if they need an
+// ID assignment.
+//
+// We sweep the latest structured setlist for any item without a code
+// and surface it as a pending entry. The 4-second delay gives the SPA
+// time to send UNMATCHED_SONGS first so we don't double-add anything
+// that was already reported. De-dup happens in mergePendingSongs().
+let _orphanSweepTimer = null;
+
+function scheduleOrphanSweep() {
+    if (_orphanSweepTimer) {
+        clearTimeout(_orphanSweepTimer);
+    }
+    _orphanSweepTimer = setTimeout(() => {
+        _orphanSweepTimer = null;
+        runOrphanSweep().catch(err =>
+            console.warn('[BG] orphan sweep failed:', err && err.message || err));
+    }, 4000);
+}
+
+async function runOrphanSweep() {
+    if (!Array.isArray(inMemStructured) || inMemStructured.length === 0) return;
+
+    // Find setlist items without a code. Treat both null AND empty/whitespace
+    // as "no code" so we catch edge cases like "  " or "Throne Room Song".
+    const orphans = inMemStructured
+        .filter(s => s && (!s.number || !String(s.number).trim()))
+        .map(s => ({
+            code: null,
+            title: s.name || s.title || '',
+            key: s.key || null
+        }))
+        .filter(s => s.title);   // need at least a title to surface
+
+    if (!orphans.length) {
+        console.log('[BG] orphan sweep — no code-less items found');
+        return;
+    }
+
+    await loadPendingSongs();
+    const fresh = await mergePendingSongs(
+        orphans.map(o => Object.assign({}, o, { source: 'extension-orphan-sweep' }))
+    );
+    console.log('[BG] orphan sweep — found:', orphans.length,
+                'fresh additions:', fresh.length,
+                'total:', inMemPendingSongs.length);
+
+    if (fresh.length > 0) {
+        notifyPendingChange();
+    }
+}
+
+// When the queue changes, mirror the count to the toolbar and pop a
+// desktop notification if it just grew. Quietly clears both when empty.
+function reflectPendingOnChromeUi() {
+    const count = inMemPendingSongs.length;
+    // Toolbar badge: orange circle with the count, plain empty string
+    // when nothing is pending.
+    try {
+        chrome.action.setBadgeText({ text: count > 0 ? String(count) : '' });
+        chrome.action.setBadgeBackgroundColor({ color: '#f47920' });
+    } catch (_) {}
+
+    if (count === 0) {
+        clearPendingNotification();
+        return;
+    }
+    // Only fire a NEW notification when we just transitioned from 0
+    // to >0. Otherwise (e.g. SPA confirmed one ID_ASSIGNED and added
+    // another), the badge updates silently — we don't spam the user.
+    const id = 'pending-songs-notification';
+    try {
+        chrome.notifications.getAll((active) => {
+            const exists = active && Object.prototype.hasOwnProperty.call(active, id);
+            if (!exists) {
+                chrome.notifications.create(id, {
+                    type: 'basic',
+                    iconUrl: 'icons/icon-128.png',
+                    title: count === 1
+                        ? '1 liedje wacht op een ID'
+                        : count + ' liedjes wachten op een ID',
+                    message: 'Open de WorshipTools Sync-extensie om ze toe te wijzen.',
+                    priority: 1
+                });
+            }
+        });
+    } catch (_) {}
+}
+
+function clearPendingNotification() {
+    try {
+        chrome.notifications.clear('pending-songs-notification');
+    } catch (_) {}
+}
+
+// Notification click → focus the popup. chrome.action.openPopup()
+// requires user-gesture in some Chrome versions, so we fall back to
+// focusing the extension window if that API isn't available.
+chrome.notifications.onClicked.addListener((notificationId) => {
+    if (notificationId !== 'pending-songs-notification') return;
+    chrome.notifications.clear(notificationId);
+    try {
+        if (chrome.action && typeof chrome.action.openPopup === 'function') {
+            chrome.action.openPopup().catch(() => focusExtensionWindow());
+        } else {
+            focusExtensionWindow();
+        }
+    } catch (_) {
+        focusExtensionWindow();
+    }
 });
 
-// Listen for alarm fires
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === UPDATE_CONFIG.ALARM_NAME) {
-    checkForUpdate();
-  }
-});
+function focusExtensionWindow() {
+    try {
+        chrome.windows.getAll({ populate: false }, (wins) => {
+            for (const w of wins) {
+                if (w && w.focused === false) {
+                    chrome.windows.update(w.id, { focused: true });
+                }
+            }
+        });
+    } catch (_) {}
+}
 
 // ───── Message handler ─────
-
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (!message || typeof message !== 'object') return false;
+
   // ── Setlist extracted ──
   if (message.type === 'SETLIST_EXTRACTED') {
     console.log('[BG] Received SETLIST_EXTRACTED, length:', message.data?.length, 'structured:', message.structured?.length || 0);
@@ -375,6 +535,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.structured) {
       inMemStructured = message.structured;
       persistToSession('lastStructuredSetlist', message.structured);
+      scheduleOrphanSweep();
     }
 
     // Persist in chrome.storage.session for retrieval after SW restart
@@ -493,4 +654,119 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     _recoverRoster();
     return true; // keep channel open for async response
   }
+
+  // ── Pending ID queue (id assigner) ──
+  // The SPA ran its song-library lookup against the most recent
+  // SETLIST_RECEIVED and is reporting which WT items have no internal ID.
+  if (message.type === 'UNMATCHED_SONGS') {
+    (async () => {
+      const payload = message.payload || {};
+      await loadPendingSongs();
+      const fresh = await mergePendingSongs(payload.songs || []);
+      console.log('[BG] UNMATCHED_SONGS — fresh:', fresh.length,
+                  'total now:', inMemPendingSongs.length);
+      // Fan out to popup, toolbar/notifications, and every open SPA tab.
+      // Notification idempotency is handled inside the targeted helpers.
+      notifyPendingChange();
+    })();
+    sendResponse({ success: true });
+    return true;
+  }
+
+  // The SPA finished assigning one song in its UI. Drop it from the queue.
+  if (message.type === 'ID_ASSIGNED') {
+    (async () => {
+      const payload = message.payload || {};
+      if (!payload || !payload.code) {
+        sendResponse({ success: false, error: 'missing code' });
+        return;
+      }
+      await loadPendingSongs();
+      const removed = await removePendingSong(payload.code);
+      console.log('[BG] ID_ASSIGNED — code:', payload.code, 'removed:', removed,
+                  'remaining:', inMemPendingSongs.length);
+      notifyPendingChange();
+      sendResponse({ success: true, removed });
+    })();
+    return true;
+  }
+
+  // Popup asks for the current queue on init (the broadcasted
+  // PENDING_SONGS_UPDATED event only reaches popups already open).
+  // The message is sent in three flavours:
+  //   - GET_PENDING_SONGS    → returns the full queue
+  //   - OPEN_ASSIGNER_FOR_SONG → forwards to open SPA tab
+  //   - CLEAR_PENDING          → bulk dismiss (popup's "Wis alles")
+  if (message.type === 'CLEAR_PENDING') {
+    (async () => {
+      const codes = (message.payload && message.payload.codes) || [];
+      await loadPendingSongs();
+      const before = inMemPendingSongs.length;
+      if (!codes.length) {
+        // No explicit codes → clear EVERYTHING (operator gesture).
+        inMemPendingSongs = [];
+      } else {
+        // Drop matching entries. pendingKeyOf matches on code for coded
+        // items and on title for orphans, so we accept either or both.
+        const wanted = new Set(codes.map(c => String(c).toLowerCase()));
+        inMemPendingSongs = inMemPendingSongs.filter(s => {
+            const k = (s.code || '').toLowerCase();
+            const t = (s.title || '').toLowerCase();
+            return !wanted.has(k) && !wanted.has(t);
+        });
+      }
+      const removed = before - inMemPendingSongs.length;
+      await savePendingSongs();
+      console.log('[BG] CLEAR_PENDING — removed:', removed,
+                  'remaining:', inMemPendingSongs.length);
+      notifyPendingChange();
+      sendResponse({ success: true, removed });
+    })();
+    return true;
+  }
+
+  if (message.type === 'GET_PENDING_SONGS') {
+    (async () => {
+      await loadPendingSongs();
+      sendResponse({ songs: inMemPendingSongs });
+    })();
+    return true;
+  }
+
+  if (message.type === 'OPEN_ASSIGNER_FOR_SONG') {
+    (async () => {
+      const payload = message.payload || {};
+      const spaTabs = await findSpaTabs();
+      if (spaTabs.length === 0) {
+        sendResponse({ success: false, error: 'no-spa-tab' });
+        return;
+      }
+      const ok = await sendWithRetry(spaTabs[0].id, {
+        type: 'OPEN_ASSIGNER_FOR_SONG',
+        payload: payload
+      });
+      sendResponse({ success: ok, targetTabId: spaTabs[0].id });
+    })();
+    return true;
+  }
 });
+
+// ───── SW startup hydration ─────
+// Service workers are torn down + restarted by Chrome at any time.
+// When we wake up, mirror the stored pending queue onto the toolbar badge
+// and the desktop notification (create only if not already active).
+// Runs once per activation, fire-and-forget.
+(async () => {
+  try {
+    await loadPendingSongs();
+    // Fan out the (possibly-restored) queue to popup, toolbar badge,
+    // and every open SPA tab. sendWithRetry handles SPA tabs that are
+    // still booting; no need to wait for them to come up.
+    await notifyPendingChange();
+    // Also schedule an orphan sweep: the previous sync may have left
+    // code-less items in inMemStructured that the SPA never surfaced.
+    if (Array.isArray(inMemStructured) && inMemStructured.length > 0) {
+      scheduleOrphanSweep();
+    }
+  } catch (_) {}
+})();

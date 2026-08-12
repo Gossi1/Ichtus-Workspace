@@ -26,6 +26,15 @@ function initSidebar() {
         document.body.classList.add('sidebar-collapsed');
     }
 
+    // Restore admin section expanded state
+    const adminExpanded = localStorage.getItem('ichtus_admin_expanded');
+    if (adminExpanded === 'true') {
+        const adminGroup = document.querySelector('.sidebar-admin-group');
+        const adminArrow = document.querySelector('.admin-arrow');
+        if (adminGroup) adminGroup.classList.add('expanded');
+        if (adminArrow) adminArrow.classList.add('expanded');
+    }
+
     // Mobile hamburger toggle
     const hamburger = document.getElementById('mobile-hamburger');
     const backdrop = document.getElementById('sidebar-backdrop');
@@ -56,6 +65,17 @@ function initSidebar() {
                 }
             });
         });
+    }
+}
+
+// Admin expandable section
+function toggleAdminSection() {
+    const adminGroup = document.querySelector('.sidebar-admin-group');
+    const adminArrow = document.querySelector('.admin-arrow');
+    if (adminGroup) {
+        adminGroup.classList.toggle('expanded');
+        if (adminArrow) adminArrow.classList.toggle('expanded');
+        localStorage.setItem('ichtus_admin_expanded', adminGroup.classList.contains('expanded') ? 'true' : 'false');
     }
 }
 

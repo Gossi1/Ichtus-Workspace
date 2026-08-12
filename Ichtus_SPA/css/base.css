@@ -232,6 +232,38 @@ button:hover, .btn-label:hover {
     letter-spacing: 0.05em;
 }
 
+/* Read-only ProPresenter connection pill shown inside the Setlist sidebar.
+   The Integrations view is the single source of truth, so we just mirror. */
+.pro-ip-readonly {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    color: var(--text-main, #f9f9f7);
+    font-family: monospace;
+    font-size: 0.85rem;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: not-allowed;
+}
+.pro-ip-readonly-value {
+    color: #fff;
+    font-weight: 700;
+}
+
+/* "Ga naar Integraties" button revealed when the ProPresenter test fails. */
+.pro-goto-integration {
+    margin-top: 8px;
+    border-color: rgba(237, 28, 36, 0.30) !important;
+    color: #ff6b6b !important;
+}
+.pro-goto-integration:hover {
+    background: rgba(237, 28, 36, 0.08) !important;
+    border-color: var(--ichtus-red, #ed1c24) !important;
+    color: #fff !important;
+}
+
 .template-selector-row {
     display: flex;
     align-items: center;
@@ -396,6 +428,30 @@ button:hover, .btn-label:hover {
     margin-right: 4px;
     vertical-align: middle;
     letter-spacing: 0.02em;
+}
+
+/* "NIEUW" badge: shown when a WorshipTools setlist song isn't in the
+   local Ichtus library. Same shape as the number badge for visual
+   consistency, but with a red/amber colour that draws attention. */
+.song-new-badge {
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    color: #b91c1c;
+    background: rgba(239, 68, 68, 0.10);
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    border-radius: 4px;
+    padding: 1px 5px;
+    margin-right: 4px;
+    vertical-align: middle;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    animation: song-new-pulse 2.5s ease-in-out infinite;
+}
+@keyframes song-new-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.20); }
+    50%      { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.00); }
 }
 
 /* Modal dialog system */

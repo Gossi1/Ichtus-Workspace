@@ -50,6 +50,8 @@ const i18n = {
                         nav_ndi: 'NDI',
             nav_stagebuilder: 'Stage Builder',
             nav_settings: 'Instellingen',
+            nav_admin: 'Beheer',
+            nav_integration: 'Integratie',
 
             // ==================== CHECKLIST MODULE ====================
             // Role selector
@@ -405,6 +407,8 @@ const i18n = {
             nav_ndi: 'NDI',
             nav_settings: 'Settings',
             nav_stagebuilder: 'Stage Builder',
+            nav_admin: 'Admin',
+            nav_integration: 'Integration',
 
             // ==================== CHECKLIST MODULE ====================
             role_selector_title: 'Select Station',

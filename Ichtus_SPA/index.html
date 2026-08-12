@@ -32,6 +32,7 @@
     
     <!-- Existing standalone CSS -->
     <link rel='stylesheet' href='css/checklist-modern.css'>
+    <link rel='stylesheet' href='css/integration.css?v=1'>
     <link rel='stylesheet' href='css/supervisor.css'>
     <link rel='stylesheet' href='css/songidassigner.css?v=3'>
     <!-- Critical CSS: splash screen — geladen voor eerste paint -->
@@ -339,19 +340,35 @@
                 </li>
             </ul>
 
-            <div class='sidebar-section-label'>Account</div>
+            <div class='sidebar-section-label'>Admin</div>
             <ul class='sidebar-menu'>
-                <li data-view='settings'>
-                    <a href='#' onclick="router.navigate('settings'); return false;">
+                <li>
+                    <a href='#' onclick="toggleAdminSection(); return false;">
                         <div class='sidebar-icon'>
                             <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
                                 <circle cx='12' cy='12' r='3'></circle>
                                 <path d='M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z'></path>
                             </svg>
                         </div>
-                        <span class='sidebar-text' data-i18n='nav_settings'>Instellingen</span>
-                        <span id='badge-settings' class='sidebar-badge hidden' title='Update beschikbaar'>⬆</span>
+                        <span class='sidebar-text' data-i18n='nav_admin'>Admin</span>
+                        <svg class='admin-arrow' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                            <polyline points='9 18 15 12 9 6'></polyline>
+                        </svg>
                     </a>
+                    <div class='sidebar-admin-group'>
+                        <ul class='sidebar-menu'>
+                            <li data-view='settings'>
+                                <a href='#' onclick="router.navigate('settings'); return false;">
+                                    <span class='sidebar-text' data-i18n='nav_settings'>Instellingen</span>
+                                </a>
+                            </li>
+                            <li data-view='integration'>
+                                <a href='#' onclick="router.navigate('integration'); return false;">
+                                    <span class='sidebar-text' data-i18n='nav_integration'>Integratie</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
                 </li>
             </ul>
         </div>
@@ -810,6 +827,79 @@
             </div>
         </div>
 
+        <!-- INTEGRATION VIEW -->
+        <div id='view-integration' class='app-view hidden'>
+            <div class='integration-dashboard'>
+
+                <div class='simple-header'>
+                    <h1>Integraties</h1>
+                    <p class='integration-subtitle'>
+                        Verbind met andere applicaties zoals ProPresenter.
+                    </p>
+                    <div class='header-divider'></div>
+                </div>
+
+                <nav class='integration-tabs' aria-label='Integratie navigatie'>
+                    <a href='#' class='active' data-tab='integrations'
+                       onclick="event.preventDefault();">Integraties</a>
+                    <a href='#' data-tab='settings'
+                       onclick="event.preventDefault(); router.navigate('settings');">Instellingen</a>
+                </nav>
+
+                <main class='integration-grid' id='integration-card-grid'>
+                    <!-- Cards dynamically rendered by integrationModule -->
+                </main>
+            </div>
+        </div>
+
+        <!-- ProPresenter connect modal -->
+        <div id='integration-pp-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog' role='dialog' aria-labelledby='integration-pp-title'>
+                <div class='modal-header-row'>
+                    <h3 id='integration-pp-title' class='modal-dialog-title heading-font'>ProPresenter Verbinden</h3>
+                    <button type='button' class='btn-close-modal' onclick='integrationModule.closeProPresenterModal()' aria-label='Sluiten'>✕</button>
+                </div>
+
+                <div class='modal-content-scroll'>
+                    <div class='form-group'>
+                        <label for='integration-pp-ip'>IP-adres</label>
+                        <input id='integration-pp-ip' type='text' class='form-input' placeholder='bijv. 127.0.0.1' autocomplete='off'>
+                    </div>
+
+                    <div class='form-group'>
+                        <label for='integration-pp-port'>Poort</label>
+                        <input id='integration-pp-port' type='text' class='form-input' placeholder='50001' value='50001' autocomplete='off'>
+                    </div>
+
+                    <div class='form-group'>
+                        <label for='integration-pp-password'>
+                            Wachtwoord
+                            <span class='control-desc'>(alleen als ProPresenter een Remote Password heeft)</span>
+                        </label>
+                        <div class='integration-pp-pwd-wrapper'>
+                            <input id='integration-pp-password' type='password' class='form-input' placeholder='Laat leeg indien niet ingesteld' autocomplete='off'>
+                            <button type='button' id='integration-pp-password-toggle'
+                                    class='integration-pp-pwd-toggle'
+                                    onclick='integrationModule.toggleProPresenterPasswordVisibility()'
+                                    title='Toon / verberg wachtwoord'>👁</button>
+                        </div>
+                    </div>
+
+                    <div id='integration-pp-status' class='integration-pp-status'></div>
+                </div>
+
+                <div class='modal-footer-row layout-right'>
+                    <div class='footer-right'>
+                        <button type='button' class='btn-secondary' onclick='integrationModule.closeProPresenterModal()'>Annuleren</button>
+                        <button id='integration-pp-submit' type='button' class='btn-load'
+                                onclick='integrationModule.submitProPresenterConnection()'>
+                            Verbinden
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- SETTINGS VIEW -->
         <div id='view-settings' class='app-view hidden'>
             <div class="dashboard">
@@ -898,19 +988,6 @@
                 <div class="action-bar settings-panel-block blue-edge">
                     <strong class="section-title blue-text">🌐 Netwerk &amp; Sync</strong>
                     <div class="settings-control-grid">
-
-                        <!-- ProPresenter Core Inputs -->
-                        <div class="settings-control-item">
-                            <div class="settings-control-info">
-                                <label>ProPresenter IP</label>
-                                <span class="control-desc">IP-adres en poort van de ProPresenter API</span>
-                            </div>
-                            <div class="inline-ip-wrapper">
-                                <input id="settings-pro-ip" type="text" class="form-input text-center" value="127.0.0.1" placeholder="127.0.0.1" onchange="settingsModule.setSetting('proPresenterIp', this.value.trim())" style="width: 140px;">
-                                <span class="ip-separator">:</span>
-                                <input id="settings-pro-port" type="text" class="form-input text-center" value="50001" placeholder="50001" onchange="settingsModule.setSetting('proPresenterPort', this.value.trim())" style="width: 85px;">
-                            </div>
-                        </div>
 
                         <!-- Offline Modus Toggle Switch -->
                         <div class="settings-control-item">
@@ -1169,8 +1246,13 @@
                                     <span id="pro-connection-status">Verbonden ✓</span>
                                 </div>
                             </div>
-                            <input type="text" id="pro-ip-display" class="form-input pro-ip-display style-fullwidth" value="100.113.22.22" placeholder="IP:Poort" title="ProPresenter IP en Poort">
+                            <div id="pro-ip-display" class="pro-ip-readonly form-input style-fullwidth" title="Wordt ingesteld via de Integraties pagina">
+                                <span id="pro-ip-display-value" class="pro-ip-readonly-value">—</span>
+                            </div>
                             <button id="btn-test-proconnection" class="btn-load style-fullwidth" onclick="setlistModule.testProPresenterConnection()">🔍 Test Verbinding</button>
+                            <button id="pro-goto-integration-btn" type="button" class="btn-nav style-fullwidth pro-goto-integration" style="display: none" onclick="router.navigate('integration')">
+                                ⚙️ Ga naar Integraties →
+                            </button>
                         </div>
                     </aside>
 
@@ -2334,6 +2416,7 @@
     <script src='js/modules/analytics.js'></script>
     <script src='js/modules/ndi.js'></script>
     <script src='js/modules/settings.js'></script>
+    <script src='js/modules/integration.js?v=1'></script>
     <script src='js/modules/stagebuilder.js'></script>
     <script src='js/modules/supervisor.js'></script>
     <script src='js/modules/songidassigner.js'></script>

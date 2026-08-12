@@ -153,11 +153,9 @@ const setlistModule = {
             // Bind button events (permanent, only once)
             this.bindEvents();
 
-            // Initialize ProPresenter IP display
+            // Initialize ProPresenter IP display (read-only — source of truth
+            // is the Integrations view; we only mirror the value here).
             this.updateProIpDisplay();
-
-            // Setup IP input change handler
-            this.setupProIpInputHandler();
 
             // Auto-test connection on first init (only if not yet tested)
             if (this.proConnectionStatus === 'unknown') {
@@ -236,7 +234,7 @@ const setlistModule = {
         this.serviceDate = date || null;
         console.log('[SPA] serviceDate set to:', this.serviceDate);
 
-        // Persist
+        // Persist first so a partial failed render does not lose data.
         localStorage.setItem('ichtus_received_setlist', JSON.stringify({
             raw: rawText,
             parsed: this.parsedSongs,
@@ -247,12 +245,113 @@ const setlistModule = {
         }));
 
         this.updateConnectionStatus('received');
+
+        // -------- New-vs-library detection --------
+        // Load the local song library so each setlist item can be tagged
+        // ``NIEUW`` when its number isn't in the library yet.
+        // Awaiting DOES NOT block the rest of the render: we render the
+        // preview first, then update badges once the library fetch resolves.
+        this._loadKnownSongIdsFromLibrary()
+            .then(knownIds => {
+                this.knownSongIds = knownIds;
+                const newCount = this._countNewSongs();
+                console.log('[SPA] Known song IDs loaded:', knownIds.size, '— new in this setlist:', newCount);
+                this.renderSongPreview();
+                if (newCount > 0) {
+                    const dateMsg = this.serviceDate ? `📅 ${this.serviceDate} — ` : '';
+                    const numberedCount = this.structuredSongs
+                        ? this.structuredSongs.filter(s => s.number).length : 0;
+                    const numberInfo = numberedCount > 0 ? ` (${numberedCount} met nummer)` : '';
+                    this.showStatus(
+                        `✅ ${dateMsg}${__('setlist_received')}! ${this.countSongs()} ${__('cl_edit_items_count')} — `
+                        + `⚠️ ${newCount} NIEUW t.o.v. bibliotheek${numberInfo}.`,
+                        'warning'
+                    );
+                }
+            })
+            .catch(err => {
+                console.warn('[SPA] Could not load library for new-song detection:', err?.message);
+                // Library unreachable — fall back to a plain render with
+                // no badges. Keeps the rest of the workflow working.
+                this.knownSongIds = new Set();
+                this.renderSongPreview();
+            });
+
         this.renderSongPreview();
         this.renderDateDisplay();
         const dateMsg = this.serviceDate ? `📅 ${this.serviceDate} — ` : '';
         const numberedCount = structured ? structured.filter(s => s.number).length : 0;
         const numberInfo = numberedCount > 0 ? ` (${numberedCount} met nummer)` : '';
         this.showStatus(`✅ ${dateMsg}${__('setlist_received')}! ${this.countSongs()} ${__('cl_edit_items_count')} ${__('ndi_sources_found')}${numberInfo}.`, 'success');
+    },
+
+    /**
+     * Fetch the Ichtus local song library and return a Set of normalized
+     * song IDs (prefix+number, with spaces stripped). This is the SAME
+     * endpoint that Song ID Assigner uses — so whatever is in the user's
+     * library-ids.json is what we consider "known" by definition.
+     *
+     * Normalization:
+     *   - Strip whitespace (WT sends "LvK 9"; library canonical = "LvK9").
+     *   - Include both `s.id` (canonical) and `s.prefix + s.number` (raw),
+     *     to handle libraries where IDs aren't zero-padded yet.
+     *
+     * Returns an empty Set (not throws) on any error so the caller's
+     * `.then()` can still mark new-songs as "unknown" safely.
+     */
+    async _loadKnownSongIdsFromLibrary() {
+        const norm = s => String(s || '').replace(/\s+/g, '');
+        let filePath = null;
+        try {
+            const cfgResp = await fetch('/api/library/config');
+            if (cfgResp.ok) {
+                const cfg = await cfgResp.json();
+                if (cfg && cfg.success && cfg.libraryPath) {
+                    filePath = cfg.libraryPath;
+                }
+            }
+        } catch (e) {
+            console.warn('[SPA] /api/library/config unreachable:', e?.message);
+        }
+
+        const url = filePath
+            ? '/api/library/load?file=' + encodeURIComponent(filePath)
+            : '/api/library/load';
+
+        const resp = await fetch(url);
+        if (!resp.ok) {
+            console.warn('[SPA] /api/library/load HTTP', resp.status);
+            return new Set();
+        }
+        const json = await resp.json();
+        const songs = (json && (json.songs || json.data?.songs)) || [];
+        if (!Array.isArray(songs) || songs.length === 0) {
+            console.warn('[SPA] Library is empty or has a different shape — no known songs to compare against');
+            return new Set();
+        }
+
+        const ids = new Set();
+        for (const s of songs) {
+            if (s && s.id)        ids.add(norm(s.id));
+            if (s && s.prefix)    ids.add(norm(s.prefix + s.number));
+        }
+        return ids;
+    },
+
+    /**
+     * Count how many structured setlist songs have a number that is NOT
+     * in `this.knownSongIds`. Songs WITHOUT a number are counted as new
+     * because we can't confirm them against the library. Used for the
+     * status banner after the library has loaded.
+     */
+    _countNewSongs() {
+        if (!this.structuredSongs || !this.knownSongIds) return 0;
+        const norm = s => String(s || '').replace(/\s+/g, '');
+        const lib = this.knownSongIds;
+        return this.structuredSongs.filter(s => {
+            if (!s.number) return true; // unknown song — counts as "new"
+            return !lib.has(norm(s.number));
+        }).length;
     },
 
     renderDateDisplay() {
@@ -323,6 +422,11 @@ const setlistModule = {
 
         /** Render a list of songs, adding number badges where available */
         const renderList = (songs) => {
+            // Build a normalized lookup of known IDs once per render. Empty
+            // Set = no library loaded yet (badges stay hidden).
+            const knownIds = this.knownSongIds || null;
+            const norm = v => String(v || '').replace(/\s+/g, '');
+
             return songs.map(s => {
                 // Parsed lines keep the number prefix ("D044 Great I Am") while
                 // structured names are clean ("Great I Am") — resolve the badge
@@ -331,8 +435,20 @@ const setlistModule = {
                 const num = numberMap[cleanName.toLowerCase()] || numberMap[s.toLowerCase()];
                 const displayName = num ? cleanName : s;
                 const escaped = this.escapeHtml(displayName);
+
+                // DEFAULT: assume "in library" so a missing library fetch
+                // doesn't make every song appear NIEUW. Only mark new if
+                // we have data loaded AND the lookup genuinely misses.
+                let isNew = false;
+                if (num && knownIds) {
+                    isNew = !knownIds.has(norm(num));
+                }
+                const newBadge = isNew
+                    ? '<span class="song-new-badge" title="Niet in je bibliotheek — controleer of je tekst/chords hebt">NIEUW</span> '
+                    : '';
+
                 const badge = num ? `<span class="song-number-badge">${this.escapeHtml(num)}</span> ` : '';
-                return `<li>${badge}${escaped}</li>`;
+                return `<li>${badge}${newBadge}${escaped}</li>`;
             }).join('');
         };
 
@@ -458,59 +574,83 @@ const setlistModule = {
     },
 
     updateProIpDisplay() {
-        const ipDisplay = document.getElementById('pro-ip-display');
-        if (ipDisplay) {
-            ipDisplay.value = `${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}`;
+        // Mirrors the IP/port coming from settingsModule (the Integrations
+        // view is the single source of truth). The display is read-only.
+        const ip = this._getProIp();
+        const port = this._getProPort();
+        const valueEl = document.getElementById('pro-ip-display-value');
+        if (valueEl) {
+            valueEl.textContent = (ip && port) ? `${ip}:${port}` : '— niet ingesteld';
         }
     },
 
-    setupProIpInputHandler() {
-        const ipInput = document.getElementById('pro-ip-display');
-        if (ipInput) {
-            ipInput.addEventListener('change', () => {
-                const value = ipInput.value.trim();
-                if (value) {
-                    const parts = value.split(':');
-                    if (parts.length === 2) {
-                        this.CONFIG.PRO_IP = parts[0];
-                        this.CONFIG.PRO_PORT = parts[1];
-                        localStorage.setItem('setlistProIp', value);
-                        this.showStatus(`✅ IP opgeslagen: ${value}`, 'success');
-                    } else if (parts.length === 1 && parts[0]) {
-                        // Only IP provided, use default port
-                        this.CONFIG.PRO_IP = parts[0];
-                        localStorage.setItem('setlistProIp', `${parts[0]}:${this.CONFIG.PRO_PORT}`);
-                        this.showStatus(`✅ IP opgeslagen: ${parts[0]}:${this.CONFIG.PRO_PORT}`, 'success');
-                    }
-                }
-            });
-            // Update on Enter key as well
-            ipInput.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter') {
-                    ipInput.blur();
-                }
-            });
+    // Pull the current ProPresenter IP from settingsModule (fresh on every
+    // call so changes in the Integrations view are picked up immediately).
+    _getProIp() {
+        if (typeof settingsModule !== 'undefined' && settingsModule.getSetting) {
+            return settingsModule.getSetting('proPresenterIp') || '';
         }
+        return this.CONFIG.PRO_IP || '';
+    },
+
+    _getProPort() {
+        if (typeof settingsModule !== 'undefined' && settingsModule.getSetting) {
+            return settingsModule.getSetting('proPresenterPort') || '';
+        }
+        return this.CONFIG.PRO_PORT || '';
+    },
+
+    _getProBaseUrl() {
+        const ip = this._getProIp();
+        const port = this._getProPort();
+        if (!ip || !port) return '';
+        return `http://${ip}:${port}/v1`;
+    },
+
+    _getProAuthHeaders() {
+        if (typeof settingsModule === 'undefined' || !settingsModule.getSetting) return {};
+        const pw = settingsModule.getSetting('proPresenterPassword');
+        if (!pw) return {};
+        // ProPresenter REST API uses HTTP Basic with user "API".
+        const basic = (typeof btoa === 'function')
+            ? btoa('API:' + pw)
+            : (typeof Buffer !== 'undefined' ? Buffer.from('API:' + pw).toString('base64') : '');
+        return basic ? { 'Authorization': 'Basic ' + basic } : {};
     },
 
     async testProPresenterConnection() {
         const statusDot = document.getElementById('pro-status-dot');
         const statusText = document.getElementById('pro-connection-status');
         const testBtn = document.getElementById('btn-test-proconnection');
-        
+        const gotoBtn = () => document.getElementById('pro-goto-integration-btn');
+
+        // Always pull IP/port from the integration settings (single source
+        // of truth); never let stale CONFIG values win.
+        const ip = this._getProIp();
+        const port = this._getProPort();
+        const baseUrl = this._getProBaseUrl();
+
         if (statusDot) statusDot.className = 'status-dot warning';
         if (statusText) statusText.textContent = __('setlist_testing');
         if (testBtn) testBtn.disabled = true;
+        if (gotoBtn()) gotoBtn().style.display = 'none';
 
-        const BASE_URL = `http://${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}/v1`;
+        if (!baseUrl) {
+            if (statusDot) statusDot.className = 'status-dot offline';
+            if (statusText) statusText.textContent = 'Geen IP ingesteld — vul in via Integraties';
+            if (testBtn) testBtn.disabled = false;
+            if (gotoBtn()) gotoBtn().style.display = 'block';
+            return;
+        }
 
         try {
             // Try fetching the looks endpoint - this is a reliable endpoint that exists in all ProPresenter versions
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 3000);
 
-            const response = await fetch(`${BASE_URL}/looks`, {
+            const response = await fetch(`${baseUrl}/looks`, {
                 method: 'GET',
+                headers: this._getProAuthHeaders(),
                 signal: controller.signal
             });
 
@@ -520,7 +660,9 @@ const setlistModule = {
                 this.proConnectionStatus = 'online';
                 if (statusDot) statusDot.className = 'status-dot online';
                 if (statusText) statusText.textContent = __('setlist_connected');
-                this.showStatus(`✅ ProPresenter API is bereikbaar op ${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}`, 'success');
+                if (gotoBtn()) gotoBtn().style.display = 'none';
+                this.showStatus(`✅ ProPresenter API is bereikbaar op ${ip}:${port}`, 'success');
+                this.updateProIpDisplay(); // keep read-only pill in sync
             } else {
                 throw new Error(`HTTP ${response.status}`);
             }
@@ -538,6 +680,7 @@ const setlistModule = {
             }
             
             if (statusText) statusText.textContent = errorMsg;
+            if (gotoBtn()) gotoBtn().style.display = 'block';
             this.showStatus(`❌ ${errorMsg}. Controleer IP-adres en of ProPresenter draait.`, 'error');
         } finally {
             if (testBtn) {

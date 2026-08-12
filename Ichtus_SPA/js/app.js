@@ -72,6 +72,12 @@ if (typeof settingsModule !== 'undefined') {
     settingsModule.applySidebarVisibility();
 }
 
+// Auto-connect to ProPresenter if credentials were saved previously.
+// Runs silently; the rest of the app can then rely on the API being up.
+if (typeof integrationModule !== 'undefined' && typeof integrationModule.autoConnectProPresenter === 'function') {
+    integrationModule.autoConnectProPresenter();
+}
+
 // Start the background update checker (polls supervisor every 5 min)
 if (window.updateChecker) {
     // Delay first check to let the app fully initialize

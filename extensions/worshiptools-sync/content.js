@@ -75,11 +75,20 @@ function extractDate() {
     return today;
 }
 
-function extractRoster() {
+/**
+ * Pure collection: scan the current page's RolLen block and return
+ * `{name, role, avatar_url}` records. NO alerts, NO messaging to the
+ * background — caller decides what to do with the result.
+ *
+ * Returns:
+ *   { found: true,  entries: [...], declinedCount: N }
+ *   { found: false, error: 'no-rollen-section' | 'crash', message: '...' }
+ *
+ * Declined users are filtered out (red avatar border OR title="Declined"
+ * badge). The "Persoon toevoegen" placeholder row is also skipped.
+ */
+function collectRosterEntries() {
     try {
-        console.log('[WT→SPA] extractRoster() called — scanning page...');
-
-        // Find the "Rollen" / "Roles" heading
         const headings = document.querySelectorAll('.card-section-title');
         let rolesContainer = null;
         for (const h of headings) {
@@ -91,13 +100,11 @@ function extractRoster() {
         }
 
         if (!rolesContainer) {
-            console.warn('[WT→SPA] Could not find "Rollen" / "Roles" section');
-            alert('❌ Could not find the "Rollen" / "Roles" section on this page.');
-            return;
+            return { found: false, error: 'no-rollen-section' };
         }
 
-        const roster = [];
-        let totalDeclined = 0; // aggregate across all role sections for the success alert
+        const entries = [];
+        let declinedCount = 0; // aggregate across all role sections
         // Each role section is a .pb-3 div within the roles container
         const roleSections = rolesContainer.querySelectorAll('.pb-3');
 
@@ -128,7 +135,7 @@ function extractRoster() {
                 ) {
                     console.log('[WT→SPA] Skipping declined:', name);
                     skippedDeclined++;
-                    totalDeclined++;
+                    declinedCount++;
                     return;
                 }
 
@@ -139,49 +146,75 @@ function extractRoster() {
                     avatarUrl = img.src;
                 }
 
-                roster.push({ name, role, avatar_url: avatarUrl });
+                entries.push({ name, role, avatar_url: avatarUrl });
             });
             if (skippedDeclined > 0) {
                 console.log(`[WT→SPA] Filtered out ${skippedDeclined} declined role(s) for "${role}".`);
             }
         });
 
-        console.log('[WT→SPA] Roster extracted:', roster.length, 'assignments', roster);
-
-        // Compute plural once now that totalDeclined is final — the same
-        // inflection is needed by both the empty-roster alert and the success
-        // message so we don't repeat the ternary.
-        const plural = totalDeclined === 1 ? '' : 'en';
-
-        if (roster.length === 0) {
-            if (totalDeclined > 0) {
-                alert(`⚠️ Alle ${totalDeclined} rol-toewijzing${plural} waren declined — geen teamleden beschikbaar voor deze dienst.`);
-            } else {
-                alert('⚠️ Geen teamleden gevonden in de Rollen sectie.');
-            }
-            return;
-        }
-
-        const names = [...new Set(roster.map(r => r.name))];
-        const preview = names.slice(0, 5).join(', ');
-        const more = names.length > 5 ? ` +${names.length - 5} meer` : '';
-        const declinedSuffix = totalDeclined > 0 ? ` · ${totalDeclined} declined rol-toewijzing${plural} gefilterd` : '';
-        alert(`✅ ${roster.length} rol-toewijzingen gevonden (${names.length} personen): ${preview}${more}${declinedSuffix}\n\nOpen Ichtus SPA → Dashboard om de mic toewijzing te zien.`);
-
-        chrome.runtime.sendMessage({
-            type: 'ROSTER_EXTRACTED',
-            data: roster
-        }, (response) => {
-            if (chrome.runtime.lastError) {
-                console.error('[WT→SPA] Background error:', chrome.runtime.lastError.message);
-            } else {
-                console.log('[WT→SPA] Background acknowledged:', response);
-            }
-        });
+        return { found: true, entries, declinedCount };
     } catch (err) {
-        console.error('[WT→SPA] CRASH in extractRoster:', err);
-        alert('❌ Error in extractRoster:\n' + (err?.message || String(err)) + '\n\nCheck the browser console (F12) for full details.');
+        console.error('[WT→SPA] CRASH in collectRosterEntries:', err);
+        return { found: false, error: 'crash', declinedCount: 0, message: err?.message || String(err) };
     }
+}
+
+/**
+ * User-facing single-team roster scrape. Shows a confirmation alert and
+ * sends ONE message to the background. Backs onto `collectRosterEntries()`.
+ */
+/**
+ * Module-level cache that holds the most recent setlist extraction.
+ * `extractSetlist` writes here on every successful run so that other
+ * entry points (e.g. `runAllTeamsSync`) can read the song count
+ * without re-running the DOM scan.
+ *
+ * Shape: { items: string[], structured: Array<{number?,name}>, date: string|null }
+ */
+let __lastSetlistResult = null;
+
+function extractRoster() {
+    const result = collectRosterEntries();
+
+    if (!result.found) {
+        if (result.error === 'no-rollen-section') {
+            alert('❌ Could not find the "Rollen" / "Roles" section on this page.');
+        } else {
+            alert('❌ Error in extractRoster:\n' + (result.message || 'onbekend') +
+                  '\n\nCheck the browser console (F12) for full details.');
+        }
+        return;
+    }
+
+    const { entries: roster, declinedCount: totalDeclined } = result;
+    const plural = totalDeclined === 1 ? '' : 'en';
+
+    if (roster.length === 0) {
+        if (totalDeclined > 0) {
+            alert(`⚠️ Alle ${totalDeclined} rol-toewijzing${plural} waren declined — geen teamleden beschikbaar voor deze dienst.`);
+        } else {
+            alert('⚠️ Geen teamleden gevonden in de Rollen sectie.');
+        }
+        return;
+    }
+
+    const names = [...new Set(roster.map(r => r.name))];
+    const preview = names.slice(0, 5).join(', ');
+    const more = names.length > 5 ? ` +${names.length - 5} meer` : '';
+    const declinedSuffix = totalDeclined > 0 ? ` · ${totalDeclined} declined rol-toewijzing${plural} gefilterd` : '';
+    alert(`✅ ${roster.length} rol-toewijzingen gevonden (${names.length} personen): ${preview}${more}${declinedSuffix}\n\nOpen Ichtus SPA → Dashboard om de mic toewijzing te zien.`);
+
+    chrome.runtime.sendMessage({
+        type: 'ROSTER_EXTRACTED',
+        data: roster
+    }, (response) => {
+        if (chrome.runtime.lastError) {
+            console.error('[WT→SPA] Background error:', chrome.runtime.lastError.message);
+        } else {
+            console.log('[WT→SPA] Background acknowledged:', response);
+        }
+    });
 }
 
 /**
@@ -265,7 +298,7 @@ function extractSetlist() {
 
         if (rawElements.length === 0) {
             console.warn('[WT→SPA] No elements found on page.');
-            alert("No items found. The page structure may have changed. Try refreshing the page or check the console for details.");
+            emitProgress('log', { msg: 'Setlist: geen elements gevonden op pagina' });
             return;
         }
 
@@ -315,6 +348,43 @@ function extractSetlist() {
         // Build structured array AFTER filtering so indices align perfectly
         const finalStructured = finalItems.map(line => parseSongNumber(line));
 
+        // Extract the service date BEFORE we cache the result, so
+        // __lastSetlistResult can include it without a TDZ error.
+        const serviceDate = extractDate();
+
+        // WorshipTools uses `D`-prefixed numbers (e.g. D000, D131) as
+        // dienst-items: they're structural dividers in the order of
+        // service, NOT real songs. The schema needs them so the SPA
+        // can render the bucket structure, but the popup operator
+        // only wants to know how many of these are REAL songs.
+        //
+        // See: splitSongNumber() decoupled from song count here.
+        const songCount = finalStructured.filter(function (s) {
+            if (!s.number) return true;            // no code → treat as song
+            return s.number !== 'D000'; // divider placeholder is exactly D000
+        }).length;
+
+        // Cache the extraction result for runAllTeamsSync to read later.
+        // This MUST run after `serviceDate` is declared (see fix history).
+        // `items` keeps dividers in the payload; `songCount` is what
+        // gets shown to the operator.
+        __lastSetlistResult = {
+            items: finalItems,
+            structured: finalStructured,
+            songCount: songCount,
+            date: serviceDate
+        };
+
+        // Mirror the cache onto a DOM attribute so the page console can
+        // inspect it from the MAIN world WITHOUT needing a <script>
+        // injection (WorshipTools' CSP blocks unsafe-inline).
+        //   page console: JSON.parse(document.documentElement.dataset.wtDbg)
+        try {
+            document.documentElement.dataset.wtDbg = JSON.stringify(__lastSetlistResult);
+        } catch (e) {
+            // dataset write rarely fails; just ignore if it does.
+        }
+
         const finalOutput = finalItems.join('\n');
         console.log('[WT→SPA] Final items after cleaning:', finalItems.length, finalItems.slice(0, 5));
         console.log('[WT→SPA] Structured items:', finalStructured.slice(0, 5));
@@ -325,8 +395,8 @@ function extractSetlist() {
                 console.warn('[WT→SPA] Clipboard write failed:', err);
             });
 
-            // 2. Extract the service date from the page
-            const serviceDate = extractDate();
+            // 2. serviceDate is already in scope — was hoisted out of
+            //    this block to keep __lastSetlistResult valid.
 
             // 3. Show success message — include structured count info
             const preview = finalItems.slice(0, 5).join(', ');
@@ -334,7 +404,7 @@ function extractSetlist() {
             const numberedCount = finalStructured.filter(s => s.number).length;
             const numberInfo = numberedCount > 0 ? ` | ${numberedCount} met nummer` : '';
             console.log(`✅ ${finalItems.length} items extracted. First: ${preview}${more}${numberInfo}`);
-            alert(`✅ Success! ${finalItems.length} items extracted and copied to clipboard.\n📅 Date: ${serviceDate}\n\nOpen Ichtus SPA → Setlist view to see them.`);
+            emitProgress('log', { msg: 'Setlist: ' + finalItems.length + ' items, datum: ' + serviceDate });
 
             // 4. Send structured data alongside the plain text
             chrome.runtime.sendMessage({
@@ -351,11 +421,11 @@ function extractSetlist() {
             });
         } else {
             console.warn('[WT→SPA] All items were filtered out. Raw lines:', rawLines);
-            alert("No valid items found after filtering. Raw elements found: " + rawElements.length + ". Check console for details.");
+            emitProgress('log', { msg: 'Setlist: niets bruikbaars na filteren (' + rawElements.length + ' ruwe elementen)' });
         }
     } catch (err) {
         console.error('[WT→SPA] CRASH in extractSetlist:', err);
-        alert('❌ Error in extractSetlist:\n' + (err?.message || String(err)) + '\n\nCheck the browser console (F12) for full details.');
+        emitProgress('log', { msg: 'Setlist mislukt: ' + (err?.message || String(err)) });
     }
 }
 
@@ -499,86 +569,434 @@ function extractLibrary() {
 }
 
 /**
- * Function to create and inject the orange buttons
+ * Find the team-switcher button whose .group-name matches the target
+ * and click it. After the click, wait for the role section to repopulate
+ * (Worship Leader / Vocalist / etc. labels appear in the DOM).
+ *
+ * Returns:
+ *   { ok: true,  source: 'clicked' | 'already-selected' }
+ *   { ok: false, reason: 'no-button' | 'no-roles-after-switch' }
  */
-function injectSyncButton() {
-    // Check if the button already exists to prevent duplicates
-    if (document.getElementById('pro-sync-btn')) return;
+async function ensureCorrectTeam(targetTeamName) {
+    const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-    const syncBtn = document.createElement('button');
-    syncBtn.id = 'pro-sync-btn';
-    syncBtn.innerText = "Extract Setlist";
-    // Styling matches your app's branding
-    syncBtn.style = `
-        position: fixed; 
-        top: 20px; 
-        right: 80px; 
-        z-index: 99999; 
-        padding: 12px 20px; 
-        background: #f47920; 
-        color: white; 
-        border: none; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        cursor: pointer; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    `;
-    syncBtn.onclick = extractSetlist;
-    document.body.appendChild(syncBtn);
+    // The team-switcher renders as a Bootstrap list-group-item-action button
+    // with a nested .group-name div containing the team label as plain text.
+    // We match on EXACT text (trimmed) to avoid partial hits like
+    // "Worship Team Beheer" or "Worship Team Backup".
+    const groupNames = document.querySelectorAll(
+        'button.list-group-item-action .group-name, [class*="list-group-item-action"] .group-name'
+    );
+    let targetBtn = null;
+    groupNames.forEach(el => {
+        if ((el.textContent || '').trim() === targetTeamName) {
+            // The click target is the enclosing button — not the inner div.
+            targetBtn = el.closest('button') || el.closest('[role="button"]') || el;
+        }
+    });
 
-    // Check if roster button already exists
-    if (document.getElementById('pro-roster-btn')) return;
+    if (!targetBtn) {
+        // No button matched \u2014 the page might already be on the right team,
+        // OR this view doesn't expose a team switcher at all (e.g. service
+        // detail page after a deep link). Either way we should NOT block the
+        // scrape; let the function calling us continue.
+        console.log('[WT→SPA] Team-switcher button for "' + targetTeamName + '" niet gevonden \u2014 ga verder.');
+        return { ok: true, source: 'already-selected' };
+    }
 
-    const rosterBtn = document.createElement('button');
-    rosterBtn.id = 'pro-roster-btn';
-    rosterBtn.innerText = "Extract Roster";
-    rosterBtn.style = `
-        position: fixed; 
-        top: 70px; 
-        right: 80px; 
-        z-index: 99999; 
-        padding: 12px 20px; 
-        background: #2196F3; 
-        color: white; 
-        border: none; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        cursor: pointer; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    `;
-    rosterBtn.onclick = extractRoster;
-    document.body.appendChild(rosterBtn);
+    // Avoid re-clicking if the button is already marked as the currently
+    // active selection (Bootstrap-Vue usually sets aria-current="true" or
+    // a `active` class on the active list-group-item).
+    const isActive =
+        targetBtn.classList.contains('active') ||
+        targetBtn.getAttribute('aria-current') === 'true' ||
+        targetBtn.getAttribute('aria-pressed') === 'true';
 
-    // Check if library button already exists
-    if (document.getElementById('pro-library-btn')) return;
+    if (isActive) {
+        console.log('[WT→SPA] Team "' + targetTeamName + '" is al actief \u2014 geen klik nodig.');
+        return { ok: true, source: 'already-selected' };
+    }
 
-    const libraryBtn = document.createElement('button');
-    libraryBtn.id = 'pro-library-btn';
-    libraryBtn.innerText = "Extract Song Library";
-    libraryBtn.style = `
-        position: fixed; 
-        top: 120px; 
-        right: 80px; 
-        z-index: 99999; 
-        padding: 12px 20px; 
-        background: #34d399; 
-        color: #06281c; 
-        border: none; 
-        border-radius: 8px; 
-        font-weight: bold; 
-        cursor: pointer; 
-        box-shadow: 0 4px 10px rgba(0,0,0,0.5);
-    `;
-    libraryBtn.onclick = extractLibrary;
-    document.body.appendChild(libraryBtn);
+    console.log('[WT→SPA] Klikken op team "' + targetTeamName + '" \u2026');
+    targetBtn.click();
+
+    // Wait until role labels re-populate. WorshipTools' Vue re-renders the
+    // .col-12.mb-2 > div spans once the team data loads; the default labels
+    // include "Worship Leader", "Vocalist", "Piano", etc. We match any of
+    // those \u2014 cheap, robust, no team-name guessing needed.
+    const startedAt = Date.now();
+    const ROLE_HINT = /Worship Leader|Vocalist|Piano|Drums|Guitar|Saxophone|Bass|Beamer|Stream|Audio|Media/i;
+    while (Date.now() - startedAt < 6000) {
+        const labels = [...document.querySelectorAll(
+            '[data-v-402dfe80] .col-12.mb-2 > div, [data-v-402dfe80] .card-section-title ~ * .col-12.mb-2 > div'
+        )].map(el => (el.textContent || '').trim());
+        if (labels.some(t => ROLE_HINT.test(t))) {
+            console.log('[WT→SPA] Team geladen \u2014 rollen zichtbaar na', Date.now() - startedAt, 'ms');
+            // Small settle pause so any XHR-fetched fields (avatars, etc.) finish.
+            await sleep(400);
+            return { ok: true, source: 'clicked' };
+        }
+        await sleep(180);
+    }
+
+    console.warn('[WT→SPA] Rollen niet verschenen binnen 6s na team-klik \u2014 extract gaat toch door.');
+    return { ok: false, reason: 'no-roles-after-switch' };
 }
 
-// 1. Initial injection attempt
-injectSyncButton();
+/**
+ * Run the full weekly sync: team-switch \u2192 setlist \u2192 roster.
+ *
+ * Why sequence (not parallel): both `extractSetlist` and `extractRoster`
+ * call `chrome.runtime.sendMessage` and both trigger `alert()` on completion.
+ * Running them in parallel would race both the popup alerts and the
+ * background message handler. The roster send happens AFTER the setlist
+ * ack so the SPA tab receives both events in predictable order:
+ * SETLIST_RECEIVED \u2192 ROSTER_RECEIVED.
+ *
+ * UI feedback: button shows busy state while running, then final alert.
+ */
+/**
+ * Extract a stable user-UUID from a WorshipTools avatar URL of the form
+ *   https://storage.googleapis.com/we-data/users/{UUID}/avatar/...
+ * Returns the UUID string or null if the URL doesn't match. UUID is the
+ * stable identity for merging one person across multiple team views.
+ */
+function extractUuidFromAvatar(avatarUrl) {
+    if (!avatarUrl) return null;
+    const m = String(avatarUrl).match(/\/users\/([^/]+)\/avatar\//);
+    return m ? m[1] : null;
+}
 
-// 2. Use MutationObserver to handle page navigation within WorshipTools
-const observer = new MutationObserver(() => {
-    injectSyncButton();
+/**
+ * Read every team-switcher button visible on the page and return the
+ * team labels in stable document order. Used by the all-teams sync flow
+ * to know which teams to iterate through without spamming the user.
+ */
+function listAllTeamNames() {
+    const seen = new Set();
+    const out = [];
+    document.querySelectorAll(
+        'button.list-group-item-action .group-name, ' +
+        '[class*="list-group-item-action"] .group-name'
+    ).forEach(el => {
+        const name = (el.textContent || '').trim();
+        if (name && !seen.has(name)) {
+            seen.add(name);
+            out.push(name);
+        }
+    });
+    return out;
+}
+
+/**
+ * Run a full-org roster sync: click through every team-switcher on the
+ * page, collect who's in each role on each team, deduplicate by UUID,
+ * then send ONE aggregated message to the background / SPA.
+ *
+ * Setlist is extracted ONCE at the start (it doesn't depend on the team
+ * view \u2014 it's the same setlist for the same service across teams).
+ *
+ * UX:
+ *   - Single "Sync data" button does the whole job at once.
+ *   - Per-team work happens silently: no alerts from collectRosterEntries.
+ *   - At the end, ONE summary alert shows the totals (teams scanned,
+ *     unique people, total role-assignments). The downstream SPA gets a
+ *     single ROSTER_EXTRACTED event with the merged roster.
+ *
+ * Why merge:
+ *   - One person can hold multiple roles across teams (Rafael = Worship
+ *     Leader AND Piano in your data). Merging yields one record per person
+ *     with `roles: [...]` so the SPA can show them in a single card.
+ *   - UUID is the stable key. Falls back to display name when avatar_url
+ *     is missing (empty rows don't have a UUID).
+ */
+async function runAllTeamsSync(opts) {
+    // opts.onProgress(msg) is an optional callback the popup passes so it
+    // can show progress in its output area. If omitted (e.g. called from
+    // DevTools console) we just console.log.
+    const onProgress = (opts && typeof opts.onProgress === 'function')
+        ? opts.onProgress
+        : (msg) => console.log('[WT→SPA] runAllTeamsSync:', msg);
+
+    // Module-level latch replaces the old DOM-buttons dataset.busy guard.
+    if (runAllTeamsSync._busy) return;
+    runAllTeamsSync._busy = true;
+    onProgress('Starten…');
+
+    try {
+        // 1. Setlist is per-service, not per-team \u2014 capture once.
+        extractSetlist();
+        // Pull the song count from the cached extraction: dividers (D-prefix)
+        // are excluded so the popup doesn't double-count structure items.
+        const setlistCount = (__lastSetlistResult && typeof __lastSetlistResult.songCount === 'number')
+            ? __lastSetlistResult.songCount
+            : ((__lastSetlistResult && __lastSetlistResult.items) ? __lastSetlistResult.items.length : 0);
+
+        // 2. Discover all teams.
+        const teamNames = listAllTeamNames();
+        if (teamNames.length === 0) {
+            emitProgress('complete', { ok: false, summary: { reason: 'no-team-switcher' } });
+            onProgress('Geen team-switcher gevonden op deze pagina.');
+            return;
+        }
+        console.log('[WT→SPA] runAllTeamsSync: found teams:', teamNames);
+
+        // 3. For each team: switch, wait for the RolLen to populate,
+        //    silently collect entries.
+        const allEntries = []; // flat array of {name, role, avatar_url, team}
+        // Skip team views aimed at younger audiences — these
+        // teams have their own rosters and roles (Kids Worship,
+        // Kinderdienst, Jeugd, etc.) that aren’t part of the
+        // regular worship-team workflow. Pattern matches the
+        // whole word so unrelated names like "Worship Team"
+        // aren’t accidentally skipped.
+        const SKIP_KIDS_PATTERN = /\b(kids|kinder|jeugd|children|youth|junior|tween)\b/i;
+        let skippedTeams = 0;
+
+        for (let i = 0; i < teamNames.length; i++) {
+            const team = teamNames[i];
+            if (SKIP_KIDS_PATTERN.test(team)) {
+                console.log('[WT→SPA] runAllTeamsSync: skipping kids-team:', team);
+                skippedTeams++;
+                continue;
+            }
+            onProgress(`Team ${i + 1}/${teamNames.length}: ${team}`);
+            const teamResult = await ensureCorrectTeam(team);
+            if (!teamResult.ok) {
+                console.warn('[WT→SPA] runAllTeamsSync: skipping team', team, teamResult.reason);
+                continue;
+            }
+            const result = collectRosterEntries();
+            if (!result.found) {
+                console.warn('[WT→SPA] runAllTeamsSync: no RolLen on team', team);
+                continue;
+            }
+            // Stamp each entry with the team it came from \u2014 helps the SPA
+            // group/filter results later.
+            result.entries.forEach(e => allEntries.push({ ...e, team }));
+            console.log('[WT→SPA] Team', team, '\u2192', result.entries.length, 'rol-toewijzingen');
+        }
+
+        if (allEntries.length === 0) {
+            emitProgress('complete', { ok: false, summary: { reason: 'no-roster', teamsScanned: teamNames.length, people: 0, assignments: 0 } });
+            onProgress('Geen rollen gevonden in ' + teamNames.length + ' teams.');
+            return;
+        }
+
+        // 4. Merge by UUID first, then by display name as fallback.
+        const byPerson = new Map();
+        for (const e of allEntries) {
+            const uuid = extractUuidFromAvatar(e.avatar_url);
+            const key = uuid || ('name:' + e.name.toLowerCase());
+            let entry = byPerson.get(key);
+            if (!entry) {
+                entry = {
+                    uuid,
+                    name: e.name,
+                    avatar_url: e.avatar_url || '',
+                    byRole: new Map()
+                };
+                byPerson.set(key, entry);
+            }
+            if (!entry.uuid && uuid) entry.uuid = uuid;
+            if (!entry.byRole.has(e.role)) entry.byRole.set(e.role, new Set());
+            entry.byRole.get(e.role).add(e.team);
+        }
+
+        // Flatten back to {name, role} so Stage Builder's existing listener
+        // (which reads r.role as a singular string) still works.
+        const merged = [];
+        for (const p of byPerson.values()) {
+            for (const [role, teams] of p.byRole.entries()) {
+                merged.push({
+                    name: p.name,
+                    role,
+                    avatar_url: p.avatar_url,
+                    uuid: p.uuid || null,
+                    teams: [...teams].sort()
+                });
+            }
+        }
+        merged.sort(function (a, b) {
+            const n = a.name.localeCompare(b.name, 'nl');
+            return n !== 0 ? n : a.role.localeCompare(b.role, 'nl');
+        });
+
+        const uniquePeople = byPerson.size;
+        const totalAssignments = merged.length;
+
+        console.log('[WT→SPA] org-wide roster merged:',
+                    teamNames.length, 'teams,',
+                    uniquePeople, 'unique people,',
+                    totalAssignments, 'role-assignments');
+
+        // 6. ONE combined message + ONE summary alert.
+        chrome.runtime.sendMessage({
+            type: 'ROSTER_EXTRACTED',
+            data: merged,
+            scope: 'org-wide',
+            teams_scanned: teamNames.length
+        }, (response) => {
+            if (chrome.runtime.lastError) {
+                console.error('[WT→SPA] Background error:', chrome.runtime.lastError.message);
+            } else {
+                console.log('[WT→SPA] org-wide roster ack:', response);
+            }
+        });
+
+        // Preview: 6 unique person names so the alert doesn't repeat
+        // the same person for every role they hold.
+        const uniquePeopleArr = [...new Set(merged.map(p => p.name))];
+        void uniquePeopleArr; // reserved for future expanded summary
+
+        emitProgress('complete', {
+            ok: true,
+            summary: {
+                teamsScanned: teamNames.length,
+                skippedTeams: skippedTeams,
+                people: uniquePeople,
+                assignments: totalAssignments,
+                songs: setlistCount
+            }
+        });
+        onProgress('Org-roster verzameld: ' + uniquePeople + ' personen, ' + totalAssignments + ' rol-toewijzingen.');
+    } catch (err) {
+        console.error('[WT→SPA] runAllTeamsSync failed:', err);
+        emitProgress('complete', { ok: false, summary: { reason: 'error', error: String(err?.message || err) } });
+        onProgress('Sync mislukt: ' + (err?.message || String(err)));
+    } finally {
+        runAllTeamsSync._busy = false;
+        onProgress('Klaar.');
+    }
+}
+
+// ============================================================================
+//  POPUP INTEGRATION  (replaces the previous on-page button setup)
+// ============================================================================
+//
+//  Earlier versions injected buttons directly into the WorshipTools
+//  page. We moved the UI to the extension popup (popup.html/popup.js)
+//  so the page stays clean. The popup talks to this content script
+//  through ONE message type:
+//
+//    WT_START_SYNC   — triggers runAllTeamsSync() through the popup's
+//                       Sync data button. Validation lives inside
+//                       runAllTeamsSync (no DOM pre-scan needed) so
+//                       the popup can show the Sync button as soon
+//                       as the tab URL looks like WT — no refresh
+//                       required to warm-inject the content script.
+//
+//  We deliberately do NOT inject anything into the page DOM anymore.
+// ============================================================================
+
+// scanCurrentPage() used to power the popup pre-scan. We removed it:
+// the popup now shows the Sync button based on the URL alone, and
+// runAllTeamsSync() owns all real validation (it reports missing
+// elements through WT_SYNC_PROGRESS → renderResultCard).
+// See: popup.js renderActiveTab().
+
+/**
+ * Fire a progress event back to the popup (and console) for user-
+ * facing status updates while runAllTeamsSync is in flight.
+ *
+ * Popup listens via chrome.runtime.onMessage; content scripts can
+ * SEND to runtime (broadcast) which the popup receives too.
+ */
+function emitProgress(phase, payload) {
+    try {
+        chrome.runtime.sendMessage({ type: 'WT_SYNC_PROGRESS', phase: phase, payload: payload || {} },
+            function () { void chrome.runtime.lastError; });
+    } catch (_) { /* popup may be closed — ignore */ }
+}
+
+// Wrapper that forwards both console.log + popup updates so the
+// popup UI reflects the same status messages we already produce.
+function reportProgress(msg) {
+    console.log('[WT→SPA] runAllTeamsSync:', msg);
+    emitProgress('log', { msg: msg });
+}
+
+// Replace the local helper inside runAllTeamsSync so it broadcasts
+// to the popup. We patch by monkey-patching the original closure
+// once here, after the function definition is parsed.
+// Note: runAllTeamsSync is hoisted to the top of the module, so we
+// can reach it here.
+(function patchRunAllTeamsSync() {
+    var original = runAllTeamsSync;
+    // We rebuild the function so its `onProgress` defaults to the
+    // popup-aware reporter above. Calling it without args from
+    // console still works (falls through to console.log).
+    runAllTeamsSync = function (opts) {
+        if (!opts || typeof opts.onProgress !== 'function') {
+            opts = Object.assign({}, opts || {}, { onProgress: reportProgress });
+        }
+        return original.call(this, opts);
+    };
+})();// ======================================================================
+//  DEV-ONLY DEBUG HOOK — page-console inspector (CSP-safe).
+// ======================================================================
+//
+//  Why no inline <script>: WorshipTools sets a strict `script-src` that
+//  does not include 'unsafe-inline'. Injecting a <script> node and
+//  assigning textContent is blocked. So we don't try.
+//
+//  Instead the cache is mirrored onto a DOM attribute that BOTH worlds
+//  can read directly: `document.documentElement.dataset.wtDbg`. After
+//  every sync, `extractSetlist()` updates this attribute (see above).
+//
+//  Usage in WorshipTools page DevTools console (no async, no setup):
+//      const dbg = JSON.parse(document.documentElement.dataset.wtDbg || 'null');
+//      console.table(dbg.structured.map(s => ({ code: s.number || '(geen)', title: s.name.slice(0, 50) })));
+//      dbg.songCount           // number of real songs (D000 excluded)
+//      dbg.date                // service date
+//
+//  ISOLATED-world content-script callers keep using `__wtDebug()` as a
+//  synchronous helper (defined just below).
+// ======================================================================
+
+// ISOLATED-world debug helper for content-script callers.
+Object.defineProperty(window, '__wtDebug', {
+    value: function (mode) {
+        var r = __lastSetlistResult;
+        if (!r) return null;
+        if (mode === 'divider') {
+            return r.structured.filter(function (s) {
+                return s.number === 'D000';
+            });
+        }
+        if (mode === 'songs') {
+            return r.structured.filter(function (s) {
+                return !s.number || s.number !== 'D000';
+            });
+        }
+        return r;
+    },
+    writable: false,
+    enumerable: false,
+    configurable: false
 });
 
-observer.observe(document.body, { childList: true, subtree: true });
+// Content-script message bridge: popup → content script.
+// Both handlers MUST return true to keep the response channel
+// open (popups disconnect quickly, so async responses would
+// otherwise arrive after the channel closes).
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+    if (!message || typeof message !== 'object') return false;
+
+    if (message.type === 'WT_START_SYNC') {
+        emitProgress('start', {});
+        runAllTeamsSync({ onProgress: reportProgress })
+            .then(function () {
+                emitProgress('done', { ok: true });
+                sendResponse({ ok: true });
+            })
+            .catch(function (err) {
+                console.error('[WT→SPA] runAllTeamsSync failed:', err);
+                emitProgress('done', { ok: false, error: String(err && err.message || err) });
+                sendResponse({ ok: false, error: String(err && err.message || err) });
+            });
+        return true;
+    }
+
+    return false; // not one of ours
+});
