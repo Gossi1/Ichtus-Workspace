@@ -509,6 +509,63 @@
     text-overflow: ellipsis;
 }
 
+/* Singing-guitarist toggle — mic-icon button under the role badge.
+   Some guitarists sing AND play (they need a vocal-mic channel),
+   others only play (guitar channel). The active state is green so
+   the operator can scan the table for who needs a mic. The tooltip
+   (title) carries the explanation; the button itself is just the
+   mic icon. */
+#view-stagebuilder .sb-row-sings {
+    display: block;
+    margin-top: 5px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #94a3b8;
+    padding: 1px 7px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+#view-stagebuilder .sb-row-sings:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+}
+
+#view-stagebuilder .sb-row-sings.sb-row-sings--on {
+    background: rgba(52, 211, 153, 0.14);
+    border-color: rgba(52, 211, 153, 0.45);
+    color: #34d399;
+}
+
+#view-stagebuilder .sb-row-sings.sb-row-sings--on:hover {
+    background: rgba(52, 211, 153, 0.22);
+    color: #6ee7b7;
+}
+
+/* Vocal-mic block under the main preset/channel controls — shown for
+   singing guitarists (dual recall: guitar stays, mic gets its own
+   preset + channel). Dashed separator + green label mark it as the
+   extra vocal part. */
+#view-stagebuilder .sb-row-vox {
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+}
+
+#view-stagebuilder .sb-row-vox-label {
+    display: block;
+    margin-bottom: 3px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #34d399;
+    white-space: nowrap;
+}
+
 /* Slot dropdown (preset picker) */
 #view-stagebuilder .sb-row-slot {
     background: rgba(0, 0, 0, 0.45);

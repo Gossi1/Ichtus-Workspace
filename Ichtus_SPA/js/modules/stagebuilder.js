@@ -141,6 +141,7 @@ const stagebuilderModule = {
         // to re-apply on every rebuild, so we clear the channel
         // field (keep slot) the first time the new code runs.
         this._migrateChannelOverrides();
+        this._migrateSingingGuitaristDual();
         this._sbDebugLog('init() re-entry=' + this.initialized +
             ', rosterStatus=' + this.rosterStatus +
             ', userDisconnected=' + this._isUserDisconnected() +
@@ -307,10 +308,21 @@ const stagebuilderModule = {
     _onRosterReceived(data) {
         // Defensive shape validation: roster entries must have a name
         // (WorshipTools declines are filtered upstream by content.js).
+        // Stream + Beamer + Audio assignments are also dropped here —
+        // they have no stage mic/channel, so they'd only pollute the
+        // stage table, the role-based channel rules and the slot
+        // auto-suggest with people nobody can recall. See
+        // _isExcludedRole() for the matching rules.
         const clean = (Array.isArray(data) ? data : []).filter(function (r) {
-            return r && typeof r === 'object' &&
-                   typeof r.name === 'string' && r.name.trim().length > 0;
+            if (!r || typeof r !== 'object' ||
+                typeof r.name !== 'string' || r.name.trim().length === 0) return false;
+            return !stagebuilderModule._isExcludedRole(r.role);
         });
+        const excluded = (Array.isArray(data) ? data : []).length - clean.length;
+        if (excluded > 0) {
+            this._sbDebugLog('roster filter: ' + excluded +
+                ' stream/beamer/audio toewijzing' + (excluded === 1 ? '' : 'en') + ' overgeslagen');
+        }
         // Fingerprint signature — re-render only if changed.
         // (The bridge dispatches roster on each page navigation; sometimes
         //  identical arrays arrive. Skip render in that case for free perf.)
@@ -350,35 +362,93 @@ const stagebuilderModule = {
                 ? obj.slot : null;
             const ch = (Number.isInteger(obj.channel) && obj.channel >= 1 && obj.channel <= 32)
                 ? obj.channel : null;
-            return { slot: slot, channel: ch };
+            // `sings` marks a guitarist who also sings (set via the
+            // per-row "Zingt mee" toggle). Absent / non-boolean
+            // values come back as null so _rebuildRows can derive
+            // the default from the role string instead.
+            const sings = (typeof obj.sings === 'boolean') ? obj.sings : null;
+            // Dual recall: a singing guitarist keeps the guitar part
+            // (slot + channel) AND has a separate vocal part
+            // (voxSlot + voxChannel) for his mic.
+            const voxSlot = (Number.isInteger(obj.voxSlot) && obj.voxSlot >= 0 && obj.voxSlot <= 99)
+                ? obj.voxSlot : null;
+            const voxCh = (Number.isInteger(obj.voxChannel) && obj.voxChannel >= 1 && obj.voxChannel <= 32)
+                ? obj.voxChannel : null;
+            return { slot: slot, channel: ch, sings: sings, voxSlot: voxSlot, voxChannel: voxCh };
         } catch (_) { return null; }
     },
 
-    _saveRowMapping(slug, slot, channel) {
-        // Full save — used by rowChange (operator override). The
-        // channel here is genuinely operator-set, so it should
-        // persist and block the role-based rules on next rebuild.
+    _saveRowMapping(slug, patch) {
+        // Full/partial save — used by rowChange (operator override)
+        // and toggleSings. `patch` is a subset of row fields; every
+        // field present in the patch is written as-is (an explicit
+        // null clears the stored value). Missing fields are left
+        // untouched so a caller that doesn't know about a field
+        // can't wipe it.
         try {
             const payload = { ts: Date.now() };
-            if (slot != null) payload.slot = slot;
-            if (channel != null) payload.channel = channel;
+            if (patch.slot !== undefined) payload.slot = patch.slot;
+            if (patch.channel !== undefined) payload.channel = patch.channel;
+            if (patch.sings !== undefined) payload.sings = !!patch.sings;
+            if (patch.voxSlot !== undefined) payload.voxSlot = patch.voxSlot;
+            if (patch.voxChannel !== undefined) payload.voxChannel = patch.voxChannel;
             localStorage.setItem('ichtus.sb.assign.' + slug, JSON.stringify(payload));
         } catch (_) { /* private mode — silently no-op */ }
     },
 
-    _saveSlotMapping(slug, slot) {
+    _saveSlotMapping(slug, slot, voxSlot) {
         // Slot-only save — used by _autoSuggestPending. Preserves
-        // any existing channel entry (set by rowChange) so the
-        // operator's manual channel override survives the auto-
-        // suggest re-save. The role-based rules will re-derive the
-        // channel for rows that don't have a stored override.
+        // the operator's channel / sings / vox-channel state so the
+        // auto-suggest re-save never clobbers it. The role-based
+        // rules will re-derive channels for rows without overrides.
         try {
             const existing = this._loadRowMapping(slug) || {};
             const payload = { ts: Date.now() };
             if (slot != null) payload.slot = slot;
+            if (voxSlot != null) payload.voxSlot = voxSlot;
             if (existing.channel != null) payload.channel = existing.channel;
+            if (existing.sings != null) payload.sings = existing.sings;
+            if (existing.voxChannel != null) payload.voxChannel = existing.voxChannel;
             localStorage.setItem('ichtus.sb.assign.' + slug, JSON.stringify(payload));
         } catch (_) { /* private mode — silently no-op */ }
+    },
+
+    _migrateSingingGuitaristDual() {
+        // One-time migration for the dual-recall rewrite. The earlier
+        // "Zingt mee" toggle moved the whole row onto a vocal channel
+        // (CH 1-3) and stored {sings:true, channel:<vocal>} with no
+        // vox fields. The new behaviour KEEPS the guitar channel and
+        // adds a separate vocal part, so those rows must have their
+        // channel re-derived (Pass 2 → CH 10, Pass 3 → voxChannel).
+        // Only rows whose stored channel is a vocal-pool channel
+        // (1-3) AND have no vox fields yet are touched — operator
+        // manual picks on other channels are left alone.
+        const flagKey = 'ichtus.sb.singingGuitaristDual.v1';
+        try {
+            if (localStorage.getItem(flagKey) === '1') return;
+        } catch (_) { return; }
+        let migrated = 0;
+        try {
+            for (let i = localStorage.length - 1; i >= 0; i--) {
+                const k = localStorage.key(i);
+                if (!k || k.indexOf('ichtus.sb.assign.') !== 0) continue;
+                try {
+                    const obj = JSON.parse(localStorage.getItem(k));
+                    if (!obj || typeof obj !== 'object') continue;
+                    if (obj.sings === true && obj.voxSlot == null && obj.voxChannel == null &&
+                        Number.isInteger(obj.channel) && obj.channel >= 1 && obj.channel <= 3) {
+                        delete obj.channel;
+                        localStorage.setItem(k, JSON.stringify(obj));
+                        migrated++;
+                    }
+                } catch (_) { /* skip malformed entries */ }
+            }
+        } catch (_) { /* storage disabled — abort */ }
+        try { localStorage.setItem(flagKey, '1'); } catch (_) {}
+        if (migrated > 0) {
+            console.log('[SB] Migration: ' + migrated +
+                ' oude zingende-gitarist-mapping(s) aangepast — dubbele recall (gitaar + zang-mic) actief');
+        }
     },
 
     _rebuildRows() {
@@ -391,13 +461,16 @@ const stagebuilderModule = {
         //  - If the operator has manually set one (localStorage), use it.
         //  - Otherwise leave the channel null and let _assignChannelsByRole
         //    apply the role-based rules (WL only-singing → 1, WL+keys → 4,
-        //    guitarist+vocalist → 5, other vocalists → 1-3, fallback
-        //    roster order). Rows that still end up null after the
-        //    rules (e.g. idx >= 32, past the X32's 32-input limit)
-        //    show "—" in the channel block.
+        //    non-singing guitarist → 10, singing guitarist → 10 + vocal
+        //    voxChannel 1-3, other vocalists → 1-3, fallback roster
+        //    order). Rows that still end up null after the rules
+        //    (e.g. idx >= 32, past the X32's 32-input limit) show
+        //    "—" in the channel block.
         this.rosterRows = this.roster.map(function (entry, idx) {
             const slug = stagebuilderModule._rosterSlug(entry.name, entry.role);
-            const restored = stagebuilderModule._loadRowMapping(slug) || { slot: null, channel: null };
+            const restored = stagebuilderModule._loadRowMapping(slug) || {
+                slot: null, channel: null, sings: null, voxSlot: null, voxChannel: null
+            };
             // Id-based DOM id — sanitize the slug so it's HTML-safe and
             // unique even when the same name has two role assignments.
             const safeSlug = slug.replace(/[^a-z0-9]/g, '');
@@ -413,7 +486,21 @@ const stagebuilderModule = {
                 slot: restored.slot,
                 channel: restored.channel, // null = let role rules decide
                 autoSlot: null,
+                // Dual-recall vocal part (singing guitarists only):
+                // a second preset + channel for the mic, besides the
+                // guitar part. Restored from storage; the channel
+                // rules fill voxChannel when null.
+                voxSlot: restored.voxSlot,
+                voxChannel: restored.voxChannel,
+                voxAutoSlot: null,
                 locked: stagebuilderModule._isLockedRole(entry.role),
+                // Singing guitarists keep their guitar channel AND
+                // get a vocal-mic part. Defaults to the role string
+                // saying so ("Gitarist + Zang"); a stored toggle from
+                // a previous session always wins.
+                sings: restored.sings != null
+                    ? restored.sings
+                    : stagebuilderModule._detectRoles(entry.role).isVocalist,
                 status: 'idle',  // 'idle' | 'pushing' | 'ok' | 'err'
                 lastPushedAt: null,
                 lastPushedSummary: ''
@@ -462,6 +549,33 @@ const stagebuilderModule = {
         return false;
     },
 
+    _isExcludedRole(role) {
+        // Roles that never appear in the Stage Builder table: stream
+        // (livestream/opnames), beamer (projection) and audio (sound
+        // desk) operators have no stage mic/channel of their own, so
+        // assigning them a slot + channel is meaningless. Substring
+        // match on the normalized role name, so "Stream",
+        // "Livestream", "Beamer Team", "Audio" etc. all match.
+        // Empty / null roles are NOT excluded — a blank role falls
+        // through to the editable path.
+        const norm = this._normalizeName(role);
+        if (!norm) return false;
+        return norm.indexOf('stream') !== -1 ||
+               norm.indexOf('beamer') !== -1 ||
+               norm.indexOf('audio') !== -1;
+    },
+
+    _isRowRecallReady(row) {
+        // A row can be recalled when the preset + channel are set —
+        // and for singing guitarists (dual recall) the vocal part
+        // (vox preset + vox channel) must be set too, otherwise the
+        // mic would silently be skipped. Shared by the Push button,
+        // Recall All, the meta line and the badge count.
+        if (row.slot == null || row.channel == null) return false;
+        if (row.sings && (row.voxSlot == null || row.voxChannel == null)) return false;
+        return true;
+    },
+
     _matchesAny(s, keywords) {
         // Small helper: substring match against any of the keywords.
         // Returns false for empty / null input so the caller doesn't
@@ -484,7 +598,10 @@ const stagebuilderModule = {
             isWL:        this._matchesAny(norm, ['worship leader', 'worshipleider', 'worship leider', 'wl']),
             isVocalist:  this._matchesAny(norm, ['vocal', 'vox', 'zang', 'singer', 'sing']),
             isPianist:   this._matchesAny(norm, ['piano', 'key', 'keys', 'keyboard', 'synth', 'organ']),
-            isGuitarist: this._matchesAny(norm, ['guitar', 'gtr', 'gitaar']),
+            // 'gitar' (prefix of the Dutch role words Gitarist / Gitaristen /
+            // Gitariste) alongside 'guitar'/'gtr'/'gitaar' — WorshipTools
+            // roles arrive verbatim, and the operator's planning is Dutch.
+            isGuitarist: this._matchesAny(norm, ['guitar', 'gtr', 'gitaar', 'gitar']),
             isBassist:   this._matchesAny(norm, ['bass']),
             isDrummer:   this._matchesAny(norm, ['drum', 'drums'])
         };
@@ -496,9 +613,11 @@ const stagebuilderModule = {
         //   1. WL rules (special — overrides piano/drum blank):
         //      - WL with any instrument → CH 4
         //      - WL only-singing (no instrument) → CH 1
-        //   2. Guitarist → CH 10 (any guitarist, regardless of vocalist)
+        //   2. Guitarist → CH 10 (guitar channel, kept for ALL guitarists)
         //   2b. Bassist → CH 8 (any bassist, regardless of vocalist)
-        //   3. Other vocalists → CH 1, 2, 3 in order, skipping taken
+        //   3. Vocalists → CH 1, 2, 3 in order, skipping taken;
+        //      singing guitarists get their mic in row.voxChannel
+        //      from the same pool
         //   4. Everyone else → roster order (idx+1, skipping taken)
         // Piano/drum rows (non-WL) get a blank channel — the
         // keyboard/drum inputs are on separate X32 channels that
@@ -524,7 +643,11 @@ const stagebuilderModule = {
         // the first pass — they have row.channel set from localStorage).
         const taken = new Set();
         for (const row of this.rosterRows) {
+            // Both the main channel and (for singing guitarists) the
+            // vocal-mic channel occupy the shared 1..32 pool — a mic
+            // channel can't double as someone's guitar channel.
             if (row.channel != null) taken.add(row.channel);
+            if (row.voxChannel != null) taken.add(row.voxChannel);
         }
         // Build a set of FULL normalized names for everyone in
         // the roster who has an instrument role. A WL row whose
@@ -558,6 +681,14 @@ const stagebuilderModule = {
             taken.add(ch);
             return true;
         };
+        // Same as tryAssign but for the vocal-mic part of a singing
+        // guitarist — fills row.voxChannel instead of row.channel.
+        const tryAssignVox = function (row, ch) {
+            if (taken.has(ch)) return false;
+            row.voxChannel = ch;
+            taken.add(ch);
+            return true;
+        };
         // Pass 1: WL rules (special — no piano/drum skip).
         //   WL with any instrument (pianist / guitarist / bassist
         //   / drummer) → CH 4. WL only-singing (no instrument)
@@ -588,12 +719,11 @@ const stagebuilderModule = {
         }
         // Pass 2: Guitarist → CH 10 (per the operator's spec
         // "the guitar channel should be 10"). Applies to ALL
-        // guitarists regardless of vocalist status — a
-        // guitarist-only row and a guitarist+vocalist row both
-        // land on CH 10. Earlier revisions used the narrower
-        // `isGuitarist && isVocalist` rule (→ CH 5); the new
-        // spec broadens it to any guitarist. If CH 10 is
-        // already taken (e.g. by a prior pass or operator
+        // guitarists regardless of vocalist status — including
+        // singing guitarists: with dual recall they KEEP the
+        // guitar channel for their guitar and get a separate
+        // vocal-mic channel in Pass 3 (row.voxChannel). If CH 10
+        // is already taken (e.g. by a prior pass or operator
         // override), tryAssign returns false and the row falls
         // through to Pass 3 / Pass 4.
         // Piano/drum rows are still skipped — they get a blank
@@ -620,15 +750,25 @@ const stagebuilderModule = {
             if (r.isPianist || r.isDrummer) continue; // blank per spec
             if (r.isBassist) tryAssign(row, 8);
         }
-        // Pass 3: Other vocalists → CH 1, 2, 3 in order, skipping
-        // taken. (WL-only-singing already claimed CH 1 in pass 1,
-        // so the first non-WL vocalist will go to CH 2 if WL is
-        // present, otherwise CH 1.) Piano/drum rows are skipped
-        // (blank channel per spec).
+        // Pass 3: Vocal pool → CH 1, 2, 3 in order, skipping taken.
+        // (WL-only-singing already claimed CH 1 in pass 1, so the
+        // first non-WL vocalist will go to CH 2 if WL is present,
+        // otherwise CH 1.) Plain vocalists get their MAIN channel
+        // here. A singing guitarist already has the guitar channel
+        // (Pass 2) and gets the vocal mic in row.voxChannel instead.
+        // Piano/drum rows are skipped (blank channel per spec).
         for (const row of this.rosterRows) {
-            if (row.channel != null) continue;
             const r = self._detectRoles(row.role);
             if (r.isPianist || r.isDrummer) continue; // blank per spec
+            if (r.isGuitarist) {
+                if (row.sings && row.voxChannel == null && !r.isWL) {
+                    for (const ch of [1, 2, 3]) {
+                        if (tryAssignVox(row, ch)) break;
+                    }
+                }
+                continue; // guitarists are done — the guitar channel came from Pass 2
+            }
+            if (row.channel != null) continue;
             if (r.isVocalist) {
                 for (const ch of [1, 2, 3]) {
                     if (tryAssign(row, ch)) break;
@@ -638,12 +778,29 @@ const stagebuilderModule = {
         // Pass 4: Everyone else → roster order (idx+1, skipping taken,
         // up to idx 31 — past that the X32 has no input strip).
         // Piano/drum rows are skipped (blank channel per spec).
+        // A singing guitarist whose vocal pool (1-3) was exhausted
+        // still gets a free channel for his mic here.
         for (let i = 0; i < this.rosterRows.length; i++) {
             const row = this.rosterRows[i];
-            if (row.channel != null) continue;
             if (i >= 32) continue;
             const r = self._detectRoles(row.role);
             if (r.isPianist || r.isDrummer) continue; // blank per spec
+            if (r.isGuitarist) {
+                if (row.sings && row.voxChannel == null && !r.isWL) {
+                    for (let ch = i + 1; ch <= 32; ch++) {
+                        if (tryAssignVox(row, ch)) break;
+                    }
+                }
+                // Guitarist whose guitar channel (CH 10) was already
+                // taken by another guitarist falls through to the
+                // roster-order fallback below, like any other row.
+                if (row.channel != null) continue;
+                for (let ch = i + 1; ch <= 32; ch++) {
+                    if (tryAssign(row, ch)) break;
+                }
+                continue;
+            }
+            if (row.channel != null) continue;
             for (let ch = i + 1; ch <= 32; ch++) {
                 if (tryAssign(row, ch)) break;
             }
@@ -654,6 +811,9 @@ const stagebuilderModule = {
         for (const row of this.rosterRows) {
             if (row.channel != null) {
                 hist[row.channel] = (hist[row.channel] || 0) + 1;
+            }
+            if (row.voxChannel != null) {
+                hist[row.voxChannel] = (hist[row.voxChannel] || 0) + 1;
             }
         }
         const histStr = Object.keys(hist)
@@ -776,6 +936,40 @@ const stagebuilderModule = {
                 score: c.score
             });
         }
+        // Vocal-preset pass for singing guitarists: same greedy
+        // matching, but writes row.voxSlot instead of row.slot and
+        // shares the boundSlots set so the mic preset never collides
+        // with a preset already claimed by the guitar pass.
+        const voxCandidates = [];
+        for (const row of this.rosterRows) {
+            if (!row.sings || row.voxSlot != null) continue; // not singing / keep sticky
+            for (const p of presets) {
+                if (boundSlots.has(p.slot)) continue; // already claimed
+                const score = this._scoreMatch(row, p);
+                if (score < 20) continue;
+                voxCandidates.push({ row: row, slot: p, score: score });
+            }
+        }
+        voxCandidates.sort(function (a, b) {
+            if (b.score !== a.score) return b.score - a.score;
+            if (a.slot.slot !== b.slot.slot) return a.slot.slot - b.slot.slot;
+            return 0;
+        });
+        const voxMatches = [];
+        for (const c of voxCandidates) {
+            if (c.row.voxSlot != null) continue;
+            if (boundSlots.has(c.slot.slot)) continue;
+            c.row.voxSlot = c.slot.slot;
+            c.row.voxAutoSlot = c.slot.slot;
+            boundSlots.add(c.slot.slot);
+            voxMatches.push({
+                rowName: c.row.name,
+                role: c.row.role,
+                slot: c.slot.slot,
+                slotName: c.slot.name,
+                score: c.score
+            });
+        }
         // Persist auto-suggest results so future re-init keeps them.
         // Use _saveSlotMapping (not _saveRowMapping) so the channel
         // field is preserved as-is — the role-based rules in
@@ -783,7 +977,7 @@ const stagebuilderModule = {
         // and any operator-set channel override (from rowChange) is
         // left untouched.
         for (const r of this.rosterRows) {
-            this._saveSlotMapping(r.slug, r.slot);
+            this._saveSlotMapping(r.slug, r.slot, r.voxSlot);
         }
         // Build the [SB] summary + on-screen toast. The toast is the
         // most important one for the operator — it surfaces
@@ -806,6 +1000,12 @@ const stagebuilderModule = {
             (unmatched.length > 0 ? ' — UNMATCHED: [' + unmatched.map(function (r) {
                 return r.name + '/' + (r.role || '—');
             }).join(', ') + '] (no X32 slot name contained the roster name)' : ''));
+        if (voxMatches.length > 0) {
+            this._sbDebugLog('vocal auto-suggest: ' + voxMatches.length + ' zang-preset(s) — ' +
+                voxMatches.map(function (m) {
+                    return m.rowName + ' → #' + String(m.slot + 1).padStart(3, '0') + ' "' + m.slotName + '"';
+                }).join('; '));
+        }
         if (this.rosterRows.length > 0 && unmatched.length > 0) {
             this.showToast(
                 'Auto-suggest: ' + matched.length + '/' + this.rosterRows.length +
@@ -1123,6 +1323,10 @@ const stagebuilderModule = {
                 row.slot = null;
                 row.autoSlot = null;
             }
+            if (row.voxSlot === row.voxAutoSlot) {
+                row.voxSlot = null;
+                row.voxAutoSlot = null;
+            }
         }
         this._setStatus('Losgekoppeld');
         this._renderConnectionBadge();
@@ -1326,7 +1530,7 @@ const stagebuilderModule = {
         if (this.rosterStatus === 'received' && this.rosterRows.length > 0) {
             const total = this.rosterRows.length;
             const filled = this.rosterRows.filter(function (r) {
-                return r.slot != null && r.channel != null;
+                return stagebuilderModule._isRowRecallReady(r);
             }).length;
             const pollState = this._x32DiscoveredPresets ? 'gepolld' : 'wacht op Poll';
             meta.textContent = total + ' toewijzingen · ' +
@@ -1366,7 +1570,27 @@ const stagebuilderModule = {
             hintHtml +
             '</td>';
 
-        const roleCell = '<td><span class="sb-row-role">' + this.escapeHtml(row.role || '—') + '</span></td>';
+        // Singing-guitarist toggle — some guitarists sing AND play
+        // (they need a vocal-mic channel so their preset can be
+        // recalled on a mic), others only play (guitar channel).
+        // Hidden for locked roles (never guitarists) and worship
+        // leaders (the WL channel rules always win regardless).
+        const dr = this._detectRoles(row.role);
+        const showsSingsToggle = dr.isGuitarist && !row.locked && !dr.isWL;
+        // When singing, the row gets a SECOND preset + channel for
+        // the mic (dual recall) — the guitar part stays untouched.
+        const isSingingGuitarist = showsSingsToggle && row.sings;
+        const singsBtn = showsSingsToggle
+            ? '<button type="button" class="sb-row-sings' + (row.sings ? ' sb-row-sings--on' : '') + '"' +
+              ' onclick="stagebuilderModule.toggleSings(\'' + this.escapeAttr(row.id) + '\')"' +
+              ' aria-pressed="' + (row.sings ? 'true' : 'false') + '"' +
+              ' title="' + (row.sings
+                  ? 'Zingt mee — gitaar blijft op het gitaarkanaal, zang-mic krijgt een eigen preset + kanaal. Klik om de zang-mic uit te zetten.'
+                  : 'Klik als deze gitarist ook (mee)zingt — hij houdt zijn gitaarkanaal en krijgt er een extra zang-mic-preset + kanaal bij.') + '">' +
+              '🎤' +
+              '</button>'
+            : '';
+        const roleCell = '<td><span class="sb-row-role">' + this.escapeHtml(row.role || '—') + '</span>' + singsBtn + '</td>';
 
         // Locked roles (drums / piano / keys / synth / organ) get
         // read-only state blocks — the operator can SEE the auto-
@@ -1374,18 +1598,17 @@ const stagebuilderModule = {
         // them. Everyone else gets an editable <select> dropdown.
         const slotCell   = '<td>' + (row.locked
             ? this._renderSlotLabel(row, hasPoll, hasConflict)
-            : this._renderSlotSelect(row, hasPoll, hasConflict)) + '</td>';
+            : this._renderSlotSelect(row, hasPoll, hasConflict, isSingingGuitarist)) + '</td>';
         const channelCell = '<td>' + (row.locked
             ? this._renderChannelLabel(row)
-            : this._renderChannelSelect(row)) + '</td>';
+            : this._renderChannelSelect(row, isSingingGuitarist)) + '</td>';
 
         // Push button enabled iff a slot was assigned AND the
         // row has a channel. Channel is auto-assigned by roster
         // order (idx+1) up to idx 31, so past the 32nd row it
         // stays null — the Push button is disabled there until
         // the roster is trimmed or a second X32 scene is used.
-        const canPush = (row.slot != null) &&
-                        (row.channel != null) &&
+        const canPush = this._isRowRecallReady(row) &&
                         hasPoll &&
                         (row.status !== 'pushing');
         const btnText =
@@ -1457,68 +1680,100 @@ const stagebuilderModule = {
             String(row.channel).padStart(2, '0') + '</div>';
     },
 
-    _renderSlotSelect(row, hasPoll, hasConflict) {
-        // Editable preset dropdown for non-locked roles. Until the
-        // X32 has been polled, render the same waiting block the
-        // locked branch uses (the operator has no list to pick from
-        // yet — surfacing an empty <select> would be confusing).
+    _renderSlotSelect(row, hasPoll, hasConflict, withVox) {
+        // Editable preset dropdowns for non-locked roles. `withVox`
+        // (singing guitarist) renders a SECOND dropdown below for
+        // the vocal-mic preset (dual recall) — the guitar preset
+        // stays in the main dropdown. Until the X32 has been
+        // polled, render the same waiting block the locked branch
+        // uses (the operator has no list to pick from yet —
+        // surfacing an empty <select> would be confusing).
         if (!hasPoll) {
-            return '<div class="sb-row-slot-block sb-row-slot-block--waiting">' +
+            const mainWaiting = '<div class="sb-row-slot-block sb-row-slot-block--waiting">' +
                 '<span class="sb-row-slot-block__hint">Wacht op Poll…</span>' +
                 '</div>';
+            const voxWaiting = withVox
+                ? '<div class="sb-row-vox"><span class="sb-row-vox-label">🎤 zang-preset</span>' + mainWaiting + '</div>'
+                : '';
+            return mainWaiting + voxWaiting;
         }
         const presets = this._x32DiscoveredPresets || {};
-        let optionsHtml = '<option value="">— geen preset —</option>';
-        // Iterate every slot the X32 reports. The 1-based slot key
-        // matches the X32's /libslot indexing (1..100). Empty slots
-        // are still listed (with "(leeg)" suffix) so the operator
-        // can intentionally aim at them if they want; the bridge
-        // rejects empties with a clear toast at Push time.
-        for (let i = 0; i < 100; i++) {
-            const k = String(i + 1).padStart(3, '0');
-            const info = presets[k];
-            if (!info) continue;
-            const isEmpty = info.hasdata === false;
-            const name = (info.name || '').trim() || ('(slot ' + k + ')');
-            const selected = (row.slot === i) ? ' selected' : '';
-            const label = k + ' · ' + name + (isEmpty ? ' (leeg)' : '');
-            optionsHtml += '<option value="' + i + '"' + selected + '>' +
-                this.escapeHtml(label) + '</option>';
-        }
+        const buildOptions = function (selectedSlot) {
+            let o = '<option value="">— geen preset —</option>';
+            // Iterate every slot the X32 reports. The 1-based slot
+            // key matches the X32's /libslot indexing (1..100).
+            // Empty slots are still listed (with "(leeg)" suffix)
+            // so the operator can intentionally aim at them; the
+            // bridge rejects empties with a clear toast at Push.
+            for (let i = 0; i < 100; i++) {
+                const k = String(i + 1).padStart(3, '0');
+                const info = presets[k];
+                if (!info) continue;
+                const isEmpty = info.hasdata === false;
+                const name = (info.name || '').trim() || ('(slot ' + k + ')');
+                const selected = (selectedSlot === i) ? ' selected' : '';
+                const label = k + ' · ' + name + (isEmpty ? ' (leeg)' : '');
+                o += '<option value="' + i + '"' + selected + '>' +
+                    stagebuilderModule.escapeHtml(label) + '</option>';
+            }
+            return o;
+        };
         const extraClass = hasConflict ? ' sb-conflict-amber' : '';
-        return '<select class="sb-row-slot' + extraClass + '"' +
-            ' data-row-id="' + this.escapeAttr(row.id) + '"' +
-            ' onchange="stagebuilderModule.rowChange(\'' + this.escapeAttr(row.id) +
-            '\', \'slot\', this.value)">' + optionsHtml + '</select>';
+        const idAttr = this.escapeAttr(row.id);
+        const mainSelect = '<select class="sb-row-slot' + extraClass + '"' +
+            ' data-row-id="' + idAttr + '"' +
+            ' onchange="stagebuilderModule.rowChange(\'' + idAttr +
+            '\', \'slot\', this.value)">' + buildOptions(row.slot) + '</select>';
+        const voxSelect = withVox
+            ? '<div class="sb-row-vox">' +
+              '<span class="sb-row-vox-label">🎤 zang-preset</span>' +
+              '<select class="sb-row-slot sb-row-vox-slot"' +
+              ' data-row-id="' + idAttr + '"' +
+              ' onchange="stagebuilderModule.rowChange(\'' + idAttr +
+              '\', \'voxSlot\', this.value)">' + buildOptions(row.voxSlot) + '</select>' +
+              '</div>'
+            : '';
+        return mainSelect + voxSelect;
     },
 
-    _renderChannelSelect(row) {
-        // Editable channel dropdown for non-locked roles. Channels
+    _renderChannelSelect(row, withVox) {
+        // Editable channel dropdowns for non-locked roles. Channels
         // 1..32 mirror the X32's input strips. The selected value
         // is the row's current channel assignment (auto-assigned by
-        // roster order in _rebuildRows, or restored from a previous
-        // operator override via localStorage). Rows past idx 31
-        // (the 32nd entry) have row.channel = null — the X32 has
-        // only 32 input strips. In that case we render a disabled
-        // "—" placeholder as the selected option so the operator
-        // doesn't see a misleading "CH 01" by default. The select
-        // is also disabled in this state — the canPush gate at the
-        // row level also disables Push until the channel is set.
-        if (row.channel == null) {
-            return '<select class="sb-row-channel" disabled>' +
-                '<option selected>—</option>' +
-                '</select>';
-        }
-        let optionsHtml = '';
-        for (let ch = 1; ch <= 32; ch++) {
-            const selected = (row.channel === ch) ? ' selected' : '';
-            const label = 'CH ' + String(ch).padStart(2, '0');
-            optionsHtml += '<option value="' + ch + '"' + selected + '>' + label + '</option>';
-        }
-        return '<select class="sb-row-channel"' +
-            ' data-row-id="' + this.escapeAttr(row.id) + '"' +
-            ' onchange="stagebuilderModule.rowChange(\'' + this.escapeAttr(row.id) +
-            '\', \'channel\', this.value)">' + optionsHtml + '</select>';
+        // the role rules in _assignChannelsByRole, or restored from
+        // a previous operator override via localStorage). Rows past
+        // idx 31 (the 32nd entry) stay null — the X32 has only 32
+        // input strips — and render a disabled "—" placeholder; the
+        // canPush gate disables Push until the channel is set.
+        // `withVox` (singing guitarist) adds a SECOND dropdown for
+        // the vocal-mic channel (dual recall).
+        const buildOptions = function (selectedCh) {
+            if (selectedCh == null) {
+                return '<option selected>—</option>';
+            }
+            let o = '';
+            for (let ch = 1; ch <= 32; ch++) {
+                const selected = (selectedCh === ch) ? ' selected' : '';
+                const label = 'CH ' + String(ch).padStart(2, '0');
+                o += '<option value="' + ch + '"' + selected + '>' + label + '</option>';
+            }
+            return o;
+        };
+        const idAttr = this.escapeAttr(row.id);
+        const mainSelect = '<select class="sb-row-channel"' + (row.channel == null ? ' disabled' : '') +
+            ' data-row-id="' + idAttr + '"' +
+            ' onchange="stagebuilderModule.rowChange(\'' + idAttr +
+            '\', \'channel\', this.value)">' + buildOptions(row.channel) + '</select>';
+        const voxSelect = withVox
+            ? '<div class="sb-row-vox">' +
+              '<span class="sb-row-vox-label">🎤 zang-kanaal</span>' +
+              '<select class="sb-row-channel sb-row-vox-channel"' + (row.voxChannel == null ? ' disabled' : '') +
+              ' data-row-id="' + idAttr + '"' +
+              ' onchange="stagebuilderModule.rowChange(\'' + idAttr +
+              '\', \'voxChannel\', this.value)">' + buildOptions(row.voxChannel) + '</select>' +
+              '</div>'
+            : '';
+        return mainSelect + voxSelect;
     },
 
     rowChange(rowId, field, value) {
@@ -1543,30 +1798,107 @@ const stagebuilderModule = {
             // the next render will flip isAutoOriginal off and
             // isAutoOverridden on, showing the "handmatig (auto was
             // #XXX)" hint instead.
-            this._saveRowMapping(row.slug, row.slot, row.channel);
         } else if (field === 'channel') {
             const n = parseInt(value, 10);
             row.channel = (Number.isInteger(n) && n >= 1 && n <= 32) ? n : null;
-            this._saveRowMapping(row.slug, row.slot, row.channel);
+        } else if (field === 'voxSlot') {
+            // Vocal-mic preset (singing guitarist, dual recall).
+            if (value === '' || value == null) {
+                row.voxSlot = null;
+            } else {
+                const n = parseInt(value, 10);
+                row.voxSlot = (Number.isInteger(n) && n >= 0 && n <= 99) ? n : null;
+            }
+        } else if (field === 'voxChannel') {
+            const n = parseInt(value, 10);
+            row.voxChannel = (Number.isInteger(n) && n >= 1 && n <= 32) ? n : null;
         } else {
             return;
         }
+        // Persist the full row mapping (patch semantics — explicit
+        // nulls clear stored values).
+        this._saveRowMapping(row.slug, {
+            slot: row.slot,
+            channel: row.channel,
+            sings: row.sings,
+            voxSlot: row.voxSlot,
+            voxChannel: row.voxChannel
+        });
         this._renderRosterOrEmpty();
+    },
+
+    toggleSings(rowId) {
+        // Per-row fallback for guitarists who sing AND play. The
+        // role rules give every guitarist the guitar channel
+        // (CH 10); a guitarist who also sings gets an ADDITIONAL
+        // vocal-mic part (dual recall): a second preset + channel
+        // for his mic. Turning the toggle off removes the vocal
+        // part again — the guitar channel is untouched either way.
+        // The operator can still pick any exact channel with the
+        // channel dropdowns afterwards; those picks persist.
+        const row = this.rosterRows.find(function (r) { return r.id === rowId; });
+        if (!row || row.locked) return;
+        row.sings = !row.sings;
+        if (row.sings) {
+            // On: keep the guitar channel, add a mic part. Reset the
+            // vox channel so the rules re-pick it; keep the operator's
+            // vox preset choice if they had one from before.
+            row.voxChannel = null;
+        } else {
+            // Off: drop the vocal part entirely.
+            row.voxSlot = null;
+            row.voxAutoSlot = null;
+            row.voxChannel = null;
+        }
+        this._saveRowMapping(row.slug, {
+            slot: row.slot,
+            channel: row.channel,
+            sings: row.sings,
+            voxSlot: row.voxSlot,
+            voxChannel: row.voxChannel
+        });
+        this._assignChannelsByRole();
+        this._renderRosterOrEmpty();
+        const chStr = row.channel != null
+            ? 'CH ' + String(row.channel).padStart(2, '0')
+            : '';
+        const voxStr = row.voxChannel != null
+            ? ' + zang CH ' + String(row.voxChannel).padStart(2, '0')
+            : '';
+        this.showToast(
+            row.sings
+                ? '✓ ' + row.name + ' zingt mee — ' + chStr + voxStr + '. Kies de zang-preset en druk op Recall.'
+                : '✓ ' + row.name + ' speelt alleen — ' + chStr + ' (gitaar).',
+            'success'
+        );
     },
 
     async pushRow(rowId, opts) {
         // `opts.silent`: suppress the per-row success/failure toast.
-        // Used by pushAll() so a 7-row batch doesn't fire 7 toasts —
+        // Used by pushAll() so a batch doesn't fire one toast per row —
         // the batch shows ONE summary toast at the end instead.
         // The visual row status (pushing / ok / err) still flips
         // so the operator sees live progress in the table.
         const silent = !!(opts && opts.silent);
         const row = this.rosterRows.find(function (r) { return r.id === rowId; });
         if (!row) return;
-        if (row.slot == null || row.channel == null) {
+        // Dual recall: a singing guitarist pushes BOTH the guitar
+        // preset (guitar channel) AND the vocal preset (mic channel).
+        // Build the part list up front so validation covers both.
+        const parts = [{ slot: row.slot, channel: row.channel }];
+        if (row.sings && row.voxSlot != null && row.voxChannel != null) {
+            parts.push({ slot: row.voxSlot, channel: row.voxChannel });
+        }
+        // Gate on the same recall-ready rule as the Push button and
+        // Recall All: a singing guitarist needs BOTH the guitar part
+        // AND the vocal part, otherwise a silent half-recall would
+        // leave the mic without a preset.
+        if (!this._isRowRecallReady(row)) {
             if (!silent) {
                 this.showToast(
-                    'Kies eerst een kanaal én een preset voor ' + row.name + '.',
+                    row.sings
+                        ? 'Vul voor ' + row.name + ' eerst de zang-preset én het zang-kanaal in (naast gitaar-preset + kanaal) — dan volgen beide recalls.'
+                        : 'Kies eerst een kanaal én een preset voor ' + row.name + '.',
                     'error'
                 );
             }
@@ -1576,11 +1908,15 @@ const stagebuilderModule = {
             if (!silent) this.showToast('X32 niet gepolld — klik Poll.', 'error');
             return;
         }
-        const slotKey = String(row.slot + 1).padStart(3, '0');
-        const info = this._x32DiscoveredPresets[slotKey] || null;
-        if (info && info.hasdata === false) {
-            if (!silent) this.showToast('Slot ' + slotKey + ' is leeg op de X32 — recall geannuleerd.', 'error');
-            return;
+        // Reject empty X32 slots up front, before any recall fires —
+        // the same silent-drop guard as before, now per part.
+        for (const p of parts) {
+            const slotKey = String(p.slot + 1).padStart(3, '0');
+            const info = this._x32DiscoveredPresets[slotKey] || null;
+            if (info && info.hasdata === false) {
+                if (!silent) this.showToast('Slot ' + slotKey + ' is leeg op de X32 — recall geannuleerd.', 'error');
+                return;
+            }
         }
         if (this._x32BridgeFetchInFlight) {
             if (!silent) this.showToast('Push al bezig — wacht even.', 'error');
@@ -1594,20 +1930,35 @@ const stagebuilderModule = {
         const ip = this._getX32Ip();
         const ctrl = this._x32AddPending('recall');
         try {
-            const r = await fetch(this._x32BridgeEndpoint, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ ip: ip, channel: row.channel, slot: row.slot }),
-                signal: ctrl ? ctrl.signal : undefined
-            });
-            if (!r.ok) {
-                const errData = await r.json().catch(function () { return {}; });
-                throw new Error(errData.error || ('HTTP ' + r.status));
+            const presets = this._x32DiscoveredPresets || {};
+            const fired = []; // [{channel, slotKey, name}]
+            for (let i = 0; i < parts.length; i++) {
+                const p = parts[i];
+                const r = await fetch(this._x32BridgeEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, channel: p.channel, slot: p.slot }),
+                    signal: ctrl ? ctrl.signal : undefined
+                });
+                if (!r.ok) {
+                    const errData = await r.json().catch(function () { return {}; });
+                    throw new Error(errData.error || ('HTTP ' + r.status));
+                }
+                const slotKey = String(p.slot + 1).padStart(3, '0');
+                const info = presets[slotKey] || null;
+                const baseName = (info && info.name) ? String(info.name).trim() : '';
+                fired.push({ channel: p.channel, slotKey: slotKey, name: baseName });
+                // Small delay between the two recalls of a dual push
+                // so the X32 doesn't drop the second /libchan round-trip.
+                if (i < parts.length - 1) {
+                    await new Promise(function (resolve) { setTimeout(resolve, 80); });
+                }
             }
-            const baseName = (info && info.name) ? String(info.name).trim() : '';
             row.status = 'ok';
             row.lastPushedAt = Date.now();
-            row.lastPushedSummary = slotKey + ' · ' + baseName;
+            row.lastPushedSummary = fired.map(function (f) {
+                return f.slotKey + ' · ' + (f.name || '(naamloos)');
+            }).join(' + ');
             const self = this;
             setTimeout(function () {
                 if (row.status === 'ok') {
@@ -1617,12 +1968,16 @@ const stagebuilderModule = {
             }, 2400);
             if (!silent) {
                 this.showToast(
-                    '✓ ' + row.name + ' → CH ' + String(row.channel).padStart(2, '0') +
-                    ' met preset ' + slotKey + (baseName ? ' (' + baseName + ')' : '') + ' @ ' + ip,
+                    '✓ ' + row.name + ' → ' + fired.map(function (f) {
+                        return 'CH ' + String(f.channel).padStart(2, '0') +
+                            ' (' + (f.name || f.slotKey) + ')';
+                    }).join(' + '),
                     'success'
                 );
             }
-            console.log('[SB] Recall row', row.id, { ip: ip, channel: row.channel, slot: row.slot });
+            console.log('[SB] Recall row', row.id, fired.map(function (f) {
+                return { channel: f.channel, slot: f.slotKey };
+            }), { ip: ip });
             this._renderRosterOrEmpty();
         } catch (err) {
             if (err && err.name === 'AbortError') return;
@@ -1674,14 +2029,15 @@ const stagebuilderModule = {
             this.showToast('X32 niet gepolld — klik Poll eerst.', 'error');
             return;
         }
-        // Eligible rows: have BOTH a slot and a channel. Locked-role
-        // rows (drums / piano / keys) ARE eligible — they have
-        // auto-assigned channels via _assignChannelsByRole. The X32
-        // will simply not have a preset on their slot if the operator
-        // didn't save one, and the bridge will reject with a clear
-        // error (counted as 'err' in the summary).
+        // Eligible rows: preset + channel set (and for singing
+        // guitarists the vocal part too — see _isRowRecallReady).
+        // Locked-role rows (drums / piano / keys) ARE eligible —
+        // they have auto-assigned channels via _assignChannelsByRole.
+        // The X32 will simply not have a preset on their slot if the
+        // operator didn't save one, and the bridge will reject with
+        // a clear error (counted as 'err' in the summary).
         const ready = this.rosterRows.filter(function (r) {
-            return r.slot != null && r.channel != null;
+            return stagebuilderModule._isRowRecallReady(r);
         });
         if (ready.length === 0) {
             this.showToast(
@@ -1791,7 +2147,7 @@ const stagebuilderModule = {
             return;
         }
         const ready = this.rosterRows.filter(function (r) {
-            return r.slot != null && r.channel != null;
+            return stagebuilderModule._isRowRecallReady(r);
         });
         const readyCount = ready.length;
         const totalCount = this.rosterRows.length;
@@ -1887,6 +2243,9 @@ const stagebuilderModule = {
             row.slot = null;
             row.autoSlot = null;
             row.channel = null;
+            row.voxSlot = null;
+            row.voxAutoSlot = null;
+            row.voxChannel = null;
             row.status = 'idle';
             row.lastPushedAt = null;
             row.lastPushedSummary = '';
@@ -2061,9 +2420,12 @@ const stagebuilderModule = {
                 return {
                     name: r.name,
                     role: r.role,
+                    sings: r.sings === true,
                     slot: r.slot == null ? '—' : '#' + String(r.slot + 1).padStart(3, '0'),
                     autoSlot: r.autoSlot == null ? '—' : '#' + String(r.autoSlot + 1).padStart(3, '0'),
                     channel: r.channel == null ? '—' : 'CH ' + String(r.channel).padStart(2, '0'),
+                    voxSlot: r.voxSlot == null ? '—' : '#' + String(r.voxSlot + 1).padStart(3, '0'),
+                    voxChannel: r.voxChannel == null ? '—' : 'CH ' + String(r.voxChannel).padStart(2, '0'),
                     status: r.status
                 };
             }),
