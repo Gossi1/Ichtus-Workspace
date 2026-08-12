@@ -1,0 +1,2512 @@
+/* ============================================
+   DASHBOARD STYLES — Grid, widgets, edit mode
+   ============================================ */
+
+/* ==================== MIC & IEM MONITOR STYLES ==================== */
+/* ==================== MIC & IEM MONITOR STYLES ==================== */
+
+/* ── Grid container ── */
+.mic-monitor-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    grid-auto-rows: 1fr;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ── Individual Mic Card ── */
+.mic-card {
+    border-radius: 10px;
+    overflow: hidden;
+    background: #1e1e1e;
+    border: 1px solid #333;
+    display: flex;
+    flex-direction: column;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.mic-card:hover {
+    border-color: var(--ichtus-orange, #f47920);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* Photo area at top of card */
+.mic-card-photo {
+    position: relative;
+    width: 100%;
+    height: 65%;
+    background-size: cover;
+    background-position: center 30%;
+    flex-shrink: 0;
+}
+
+/* Dark gradient overlay at top of photo (like template) */
+.mic-card-photo::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 40%;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.5) 0%, rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+    z-index: 1;
+}
+
+/* Info area below photo */
+.mic-card-info {
+    padding: 0.6rem 0.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    flex: 1;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.mic-badge {
+    position: absolute;
+    top: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Blockprint', sans-serif;
+    font-size: 0.85rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #ffffff;
+    background: transparent;
+    padding: 0;
+    border-radius: 0;
+    text-transform: uppercase;
+    white-space: nowrap;
+    z-index: 2;
+}
+
+.mic-name {
+    color: white;
+    font-size: 1.1rem;
+    font-weight: 700;
+    line-height: 1.2;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mic-iem {
+    color: #94a3b8; /* slate-400 */
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.mic-frequency {
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    color: #60a5fa; /* blue-400 */
+    font-weight: 600;
+}
+
+/* ── Edit Mode Elements ── */
+.mic-card-header {
+    margin-bottom: 1rem;
+    text-align: left;
+    border-bottom: 2px solid #333;
+    padding-bottom: 0.5rem;
+}
+
+.mic-label {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    color: #888;
+    text-transform: uppercase;
+}
+
+.mic-edit-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+}
+
+.mic-edit-row {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.mic-edit-row label {
+    font-size: 0.75rem;
+    color: #9ca3af;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+}
+
+.mic-input {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid #555;
+    border-radius: 6px;
+    color: white;
+    padding: 0.5rem 0.6rem;
+    font-size: 0.85rem;
+    font-family: 'Courier New', monospace;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.mic-input:focus {
+    border-color: var(--ichtus-blue, #0061af);
+    box-shadow: 0 0 0 3px rgba(0, 97, 175, 0.15);
+}
+
+/* ── Loading state ── */
+.mic-monitor-grid .pp-loading {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem;
+    color: #666;
+    font-size: 0.85rem;
+}
+
+/* ── Widget header button ── */
+
+/* ================ FLIP CARD STYLES ================ */
+.mic-flip-card {
+    perspective: 1000px;
+    cursor: pointer;
+    min-height: 140px;
+    height: 100%;
+}
+
+.mic-flip-card:hover:not(.flipped) .mic-flip-inner {
+    box-shadow: 0 0 0 2px rgba(244, 121, 32, 0.5);
+}
+
+.mic-flip-inner {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    min-height: 140px;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-style: preserve-3d;
+    border-radius: 10px;
+}
+
+.mic-flip-card.flipped .mic-flip-inner {
+    transform: rotateY(180deg);
+}
+
+.mic-flip-front,
+.mic-flip-back {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.mic-flip-front {
+    z-index: 2;
+}
+
+.mic-flip-back {
+    transform: rotateY(180deg);
+    background: #252525;
+    border: 1px solid var(--ichtus-blue, #0061af);
+    display: flex;
+    flex-direction: column;
+    padding: 1rem;
+    justify-content: center;
+}
+
+
+/* ==================== DASHBOARD STYLES ==================== */
+/* ==================== DASHBOARD STYLES ==================== */
+
+#view-dashboard {
+    display: none;
+    background: var(--bg-main);
+    height: 100vh;
+    overflow: hidden;
+    padding: 10px;
+    box-sizing: border-box;
+}
+
+#view-dashboard.active {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==================== HEADER WRAPPER (Sticky + Collapse) ==================== */
+.header-wrapper {
+    position: sticky;
+    top: 0;
+    z-index: 500;
+    background: var(--bg-main);
+    border-bottom: none;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-wrapper.collapsed {
+    transform: translateY(-100%);
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 24px;
+    gap: 16px;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+/* ==================== CUSTOM DROPDOWN ==================== */
+.custom-dropdown {
+    position: relative;
+    min-width: 220px;
+    user-select: none;
+}
+
+.dropdown-trigger {
+    background: var(--bg-btn-header);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    padding: 8px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-family: 'PMN Caecilia', serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.dropdown-trigger:hover {
+    border-color: var(--ichtus-orange);
+    background: #2a2a2a;
+}
+
+.dropdown-arrow {
+    font-size: 10px;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+}
+
+.custom-dropdown.open .dropdown-arrow {
+    transform: rotate(180deg);
+}
+
+.dropdown-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    width: 100%;
+    background: var(--bg-btn-header);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 6px;
+    display: none;
+    z-index: 600;
+    overflow: hidden;
+}
+
+.custom-dropdown.open .dropdown-menu {
+    display: block;
+}
+
+.dropdown-option {
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    color: var(--text-main);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-option:hover {
+    background: rgba(244, 121, 32, 0.15);
+    color: var(--ichtus-orange);
+}
+
+.dropdown-option.selected {
+    background: var(--ichtus-orange);
+    color: #fff;
+}
+
+.dropdown-divider {
+    height: 1px;
+    background: var(--border-light);
+    margin: 6px 0;
+}
+
+.dropdown-option.action-create {
+    color: var(--ichtus-orange);
+    font-weight: 600;
+}
+
+.dropdown-option.action-create:hover {
+    background: var(--ichtus-orange);
+    color: #fff;
+}
+
+/* ==================== BUTTONS ==================== */
+.btn-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btn {
+    background-color: var(--ichtus-orange);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+    font-family: 'PMN Caecilia', serif;
+}
+
+.btn:hover { background-color: #e06a15; }
+.btn:active { transform: scale(0.98); }
+
+.btn-secondary {
+    background-color: var(--border-light);
+    color: var(--text-muted);
+}
+
+.btn-secondary:hover { background-color: #5a5a5c; }
+
+/* Square Rounded Icon Buttons */
+.btn-icon-square {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bg-btn-header);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    color: #ffffff;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-icon-square svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: #ffffff;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.btn-icon-square:hover {
+    background-color: #2a2a2a;
+    border-color: var(--ichtus-orange);
+}
+
+.btn-icon-square.active {
+    background-color: var(--ichtus-orange);
+    border-color: var(--ichtus-orange);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 11px;
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.4);
+}
+
+.btn-icon-square.active svg {
+    stroke: #ffffff;
+}
+
+.dash-edit-btn {
+    min-width: 110px;
+    justify-content: center;
+    gap: 4px;
+    font-family: 'PMN Caecilia', serif;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.btn-toggle-header {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.header-wrapper.collapsed .btn-toggle-header {
+    transform: translateY(100%);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+}
+
+/* Legacy support */
+.dash-header-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 1.3rem;
+    padding: 0;
+    line-height: 1;
+}
+
+.dash-header-btn.active {
+    color: var(--ichtus-orange);
+}
+
+.dash-header-btn:hover {
+    color: var(--ichtus-orange);
+    transform: scale(1.05);
+}
+
+.custom-select-container {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    display: inline-block;
+}
+
+.custom-select-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 12px;
+    font-size: 0.9rem;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-main);
+    font-family: inherit;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.custom-select-trigger:hover {
+    border-color: var(--ichtus-orange);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.custom-select-arrow-line {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-right: 2px solid var(--text-secondary, #9ca3af);
+    border-bottom: 2px solid var(--text-secondary, #9ca3af);
+    transform: rotate(45deg);
+    transition: transform 0.25s ease;
+    flex-shrink: 0;
+}
+
+.custom-select-container.open .custom-select-arrow-line {
+    transform: rotate(-135deg);
+}
+
+.custom-select-options {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    min-width: 100%;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    z-index: 1000;
+    margin-top: 4px;
+    overflow: hidden;
+}
+
+.custom-select-options.show {
+    display: block;
+}
+
+.custom-option {
+    padding: 8px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    white-space: nowrap;
+    color: var(--text-main);
+    font-family: inherit;
+    transition: background 0.15s;
+}
+
+.custom-option:hover {
+    background: rgba(244, 121, 32, 0.15);
+    color: var(--ichtus-orange);
+}
+
+/* Layout manage modal */
+.layout-manage-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.layout-manage-modal.hidden {
+    display: none;
+}
+
+.layout-manage-content {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-width: 320px;
+    max-width: 400px;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+}
+
+.layout-manage-content h3 {
+    color: var(--ichtus-orange);
+    font-family: 'Blockprint', sans-serif;
+    font-size: 1.2rem;
+    margin: 0 0 1rem 0;
+    text-align: center;
+}
+
+.layout-manage-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 250px;
+    overflow-y: auto;
+}
+
+.layout-manage-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+    gap: 0.5rem;
+}
+
+.layout-manage-item:last-child {
+    border-bottom: none;
+}
+
+.layout-manage-item .layout-name {
+    flex: 1;
+    text-align: left;
+    color: var(--text-main);
+    font-size: 0.9rem;
+}
+
+.layout-manage-item .layout-actions {
+    display: flex;
+    gap: 0.3rem;
+}
+
+.layout-manage-item .layout-actions button {
+    background: none;
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    padding: 0;
+    transition: all 0.2s ease;
+}
+
+.layout-manage-item .layout-actions .rename-btn:hover {
+    background: var(--ichtus-blue);
+    border-color: var(--ichtus-blue);
+    color: white;
+}
+
+.layout-manage-item .layout-actions .duplicate-btn:hover {
+    background: var(--ichtus-green);
+    border-color: var(--ichtus-green);
+    color: white;
+}
+
+.layout-manage-item .layout-actions .delete-btn:hover {
+    background: var(--ichtus-red);
+    border-color: var(--ichtus-red);
+    color: white;
+}
+
+.layout-manage-close {
+    display: block;
+    margin: 1rem auto 0;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-light);
+    color: var(--text-main);
+    padding: 0.5rem 1.5rem;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.layout-manage-close:hover {
+    background: var(--ichtus-orange);
+    color: white;
+    border-color: var(--ichtus-orange);
+}
+
+.dashboard-title {
+    font-size: 2.5rem;
+    color: var(--ichtus-orange);
+    margin: 0 0 0.5rem 0;
+    letter-spacing: 0.05em;
+}
+
+.dashboard-subtitle {
+    color: #aaa;
+    font-size: 1rem;
+    margin: 0;
+}
+
+.widget-grid {
+    display: grid;
+    grid-template-columns: repeat(36, 1fr);
+    grid-auto-rows: 20px;
+    gap: 12px;
+    position: relative;
+    flex: 1;
+    align-items: start;
+    overflow: hidden;
+    border-radius: 0;
+    border: 1px solid transparent;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.widget-grid.edit-mode {
+    background-color: var(--bg-main);
+    background-image: radial-gradient(rgba(255, 255, 255, 0.15) 1.5px, transparent 1.5px);
+    background-size: 32px 32px;
+    background-position: 10px 10px;
+    border: 1px dashed rgba(244, 121, 32, 0.25);
+    border-radius: 8px;
+}
+
+.dash-add-widget-btn {
+    display: none;
+    position: relative;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.5rem;
+    font-weight: 300;
+    line-height: 1;
+    cursor: pointer;
+    padding: 0;
+    z-index: 10;
+}
+
+.widget-picker {
+    position: fixed;
+    z-index: 1000;
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    padding: 0.4rem;
+    min-width: 180px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.widget-picker-item {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 0.75rem;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: var(--text-main);
+    font-size: 0.9rem;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: left;
+    transition: background 0.15s ease;
+    white-space: nowrap;
+}
+
+.widget-picker-item:hover {
+    background: color-mix(in srgb, var(--accent) 15%, var(--bg-card));
+    color: var(--accent);
+}
+
+.widget-picker-icon {
+    font-size: 1.1rem;
+    flex-shrink: 0;
+}
+
+.widget-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    align-self: stretch;
+}
+
+/* ProPresenter widget: override huge inline min-height so body scrolling works */
+.widget-card[data-widget-id="propresenter"] {
+    min-height: 0 !important;
+}
+
+
+
+.edit-mode .widget-card,
+.widget-card.editing {
+    background: var(--bg-card);
+    border: 1px solid var(--border-light);
+    border-radius: 12px;
+    box-shadow: none;
+    transition: border-color 0.2s ease;
+}
+
+.edit-mode .widget-card:hover,
+.widget-card.editing:hover {
+    box-shadow: none;
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+.edit-mode .widget-card.interacting,
+.widget-card.editing.interacting {
+    box-shadow: none;
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+.widget-card.interacting {
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+    border-color: var(--ichtus-orange, #f47920);
+    z-index: 999;
+    transition: box-shadow 0.15s ease;
+}
+
+/* Grid overlay — shows cell boundaries in edit mode */
+.widget-delete-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    z-index: 10;
+    background: none;
+    border: none;
+    color: #94a3b8;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    opacity: 0.7;
+    transition: opacity 0.15s, color 0.15s;
+}
+
+.widget-delete-btn:hover {
+    opacity: 1;
+    color: #f87171;
+}
+
+/* ==================== EDIT MODE OVERLAY ==================== */
+.edit-overlay {
+    display: none;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 20;
+    background: rgba(30, 41, 59, 0.95);
+    border: 2px dashed var(--ichtus-orange, #f47920);
+    border-radius: 12px;
+    cursor: grab;
+    user-select: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+body.is-editing .edit-overlay {
+    display: flex;
+    pointer-events: none;
+}
+body.is-editing .edit-overlay .overlay-top-left,
+body.is-editing .edit-overlay .overlay-top-right {
+    pointer-events: auto;
+}
+
+/* Hide widget body content when overlay is active */
+body.is-editing .widget-body {
+    visibility: hidden;
+}
+
+.overlay-top-left {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 21;
+}
+
+.overlay-top-right {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 21;
+}
+
+.overlay-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    pointer-events: none;
+}
+
+.overlay-title {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #f8fafc;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    text-align: center;
+}
+
+.overlay-subtitle {
+    font-size: 0.7rem;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+
+.overlay-zoom .widget-zoom-control {
+    display: flex;
+    background: rgba(15, 23, 42, 0.8);
+    border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.btn-delete {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #f87171;
+    font-size: 18px;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.btn-delete:hover {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+}
+
+/* Dashboard custom confirm modal */
+.dash-confirm-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    z-index: 9999;
+}
+
+.dash-confirm-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--bg-card, #1e1e1e);
+    border: 1px solid var(--border-light, #333);
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-width: 300px;
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    z-index: 10000;
+}
+
+.dash-confirm-modal p {
+    margin: 0 0 1.25rem 0;
+    font-size: 1rem;
+    color: var(--text-main, #e0e0e0);
+    line-height: 1.4;
+}
+
+.dash-confirm-buttons {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: flex-end;
+}
+
+.dash-confirm-buttons button {
+    border: none;
+    padding: 0.6rem 1.25rem;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-family: inherit;
+    font-weight: 500;
+    transition: opacity 0.15s;
+}
+
+.dash-confirm-buttons button:hover {
+    opacity: 0.85;
+}
+
+.dash-confirm-cancel {
+    background: transparent;
+    color: var(--text-secondary, #aaa);
+    border: 1px solid var(--border-light, #555) !important;
+}
+
+.dash-confirm-ok {
+    background: #e74c3c;
+    color: #fff;
+}
+
+/* Widget resize handle (visible in edit mode) */
+.widget-resize-handle {
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 16px;
+    height: 16px;
+    cursor: se-resize;
+    z-index: 25;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.widget-resize-handle::after {
+    content: '';
+    position: absolute;
+    right: 3px;
+    bottom: 3px;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid var(--ichtus-orange, #f47920);
+    border-bottom: 2px solid var(--ichtus-orange, #f47920);
+}
+
+/* Show grab cursor on widget cards in edit mode */
+.edit-mode .widget-card {
+    cursor: grab;
+}
+
+.edit-mode .widget-card:active {
+    cursor: grabbing;
+}
+
+
+
+.widget-card:hover .widget-resize-handle {
+    opacity: 1;
+}
+
+/* Show resize handle when edit mode is active */
+.edit-mode .widget-resize-handle {
+    opacity: 0.6;
+}
+
+.edit-mode .widget-card:hover .widget-resize-handle {
+    opacity: 1;
+}
+
+.widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.edit-mode .widget-header,
+.widget-card.editing .widget-header {
+    background-color: rgba(244, 121, 32, 0.08);
+    border-bottom: 1px solid var(--border-light);
+    cursor: move;
+    user-select: none;
+    padding: 0.4rem 0.8rem;
+}
+
+.widget-title-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.widget-title {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 1.1rem;
+    color: var(--ichtus-orange);
+    margin: 0;
+    letter-spacing: 0.05em;
+}
+
+/* ==================== DIRECT ZOOM CONTROLS (- 100% +) ==================== */
+.widget-zoom-control {
+    display: none;
+    align-items: center;
+    background: var(--bg-btn-header, #242424);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 1px 4px;
+    gap: 4px;
+    user-select: none;
+    z-index: 12;
+}
+
+.widget-card.editing .widget-zoom-control,
+.edit-mode .widget-zoom-control {
+    display: flex;
+}
+
+.zoom-btn {
+    background: none;
+    border: none;
+    color: var(--text-main);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.15s, color 0.15s;
+}
+
+.zoom-btn:hover {
+    background: var(--ichtus-orange);
+    color: #ffffff;
+}
+
+.zoom-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-muted);
+    min-width: 32px;
+    text-align: center;
+    font-family: monospace;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.zoom-label:hover {
+    background: var(--ichtus-orange);
+    color: #ffffff;
+}
+
+.pp-layout-toggle {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 1.3rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s ease;
+    flex-shrink: 0;
+}
+
+.pp-layout-toggle:hover {
+    color: var(--ichtus-orange);
+}
+
+/* Slide number badge (ProPresenter widget header) */
+
+.pp-slide-badge {
+    font-family: 'Blockprint', sans-serif;
+    font-size: 0.85rem;
+    color: #fff;
+    background: var(--ichtus-orange);
+    padding: 2px 10px;
+    border-radius: 12px;
+    margin-left: auto;
+    white-space: nowrap;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
+}
+
+.widget-body {
+    padding: 0.50rem;
+    flex: 1;
+    overflow-y: auto;
+    max-height: calc(100vh - 12rem);
+    position: relative;
+}
+
+.widget-content-zoom,
+.widget-body-inner {
+    transform-origin: top left;
+    transition: transform 0.15s ease, width 0.15s ease, height 0.15s ease;
+    overflow: hidden;
+}
+
+.widget-body-inner {
+    width: 100%;
+    height: 100%;
+}
+
+/* ==================== CONTENT STYLES ==================== */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.status-badge.online {
+    background: rgba(0, 166, 81, 0.2);
+    color: #4ade80;
+}
+
+.status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+}
+
+.status-dot.pulse { animation: pulse 2s ease-in-out infinite; }
+
+@keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+.timer-display {
+    background: var(--ichtus-dark, #1a1a1a);
+    padding: 12px;
+    border-radius: 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    color: #4ade80;
+    text-align: center;
+    letter-spacing: 2px;
+}
+
+.playlist-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: var(--ichtus-dark, #1a1a1a);
+    border-radius: 6px;
+    margin-bottom: 6px;
+    border: 1px solid transparent;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.playlist-item.active {
+    background: var(--ichtus-orange, #f47920);
+    color: var(--ichtus-dark, #1a1a1a);
+    border-color: var(--ichtus-orange, #f47920);
+}
+
+.playlist-item-name { font-size: 12px; font-weight: 500; }
+.playlist-item-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: rgba(255,255,255,0.1);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.playlist-item.active .playlist-item-badge { background: rgba(0,0,0,0.2); }
+
+.mic-channel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.mic-channel:last-child { border-bottom: none; }
+
+.mic-level-bar {
+    flex: 1;
+    height: 6px;
+    background: var(--ichtus-dark, #1a1a1a);
+    border-radius: 3px;
+    margin: 0 12px;
+    overflow: hidden;
+}
+
+.mic-level-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--ichtus-green, #00a651), var(--ichtus-orange, #f47920));
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+
+.quicklink-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 12px;
+    background: var(--ichtus-dark, #1a1a1a);
+    border: 1px solid var(--border-light);
+    border-radius: 8px;
+    color: var(--text-muted);
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-decoration: none;
+}
+
+.quicklink-btn:hover {
+    border-color: var(--ichtus-orange);
+    color: var(--ichtus-orange);
+}
+
+.quicklink-icon { font-size: 20px; }
+
+/* ===============================
+   ProPresenter Playlist Widget
+   =============================== */
+
+/* Playlist slide header (section divider in thumbnail playlist view) */
+.pl-slide-header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.75rem;
+    margin: 0.75rem 0 0.25rem 0;
+    border-left: 4px solid;
+    border-radius: 0 8px 8px 0;
+    font-family: 'Blockprint', sans-serif;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #fff;
+    font-weight: 800;
+}
+
+/* Presentation name header */
+.pl-presentation-header {
+    display: flex;
+    align-items: center;
+    padding: 0.35rem 0.75rem;
+    margin: 0.5rem 0 0.25rem 0;
+    border-left: 3px solid var(--ichtus-orange, #f47920);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    color: var(--ichtus-orange, #f47920);
+    font-weight: 700;
+    background: rgba(244, 121, 32, 0.08);
+}
+
+.pl-presentation-header.active {
+    border-left-width: 6px;
+    background: rgba(244, 121, 32, 0.15);
+    color: #fff;
+}
+
+/* In grid layout, presentation headers span full width */
+.widget-propresenter.pp-grid-layout .pl-presentation-header {
+    grid-column: 1 / -1;
+}
+
+/* First header shouldn't have extra top margin */
+.pl-slide-header:first-child {
+    margin-top: 0;
+}
+
+/* Grid layout: 2-column grid */
+.widget-propresenter.pp-grid-layout {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem;
+    align-items: start;
+}
+
+/* In grid layout, slide headers span full width */
+.widget-propresenter.pp-grid-layout .pl-slide-header {
+    grid-column: 1 / -1;
+}
+
+.widget-propresenter.pp-grid-layout .pp-slide-item {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+.widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+}
+
+.pl-header-label {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Slide label shown below thumbnails in playlist */
+.pp-slide-label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-secondary, #aaa);
+    margin-top: 4px;
+    text-align: center;
+}
+
+/* In grid layout, slide label text */
+.widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-label {
+    font-size: 0.7rem;
+}
+
+/* Slide text preview alongside thumbnail in playlist widget */
+.pp-slide-text {
+    font-size: 0.8rem;
+    color: var(--text-secondary, #ccc);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    word-break: break-word;
+    white-space: pre-wrap;
+    font-family: inherit;
+    pointer-events: none;
+}
+
+/* Single-per-row layout (default): full-width slides, stacked vertically */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item {
+    position: relative;
+    flex-direction: column !important;
+    align-items: center;
+    padding: 0.25rem 0;
+    border-radius: 8px;
+    transition: background 0.15s;
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item:hover {
+    background: rgba(255,255,255,0.05);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.12);
+    image-rendering: auto;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    object-fit: cover;
+}
+
+/* Active slide highlight in single layout */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter .pp-slide-item.active {
+    background: rgba(244, 121, 32, 0.12);
+    border-radius: 8px;
+}
+
+/* Grid layout override: stack vertically, full-width thumb with text below */
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item {
+    flex-direction: column !important;
+    gap: 0.4rem;
+    padding: 0.25rem;
+    align-items: center;
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item .pp-slide-thumb {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    border-radius: 6px;
+    border: 1px solid rgba(255,255,255,0.12);
+    image-rendering: auto;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+}
+
+.widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item.active {
+    background: rgba(244, 121, 32, 0.12);
+    border-radius: 8px;
+}
+
+/* Hide label on Presentation widget slides, SHOW on Playlist widget */
+.widget-card[data-widget-id="propresenter"] .pp-slide-label,
+.widget-card[data-widget-id="propresenter"] .pl-slide-header,
+.widget-card[data-widget-id="propresenter"] .pl-presentation-header {
+    display: none;
+}
+
+/* Playlist widget: verberg slide labels (alleen thumbnails tonen) */
+.widget-card[data-widget-id="propresenter-playlist"] .pp-slide-label {
+    display: none;
+}
+
+/* Groepsbadge — overlay in de linkerbovenhoek van de thumbnail */
+.pp-group-badge {
+    position: absolute;
+    top: 0.4rem;
+    left: 0.4rem;
+    z-index: 2;
+    display: inline-block;
+    font-size: 0.65rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: #fff;
+    background: rgba(244, 121, 32, 0.85);
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    line-height: 1.3;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.5);
+    max-width: calc(100% - 0.8rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+}
+
+
+
+/* Grid layout: badge iets kleiner */
+.widget-propresenter.pp-grid-layout .pp-group-badge {
+    font-size: 0.6rem;
+    top: 0.3rem;
+    left: 0.3rem;
+    padding: 0.15rem 0.4rem;
+}
+
+/* Refresh button in playlist widget header */
+.pp-refresh-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: color 0.15s, transform 0.2s;
+}
+
+.pp-refresh-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    transform: rotate(90deg);
+}
+
+.pp-refresh-btn:active {
+    transform: rotate(180deg);
+}
+
+/* Auto-scroll toggle button in playlist widget header */
+.pp-autoscroll-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: color 0.15s, transform 0.2s;
+}
+
+.pp-autoscroll-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    transform: scale(1.15);
+}
+
+.pp-autoscroll-btn.active {
+    color: var(--ichtus-orange, #f47920);
+    text-shadow: 0 0 8px rgba(244, 121, 32, 0.5);
+    animation: pp-autoscroll-pulse 2s ease-in-out infinite;
+}
+
+@keyframes pp-autoscroll-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; transform: scale(1.1); }
+}
+
+/* ===============================
+   Playlist Settings Dropdown
+   =============================== */
+
+.pp-settings-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.pp-settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 1.15rem;
+    cursor: pointer;
+    padding: 0 0.25rem;
+    line-height: 1;
+    transition: color 0.15s, transform 0.2s;
+}
+
+.pp-settings-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    transform: scale(1.15) rotate(45deg);
+}
+
+.pp-settings-btn.active {
+    color: var(--ichtus-orange, #f47920);
+    transform: scale(1.15) rotate(45deg);
+}
+
+.pp-settings-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 6px;
+    background: var(--bg-card, #2a2a2a);
+    border: 1px solid var(--border-light, #444);
+    border-radius: 8px;
+    padding: 4px;
+    z-index: 200;
+    min-width: 170px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    flex-direction: column;
+    gap: 2px;
+}
+
+.pp-settings-dropdown.show {
+    display: flex;
+}
+
+.pp-settings-dropdown .pp-layout-toggle,
+.pp-settings-dropdown .pp-refresh-btn,
+.pp-settings-dropdown .pp-autoscroll-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #aaa);
+    font-size: 0.85rem;
+    cursor: pointer;
+    padding: 8px 14px;
+    text-align: left;
+    white-space: nowrap;
+    border-radius: 6px;
+    transition: background 0.15s, color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'PMN Caecilia', serif;
+    text-transform: none;
+    letter-spacing: normal;
+    width: 100%;
+    line-height: 1.3;
+}
+
+.pp-settings-dropdown .pp-layout-toggle:hover,
+.pp-settings-dropdown .pp-refresh-btn:hover,
+.pp-settings-dropdown .pp-autoscroll-btn:hover {
+    background: rgba(255,255,255,0.07);
+    color: white;
+}
+
+.pp-settings-dropdown .pp-autoscroll-btn.active {
+    color: var(--ichtus-orange, #f47920);
+}
+
+.pp-settings-dropdown .pp-autoscroll-btn.active::after {
+    content: ' \2713';
+    margin-left: auto;
+    color: var(--ichtus-orange, #f47920);
+}
+
+/* ===============================
+   Active slide indicator (ON AIR)
+   =============================== */
+
+/* Active slide: orange glow + border op de thumbnail zelf */
+.widget-propresenter .pp-slide-item.active {
+    position: relative;
+    z-index: 2;
+}
+
+.widget-propresenter .pp-slide-item.active .pp-slide-thumb {
+    box-shadow: 0 0 12px rgba(244, 121, 32, 0.5), 0 0 0 2.5px var(--ichtus-orange);
+    border-radius: 8px;
+}
+
+/* Active header: more prominent */
+.pl-slide-header.active {
+    border-left-width: 6px !important;
+    background: rgba(244, 121, 32, 0.12) !important;
+    border-left-color: var(--ichtus-orange) !important;
+    color: var(--ichtus-orange) !important;
+}
+
+/* Dashboard: widget bodies should not scroll individually */
+#view-dashboard.active .widget-body {
+    overflow-y: auto;
+    max-height: none;
+}
+
+/* ===============================
+   Countdown Widget
+   =============================== */
+.countdown-widget {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 0.5rem;
+    text-align: center;
+}
+
+.countdown-display {
+    font-size: 2.2rem;
+    color: var(--ichtus-orange);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.countdown-display.no-target {
+    color: var(--text-secondary, #888);
+    font-size: 1.8rem;
+}
+
+.countdown-display.finished {
+    color: var(--ichtus-green, #00a651);
+    animation: pulse-countdown 1.5s infinite alternate;
+}
+
+@keyframes pulse-countdown {
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.05); opacity: 1; }
+}
+
+.countdown-labels {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 0.25rem;
+    transition: opacity 0.2s ease;
+}
+
+.countdown-target-info {
+    font-size: 0.95rem;
+    color: var(--text-secondary, #888);
+    font-weight: 500;
+    text-align: center;
+}
+
+.countdown-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    width: 100%;
+    max-width: 280px;
+    margin-top: 0.5rem;
+}
+
+.countdown-input {
+    background: var(--bg-sidebar, #2c2c2e);
+    color: var(--text-main, #fff);
+    border: 1px solid var(--border-light, #444);
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    outline: none;
+}
+
+.countdown-input:focus {
+    border-color: var(--ichtus-orange);
+}
+
+.countdown-settings .btn-save {
+    background: var(--ichtus-orange);
+    color: white;
+    border: none;
+    padding: 0.5rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    font-weight: 600;
+    transition: opacity 0.2s ease;
+}
+
+.countdown-settings .btn-save:hover {
+    opacity: 0.9;
+}
+
+.countdown-settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary, #888);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    transition: color 0.2s ease;
+    margin-left: 0.75rem;
+}
+
+.countdown-settings-btn:hover {
+    color: var(--ichtus-orange);
+}
+
+
+/* ==================== PLAYLIST OVERVIEW WIDGET STYLES ==================== */
+/* ==================== PLAYLIST OVERVIEW WIDGET STYLES ==================== */
+
+.widget-card[data-widget-id="playlist-overview"] .widget-body {
+    padding: 0 !important;
+    overflow: hidden;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.widget-card[data-widget-id="playlist-overview"] .widget-body-inner {
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    width: 100%;
+    height: 100%;
+}
+
+/* Mic & IEM Monitor: flex column so grid fills widget height */
+.widget-card[data-widget-id="mic-iem-monitor"] .widget-body {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Ensure overflow:hidden wins over #view-dashboard.active .widget-body */
+#view-dashboard.active .widget-card[data-widget-id="mic-iem-monitor"] .widget-body {
+    overflow: hidden;
+}
+
+#playlist-overview-container {
+    padding: 0;
+    flex: 1;
+    overflow-y: auto;
+}
+
+/* ---- Header items (section dividers) ---- */
+/* ---- Presentation items ---- */
+.plo-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px 8px 16px;
+    margin: 2px 0;
+    border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    cursor: pointer;
+}
+
+.plo-item:hover {
+    background: rgba(255,255,255,0.04);
+    border-color: rgba(255,255,255,0.06);
+}
+
+.plo-item.active {
+    background: rgba(244,121,32,0.12);
+    border-color: var(--ichtus-orange);
+    box-shadow: 0 0 12px rgba(244,121,32,0.15);
+}
+
+.plo-item.pp-triggered {
+    transform: scale(0.97);
+    background: rgba(244,121,32,0.25) !important;
+    border-color: var(--ichtus-orange) !important;
+    transition: transform 0.05s ease;
+}
+
+.plo-item-icon {
+    font-size: 0.85rem;
+    flex-shrink: 0;
+    opacity: 0.6;
+}
+
+.plo-item.active .plo-item-icon {
+    opacity: 1;
+}
+
+.plo-item-name {
+    font-size: 0.88rem;
+    color: #ddd;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.3;
+}
+
+.plo-item.active .plo-item-name {
+    color: #fff;
+    font-weight: 600;
+}
+
+.plo-item-active-badge {
+    font-size: 0.75rem;
+    color: var(--ichtus-orange);
+    flex-shrink: 0;
+    animation: plo-badge-pulse 1.5s ease-in-out infinite;
+    background: rgba(244,121,32,0.2);
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@keyframes plo-badge-pulse {
+    0%, 100% { opacity: 0.7; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.15); }
+}
+
+/* ---- Divider between presentation and announcements ---- */
+.plo-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, #444, transparent);
+    margin: 8px 0;
+}
+
+/* ---- Loading & offline states (reuse existing pp-* classes) ---- */
+#playlist-overview-container .pp-loading,
+#playlist-overview-container .pp-offline {
+    padding: 40px 20px;
+    text-align: center;
+}
+
+/* ---- ProPresenter Control Center Styles ---- */
+.plo-control-body {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow-y: auto;
+    padding: 0 !important;
+}
+
+/* 1. Toolbar */
+.plo-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 6px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    margin-bottom: 4px;
+}
+
+.plo-tool-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.plo-tool-btn:hover {
+    background: rgba(51, 65, 85, 0.6);
+    border-color: rgba(255, 255, 255, 0.15);
+    color: #f1f5f9;
+}
+
+.plo-tool-btn.active {
+    background: rgba(0, 210, 255, 0.15);
+    border-color: #00d2ff;
+    color: #00d2ff;
+    box-shadow: 0 0 10px rgba(0, 210, 255, 0.25);
+}
+
+.plo-tool-btn.active-flash {
+    animation: plo-btn-flash 0.4s ease-out;
+}
+
+@keyframes plo-btn-flash {
+    0% { transform: scale(1); background: rgba(0, 210, 255, 0.4); border-color: #00d2ff; color: #fff; }
+    100% { transform: scale(1); }
+}
+
+.plo-tool-btn.lightning:hover {
+    background: rgba(244, 63, 94, 0.15);
+    border-color: #f43f5e;
+    color: #f43f5e;
+    box-shadow: 0 0 10px rgba(244, 63, 94, 0.25);
+}
+
+/* 2. Sections & Cards */
+.plo-section-title {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #64748b;
+    margin-top: 6px;
+}
+
+.plo-playlist-header-card {
+    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin-bottom: 4px;
+}
+
+.plo-playlist-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: #f8fafc;
+}
+
+.plo-playlist-meta {
+    font-size: 0.78rem;
+    color: #64748b;
+    margin-top: 2px;
+}
+
+.plo-items-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 180px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+/* Customize scrollbar inside items list */
+.plo-items-list::-webkit-scrollbar,
+.plo-slides-scroll::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+}
+.plo-items-list::-webkit-scrollbar-thumb,
+.plo-slides-scroll::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px;
+}
+
+.plo-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    background: rgba(30, 41, 59, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.plo-item:hover {
+    background: rgba(51, 65, 85, 0.4);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+.plo-item.active {
+    background: rgba(30, 41, 59, 0.7);
+    border-color: #00d2ff;
+    box-shadow: 0 0 12px rgba(0, 210, 255, 0.15);
+}
+
+.plo-item-details {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.plo-item-title {
+    font-size: 0.88rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.2s;
+}
+
+.plo-item.active .plo-item-title {
+    color: #00d2ff;
+    font-weight: 600;
+}
+
+.plo-item-meta {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 1px;
+}
+
+.plo-active-dot {
+    width: 8px;
+    height: 8px;
+    background: #00d2ff;
+    border-radius: 50%;
+    box-shadow: 0 0 8px #00d2ff;
+    flex-shrink: 0;
+    margin-left: 10px;
+}
+
+/* 3. Horizontal Slides Section */
+#playlist-overview-slides-container {
+    background: rgba(15, 23, 42, 0.2);
+    border-radius: 10px;
+    padding: 4px;
+}
+
+.plo-slides-scroll {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    padding: 4px 4px 8px 4px;
+}
+
+.plo-slide-card {
+    position: relative;
+    width: 140px;
+    min-width: 140px;
+    aspect-ratio: 16 / 9;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    background: #111;
+}
+
+.plo-slide-card:hover {
+    transform: translateY(-2px);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.plo-slide-card.active {
+    border-color: #00d2ff;
+    box-shadow: 0 0 14px rgba(0, 210, 255, 0.4);
+    transform: scale(0.98);
+}
+
+.plo-slide-num {
+    position: absolute;
+    top: 6px;
+    left: 8px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.4);
+    z-index: 5;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+.plo-slide-card.active .plo-slide-num {
+    color: #00d2ff;
+}
+
+.plo-slide-group-badge {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 0.62rem;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 4px;
+    z-index: 5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plo-slide-thumb {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    z-index: 2;
+    transition: opacity 0.2s;
+}
+
+/* Realistic checkerboard background pattern */
+.plo-slide-checkerboard {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    background-color: #1e1e1e;
+    background-image: 
+        linear-gradient(45deg, #151515 25%, transparent 25%), 
+        linear-gradient(-45deg, #151515 25%, transparent 25%), 
+        linear-gradient(45deg, transparent 75%, #151515 75%), 
+        linear-gradient(-45deg, transparent 75%, #151515 75%);
+    background-size: 14px 14px;
+    background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+}
+
+/* ---- Responsive ---- */
+@media (max-width: 768px) {
+    .pl-slide-header { padding: 8px 10px; }
+    .plo-item { padding: 8px 12px; }
+    .pl-header-label { font-size: 0.78rem; }
+    .plo-item-title { font-size: 0.82rem; }
+    .plo-slide-card { width: 120px; min-width: 120px; }
+}
+
+
+/* ==================== PLAYLIST OVERVIEW V2 ==================== */
+/* ==========================================================================
+   PLAYLIST OVERVIEW V2 — MODERN DARK DESIGN
+   ========================================================================== */
+
+/* Header */
+.plo-v2-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px !important;
+    background: rgba(15, 23, 42, 0.4);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.plo-v2-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    flex: 1;
+}
+
+.plo-v2-header-left .plo-v2-title-group {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+}
+
+.plo-v2-title {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em;
+    color: #f8fafc;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.plo-v2-subtitle {
+    font-size: 0.7rem;
+    color: #64748b;
+    margin: 0;
+    letter-spacing: 0.02em;
+}
+
+.plo-v2-header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+}
+
+.plo-v2-live-badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #22c55e;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.05em;
+}
+
+.plo-v2-live-badge.offline {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+    color: #ef4444;
+}
+
+.plo-v2-live-dot {
+    width: 7px;
+    height: 7px;
+    background: #22c55e;
+    border-radius: 50%;
+    animation: plo-v2-pulse 1.5s ease-in-out infinite;
+}
+
+.plo-v2-live-badge.offline .plo-v2-live-dot {
+    background: #ef4444;
+    animation: none;
+}
+
+@keyframes plo-v2-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* Section titles */
+.plo-v2-section-title {
+    display: none;
+}
+
+/* Playlist list container */
+.plo-v2-playlist-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0;
+}
+
+/* Custom scrollbar for playlist list */
+.plo-v2-playlist-list::-webkit-scrollbar {
+    width: 6px;
+}
+.plo-v2-playlist-list::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.3);
+    border-radius: 9999px;
+}
+.plo-v2-playlist-list::-webkit-scrollbar-thumb {
+    background-color: #334155;
+    border-radius: 9999px;
+}
+.plo-v2-playlist-list::-webkit-scrollbar-thumb:hover {
+    background-color: var(--ichtus-orange, #f47920);
+}
+
+/* Firefox scrollbar */
+.plo-v2-playlist-list {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 rgba(15, 23, 42, 0.3);
+}
+
+/* Playlist section header items */
+.plo-v2-header-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 6px 12px;
+    margin: 0;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Playlist item rows */
+.plo-v2-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    margin: 0 8px 4px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-left: 3px solid transparent;
+    transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+    background: rgba(30, 41, 59, 0.25);
+}
+
+.plo-v2-item.active {
+    background: rgba(30, 41, 59, 0.25);
+    border-color: rgba(255, 255, 255, 0.05);
+    font-weight: 600;
+}
+
+.plo-v2-item.pp-triggered {
+    transform: scale(0.97);
+    transition: transform 0.05s ease;
+}
+
+.plo-v2-item-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    flex: 1;
+}
+
+/* Type badge */
+.plo-v2-type-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    padding: 3px 7px;
+    border-radius: 5px;
+    background: rgba(30, 41, 59, 0.6);
+    color: #94a3b8;
+    flex-shrink: 0;
+    white-space: nowrap;
+}
+
+.plo-v2-item.active .plo-v2-type-badge {
+    background: rgba(244, 121, 32, 0.15);
+    color: var(--ichtus-orange, #f47920);
+}
+
+/* Item name */
+.plo-v2-item-name {
+    font-size: 0.85rem;
+    color: #cbd5e1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.3;
+}
+
+.plo-v2-item.active .plo-v2-item-name {
+    color: var(--ichtus-orange, #f47920);
+    font-weight: 700;
+}
+
+/* Active indicator */
+.plo-v2-item-right {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: 8px;
+    gap: 4px;
+}
+
+.plo-v2-now-live {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 0;
+    background: none;
+    color: var(--ichtus-orange, #f47920);
+    letter-spacing: 0.04em;
+}
+
+.plo-v2-slide-counter {
+    display: inline-flex;
+    align-items: center;
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 3px 0;
+    background: none;
+    color: var(--ichtus-orange, #f47920);
+    font-family: 'Courier New', monospace;
+    letter-spacing: 0.02em;
+    margin-left: 6px;
+    white-space: nowrap;
+}
+
+/* Status bar */
+.plo-v2-status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    margin-top: auto;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.65rem;
+    font-family: 'Courier New', monospace;
+    color: #475569;
+    flex-shrink: 0;
+    background: rgba(0, 0, 0, 0.15);
+}
+
+.plo-v2-status-active {
+    color: var(--ichtus-orange, #f47920);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 60%;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .plo-v2-item { padding: 8px 10px; }
+    .plo-v2-item-name { font-size: 0.8rem; }
+    .plo-v2-slide-card { width: 120px; min-width: 120px; }
+}

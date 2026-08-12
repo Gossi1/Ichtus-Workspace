@@ -1,0 +1,240 @@
+/* ==========================================================================
+   ANALYTICS STYLES — LIQUID GLASS MODERN DESIGN (v2)
+   ========================================================================== */
+
+#view-analytics {
+    display: none;
+    background: var(--bg-main);
+}
+
+#view-analytics.active {
+    display: flex;
+    justify-content: center;
+    padding: 30px 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#view-analytics .dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+/* ── Minimalist Header ── */
+#view-analytics .simple-header {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#view-analytics .simple-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+}
+
+#view-analytics .header-divider {
+    width: 100%;
+    height: 2px;
+    background: var(--ichtus-orange);
+    border-radius: 2px;
+    opacity: 0.8;
+}
+
+/* ── KPI Value numerals ── */
+#view-analytics .value {
+    font-variant-numeric: tabular-nums;
+}
+
+/* ── Metrics Grid (KPI Cards) ── */
+#view-analytics .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+    width: 100%;
+}
+
+#view-analytics .metric-card {
+    flex-direction: column;
+    justify-content: center;
+    padding: 16px;
+    min-height: 110px;
+}
+
+#view-analytics .metric-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 6px;
+}
+
+#view-analytics .metric-card .value {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--text-main);
+    letter-spacing: -0.02em;
+}
+
+/* Color-coded edges */
+#view-analytics .metric-card.orange-edge { border-color: rgba(244, 121, 32, 0.25); }
+#view-analytics .metric-card.blue-edge   { border-color: rgba(52, 152, 219, 0.25); }
+
+/* ── Controls Row ── */
+#view-analytics .controls-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    width: 100%;
+}
+
+#view-analytics .configuration-panel {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+}
+
+#view-analytics .button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#view-analytics .control-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-muted);
+}
+
+/* ── Sequence Configuration ── */
+#view-analytics .section-title {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+}
+
+#view-analytics #service-sequence-display {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+#view-analytics .sequence-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.01);
+}
+
+#view-analytics .sequence-row:hover {
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+#view-analytics .btn-delete {
+    background: none;
+    border: none;
+    color: var(--ichtus-red);
+    font-size: 18px;
+    cursor: pointer;
+}
+
+#view-analytics .look-duration-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    padding: 8px 12px;
+}
+
+/* ── Table / Session Log ── */
+#view-analytics .table-container-wrapper {
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 4px;
+    overflow: hidden;
+    width: 100%;
+}
+
+#view-analytics .table-card-inner {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 16px;
+    border-radius: 10px;
+}
+
+#view-analytics .responsive-table-scroll {
+    overflow-x: auto;
+}
+
+#view-analytics .session-log-table {
+    width: 100%;
+    border-collapse: collapse;
+    text-align: left;
+    font-size: 0.85rem;
+}
+
+#view-analytics .session-log-table th {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.03em;
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--glass-edge);
+    color: var(--text-muted);
+}
+
+#view-analytics .session-log-table tbody tr {
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    transition: background-color 0.15s ease;
+}
+
+#view-analytics .session-log-table tbody tr:hover {
+    background-color: rgba(255, 255, 255, 0.02);
+}
+
+#view-analytics .session-log-table td {
+    padding: 10px 8px;
+    font-variant-numeric: tabular-nums;
+}
+
+#view-analytics .empty-state {
+    text-align: center;
+    padding: 24px 0;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ── Row helpers ── */
+#view-analytics .overage { color: var(--ichtus-red); font-weight: 600; }
+#view-analytics .under { color: var(--ichtus-green); font-weight: 600; }
+#view-analytics .active-row { background: rgba(244, 121, 32, 0.12); }
+#view-analytics .active-row td { color: #fff; font-weight: 600; }
+#view-analytics .highlight-us { color: var(--ichtus-orange); font-weight: 700; }
+#view-analytics .status-complete { color: var(--ichtus-green); font-weight: 700; }
+
+/* ── Color Utilities ── */
+#view-analytics .orange-text { color: var(--ichtus-orange) !important; }
+#view-analytics .blue-text   { color: var(--ichtus-blue) !important; }
+#view-analytics .muted-text  { color: var(--text-muted); }
+
+/* ── Auto-Start ── */
+#view-analytics #auto-start-status {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    display: none;
+}
+
+/* ── CSV Importer ── */
+#view-analytics #csv-importer { display: none; }
+

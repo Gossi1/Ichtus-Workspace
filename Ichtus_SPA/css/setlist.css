@@ -1,0 +1,575 @@
+/* ============================================
+   SETLIST STYLES — Song management
+   ============================================ */
+/* ==================== SETLIST STYLES ==================== */
+
+#view-setlist {
+    display: none;
+    background: var(--bg-main);
+}
+
+#view-setlist.active {
+    display: flex;
+    justify-content: center;
+    padding: 30px 24px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+#view-setlist .dashboard {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    width: 100%;
+    max-width: 1000px;
+}
+
+/* Minimalist header */
+#view-setlist .simple-header {
+    width: 100%;
+    margin-bottom: 8px;
+}
+
+#view-setlist .simple-header h1 {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 8px;
+    letter-spacing: -0.01em;
+}
+
+#view-setlist .header-divider {
+    width: 100%;
+    height: 2px;
+    background: var(--ichtus-orange);
+    border-radius: 2px;
+    opacity: 0.8;
+}
+
+/* Split-grid layout */
+.setlist-layout {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    width: 100%;
+}
+
+.setlist-sidebar {
+    width: 320px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex-shrink: 0;
+}
+
+.setlist-main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+/* Sidebar cards (glass) */
+#view-setlist .sidebar-card {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 18px;
+    gap: 12px;
+}
+
+/* Status alert boxes inside setlist */
+#view-setlist .toggle-item.status-alert-box {
+    cursor: default;
+}
+
+/* Setlist actions row */
+#view-setlist .setlist-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Song buckets */
+.song-bucket {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 8px;
+    padding: 12px 16px;
+}
+
+.bucket-title {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 700;
+    margin-bottom: 8px;
+    border-left: 3px solid var(--text-muted);
+    padding-left: 8px;
+}
+
+.bucket-title.bucket-opening { border-color: var(--ichtus-blue); color: var(--ichtus-blue); }
+.bucket-title.bucket-praise  { border-color: var(--ichtus-orange); color: var(--ichtus-orange); }
+.bucket-title.bucket-closing { border-color: var(--ichtus-green); color: var(--ichtus-green); }
+
+/* Template Editor inside Setlist */
+#view-setlist .tpl-item-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    background: rgba(0,0,0,0.2);
+    padding: 12px;
+    border-radius: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    border: 1px solid rgba(255,255,255,0.05);
+}
+
+#view-setlist .tpl-item-row input,
+#view-setlist .tpl-item-row select {
+    background: var(--bg-main);
+    color: var(--text-main);
+    border: 1px solid var(--border-light);
+    padding: 8px;
+    border-radius: 4px;
+    outline: none;
+}
+
+#view-setlist .tpl-item-row input:focus,
+#view-setlist .tpl-item-row select:focus {
+    border-color: var(--ichtus-orange);
+}
+
+#view-setlist #setlist-template-modal .tpl-btn-remove {
+    background: rgba(237, 28, 36, 0.2);
+    color: var(--ichtus-red);
+    border: 1px solid var(--ichtus-red);
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: bold;
+    transition: all 0.2s;
+}
+
+#view-setlist #setlist-template-modal .tpl-btn-remove:hover {
+    background: var(--ichtus-red);
+    color: white;
+}
+
+#view-setlist .i-color {
+    padding: 2px !important;
+    height: 35px;
+    width: 40px;
+    cursor: pointer;
+}
+
+#view-setlist #tpl-items-container {
+    flex: 1;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+    background-color: var(--bg-main);
+    border-radius: 0.75rem;
+    border: 1px solid var(--border-light);
+    padding: 0.5rem;
+    box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05);
+    max-height: 50vh;
+}
+
+/* Mobile responsive */
+@media (max-width: 850px) {
+    .setlist-layout { flex-direction: column; align-items: stretch; }
+    .setlist-sidebar { width: 100%; }
+}
+
+
+/* ==========================================================================
+
+/* ============================================================================
+   SETLIST TEMPLATE MODAL — Compact Grid Layout (override for #setlist-template-modal)
+   Replaces the wider max-width and flex rows with a tighter grid layout.
+   The dialog itself is defined earlier (.task-modal-dialog, .overlay-task-modal);
+   here we only override sizing, add drag handles, inline insert triggers,
+   fade-in remove buttons, and SortableJS ghost styling.
+   ============================================================================ */
+#setlist-template-modal .task-modal-dialog {
+    max-width: 680px;
+}
+#setlist-template-modal .task-modal-dialog {
+    overflow: hidden;
+}
+#setlist-template-modal .modal-content-scroll {
+    padding: 16px 16px 24px 16px;
+    overflow-y: auto;
+    max-height: 50vh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row {
+    position: relative;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    align-items: center;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* Editable Header Title — Template name is now a text input */
+.header-title-container {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    flex: 1;
+}
+.modal-dialog-title-label {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.6);
+    line-height: 1;
+}
+.editable-template-title {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    font-size: 1.05rem;
+    font-weight: 600;
+    padding: 0 6px;
+    margin: 0;
+    outline: none;
+    max-width: 220px;
+    height: auto;
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+    color: #ff9f43;
+    text-shadow: 0 0 10px rgba(255, 159, 67, 0.3);
+    font-family: inherit;
+}
+.editable-template-title:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.1);
+}
+.editable-template-title:focus {
+    background: rgba(0, 0, 0, 0.3);
+    border-color: #ff9f43;
+    box-shadow: 0 0 8px rgba(255, 159, 67, 0.2);
+}
+
+/* Drag handle on the left of each row (.tpl-drag-handle) */
+#setlist-template-modal .tpl-drag-handle {
+    cursor: grab;
+    color: rgba(255, 255, 255, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px;
+    transition: color 0.15s ease;
+}
+#setlist-template-modal .tpl-drag-handle:hover {
+    color: #ff9f43;
+}
+.tpl-drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Inline ⊕ trigger — appears between rows on hover */
+#setlist-template-modal .tpl-inline-insert-trigger {
+    position: absolute;
+    bottom: -11px;
+    left: 50%;
+    transform: translateX(-50%) scale(0.6);
+    background: #28c76f;
+    color: #fff;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: bold;
+    cursor: pointer;
+    opacity: 0;
+    z-index: 10;
+    box-shadow: 0 0 8px rgba(40, 199, 111, 0.6);
+    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.15s ease;
+}
+#setlist-template-modal .tpl-inline-insert-trigger::before {
+    content: '';
+    position: absolute;
+    width: 400px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent 10%, rgba(40, 199, 111, 0.4) 50%, transparent 90%);
+    z-index: -1;
+    pointer-events: none;
+}
+#setlist-template-modal .tpl-item-row:hover .tpl-inline-insert-trigger {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+}
+#setlist-template-modal .tpl-inline-insert-trigger:hover {
+    background: #21a058;
+    transform: translateX(-50%) scale(1.2) !important;
+    box-shadow: 0 0 12px rgba(40, 199, 111, 0.9);
+}
+
+/* SortableJS Ghost — translucent dashed copy while dragging */
+#setlist-template-modal .sortable-ghost {
+    opacity: 0.3;
+    background: rgba(255, 159, 67, 0.05) !important;
+    border: 1px dashed rgba(255, 159, 67, 0.4) !important;
+}
+
+#setlist-template-modal .tpl-row-fields {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+/* flex children default to min-width: auto (= min-content), which lets the select
+   collapse to its longest <option> text. Override to `min-width: 0` so our explicit
+   per-field min-widths are honored, not the browser’s intrinsic min-content. */
+#setlist-template-modal .tpl-row-fields > * { min-width: 0; }
+/* Floor widths so flex-wrap doesn't shrink inputs below their readable content. */
+#setlist-template-modal .tpl-item-row .i-name    { min-width: 200px; }
+#setlist-template-modal .tpl-item-row .i-type    { min-width: 120px; }
+#setlist-template-modal .tpl-item-row .i-color   { min-width: 32px; width: 32px; height: 30px; }
+#setlist-template-modal .tpl-item-row .i-insert  { min-width: 150px; }
+#setlist-template-modal .tpl-item-row .i-uuid    { min-width: 240px; }
+#setlist-template-modal .tpl-item-row .i-dest    { min-width: 100px; width: 100px; }
+#setlist-template-modal .tpl-item-row input[type="text"],
+#setlist-template-modal .tpl-item-row select {
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 5px;
+    color: #ffffff;
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    outline: none;
+    height: 30px;
+    box-sizing: border-box;
+    transition: all 0.2s;
+}
+/* Keep select text away from the native dropdown chevron. */
+/* Modern liquid-glass chevron: native arrow removed, custom 12px white-translucent
+   SVG sits 10px from the right edge, 28px right padding so text never collides with it. */
+#setlist-template-modal .tpl-item-row select {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    cursor: pointer;
+    line-height: 1;
+    padding: 6px 28px 6px 10px;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20width%3D%2714%27%20height%3D%2714%27%20viewBox%3D%270%200%2024%2024%27%20fill%3D%27none%27%20stroke%3D%27%23ff9f43%27%20stroke-width%3D%272.5%27%20stroke-linecap%3D%27round%27%20stroke-linejoin%3D%27round%27%3E%3Cpath%20d%3D%27M6%209l6%206%206-6%27%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 12px 12px;
+    text-overflow: ellipsis;
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row input[type="text"]::placeholder { color: rgba(255, 255, 255, 0.3); }
+#setlist-template-modal .tpl-item-row select:hover {
+    border-color: rgba(255, 159, 67, 0.5);
+    background-color: rgba(0, 0, 0, 0.30);
+}
+#setlist-template-modal #setlist-template-modal .tpl-item-row input[type="text"]:focus,
+#setlist-template-modal .tpl-item-row select:focus {
+    border-color: #ff9f43;
+    /* Use background-COLOR (longhand) so the chevron background-image is NOT reset. */
+    background-color: rgba(0, 0, 0, 0.35);
+    box-shadow: 0 0 0 2px rgba(255, 159, 67, 0.25);
+    outline: none;
+}
+#setlist-template-modal .tpl-item-row input[type="color"] {
+    -webkit-appearance: none;
+    border: none;
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+    cursor: pointer;
+    background: transparent;
+    padding: 0;
+}
+#setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+#setlist-template-modal .tpl-item-row input[type="color"]::-webkit-color-swatch { border: none; border-radius: 5px; }
+
+#setlist-template-modal .btn-close-modal {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    transition: all 0.15s;
+    height: 30px;
+    width: 30px;
+}
+#setlist-template-modal .btn-close-modal:hover {
+    background: rgba(234, 84, 85, 0.15);
+    color: #ea5455;
+}
+
+/* Fade-in delete button — invisible until row is hovered */
+.tpl-btn-remove {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.35);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 5px;
+    height: 30px;
+    width: 30px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, background 0.15s, color 0.15s;
+}
+#setlist-template-modal .tpl-item-row:hover .tpl-btn-remove {
+    opacity: 1;
+    pointer-events: auto;
+}
+.tpl-btn-remove:hover {
+    background: rgba(234, 84, 85, 0.15);
+    color: #ea5455;
+}
+
+/* Wide trigger at the bottom of the scroll area */
+.btn-list-add-trigger {
+    background: rgba(40, 199, 111, 0.06);
+    border: 1px dashed rgba(40, 199, 111, 0.3);
+    color: #28c76f;
+    padding: 10px;
+    border-radius: 8px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    width: 100%;
+    margin-top: 4px;
+}
+.btn-list-add-trigger:hover {
+    background: rgba(40, 199, 111, 0.15);
+    border-style: solid;
+    border-color: rgba(40, 199, 111, 0.5);
+}
+
+.modal-footer-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.01);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+.footer-right {
+    display: flex;
+    gap: 8px;
+    width: auto;
+    justify-content: flex-end;
+}
+#setlist-template-modal .btn-nav,
+#setlist-template-modal .btn-upload {
+    padding: 8px 12px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    display: inline-flex;
+    align-items: center;
+}
+#setlist-template-modal .btn-nav:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+/* Opslaan (btn-save-tpl) no longer uses the orange->red gradient;
+   it falls back to the default .btn-upload neutral background
+   (same as Annuleren). border: none + color: #ffffff + font-weight: 600
+   are kept so the button still reads as slightly more prominent.
+   The matching inline <style> block in index.html has the same edit. */
+#setlist-template-modal .btn-upload.btn-label {
+    border: none;
+    color: #ffffff;
+    font-weight: 600;
+}
+
+.footer-actions-menu-wrapper {
+    position: relative;
+    display: inline-block;
+}
+.btn-icon-only {
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+.footer-dropdown-menu {
+    display: none;
+    position: absolute;
+    bottom: 40px;
+    left: 0;
+    background: rgba(25, 28, 36, 0.85);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    min-width: 170px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+    z-index: 1010;
+    padding: 4px 0;
+}
+.footer-actions-menu-wrapper.open .footer-dropdown-menu {
+    display: block;
+}
+.dropdown-item {
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    padding: 8px 14px;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+.dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+.dropdown-item.danger-text {
+    color: #ea5455;
+}
+.dropdown-item.danger-text:hover {
+    background: rgba(234, 84, 85, 0.1);
+}
+
+#setlist-template-modal .dropdown-item {
+    background: transparent;
+    border: none;
+    color: #e2e8f0;
+    padding: 8px 14px;
+    text-align: left;
+    width: 100%;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+#setlist-template-modal .dropdown-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+#setlist-template-modal .dropdown-item.danger-text {
+    color: #ea5455;
+}
+#setlist-template-modal .dropdown-item.danger-text:hover {
+    background: rgba(234, 84, 85, 0.1);
+}
+
