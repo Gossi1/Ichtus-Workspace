@@ -126,49 +126,6 @@
     <!-- Sidebar Backdrop Overlay -->
     <div class='sidebar-backdrop' id='sidebar-backdrop'></div>
 
-    <!-- SUPERVISOR VIEW -->
-    <div id='view-supervisor' class='app-view hidden'>
-        <div class="simple-header">
-            <h1>Supervisor Dashboard</h1>
-            <div class="header-divider"></div>
-        </div>
-        
-        <!-- Update Banner -->
-        <div id="sv-update-banner" class="sv-update-banner hidden">
-            <div class="sv-update-banner-content">
-                <span class="sv-update-icon">📥</span>
-                <span id="sv-update-text" class="sv-update-text">Nieuwe updates beschikbaar</span>
-            </div>
-            <div class="sv-update-actions">
-                <button id="sv-update-btn" class="sv-btn sv-btn-pull" onclick="supervisorModule._doUpdate()">Pull & Herstart</button>
-                <button class="sv-btn sv-btn-dismiss" onclick="document.getElementById('sv-update-banner').classList.add('hidden')">✕</button>
-            </div>
-            <pre id="sv-update-output" class="sv-update-output hidden"></pre>
-        </div>
-
-        <div class="sv-status-bar">
-            <span class="sv-status-label">Service status — automatisch verversen elke 5s</span>
-            <button class="sv-btn sv-btn-refresh" onclick="supervisorModule._poll()">🔄 Ververs nu</button>
-        </div>
-        
-        <div class="sv-services-grid" id="sv-services-container">
-            <div class="sv-loading">🔄 Supervisor status laden…</div>
-        </div>
-
-        <!-- Log Modal -->
-        <div id="sv-log-modal" class="sv-log-modal hidden">
-            <div class="sv-log-dialog">
-                <div class="sv-log-header">
-                    <h3 id="sv-log-title">Logs</h3>
-                    <button class="sv-log-close" onclick="supervisorModule._closeLogModal()" title="Sluiten">✕</button>
-                </div>
-                <div class="sv-log-content" id="sv-log-content">
-                    <div class="sv-log-loading">Logs laden…</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- PWA Update Notification Banner -->
     <div id='pwa-update-banner' class='pwa-update-banner hidden'>
         <span class='pwa-update-icon'>🔄</span>
@@ -260,10 +217,11 @@
                 <li data-view='setlist'>
                     <a href='#' onclick="router.navigate('setlist'); return false;">
                         <div class='sidebar-icon'>
-                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
-                                <path d='M9 18V5l12-2v13'></path>
-                                <circle cx='6' cy='18' r='3'></circle>
-                                <circle cx='18' cy='16' r='3'></circle>
+                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'>
+                                <path d='M12 17C12 17.8284 11.3284 18.5 10.5 18.5C9.67157 18.5 9 17.8284 9 17C9 16.1716 9.67157 15.5 10.5 15.5C11.3284 15.5 12 16.1716 12 17ZM12 17V10.5C12 12.1569 13.8954 13.5 15 13.5'></path>
+                                <path d='M19.5617 7C19.7904 5.69523 18.7863 4.5 17.4617 4.5H6.53788C5.21323 4.5 4.20922 5.69523 4.43784 7'></path>
+                                <path d='M17.4999 4.5C17.5283 4.24092 17.5425 4.11135 17.5427 4.00435C17.545 2.98072 16.7739 2.12064 15.7561 2.01142C15.6497 2 15.5194 2 15.2588 2H8.74099C8.48035 2 8.35002 2 8.24362 2.01142C7.22584 2.12064 6.45481 2.98072 6.45704 4.00434C6.45727 4.11135 6.47146 4.2409 6.49983 4.5'></path>
+                                <path d='M21.1935 16.793C20.8437 19.2739 20.6689 20.5143 19.7717 21.2572C18.8745 22 17.5512 22 14.9046 22H9.09536C6.44881 22 5.12553 22 4.22834 21.2572C3.33115 20.5143 3.15626 19.2739 2.80648 16.793L2.38351 13.793C1.93748 10.6294 1.71447 9.04765 2.66232 8.02383C3.61017 7 5.29758 7 8.67239 7H15.3276C18.7024 7 20.3898 7 21.3377 8.02383C22.0865 8.83268 22.1045 9.98979 21.8592 12'></path>
                             </svg>
                         </div>
                         <span class='sidebar-text' data-i18n='nav_setlist'>Setlist</span>
@@ -272,10 +230,8 @@
                 <li data-view='ndi'>
                     <a href='#' onclick="router.navigate('ndi'); return false;">
                         <div class='sidebar-icon'>
-                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
-                                <path d='M5 6a11 11 0 0 1 14 0'></path>
-                                <path d='M8 9a7 7 0 0 1 8 0'></path>
-                                <circle cx='12' cy='16' r='2'></circle>
+                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24' fill='currentColor'>
+                                <path d='M0 6.78v10.438h2.565V12.81c0-.275.165-.47.43-.47.221 0 .371.124.624.511l2.756 4.368h2.798V6.781H6.61v4.465c0 .275-.166.47-.43.47-.222 0-.373-.123-.625-.511L2.798 6.78Zm9.798 0v10.438h4.127c2.982 0 5.393-2.35 5.393-5.226s-2.425-5.211-5.39-5.211zm10.077 0v10.438h2.564V6.781Zm-7.177 2.35h1.066c1.69 0 2.922 1.216 2.922 2.846 0 1.673-1.231 2.89-2.922 2.89h-1.066a.336.336 0 0 1-.335-.336V9.466c0-.185.15-.336.335-.336m10.792 7.068a.513.513 0 0 0-.528.509c0 .286.23.511.528.511a.51.51 0 1 0 0-1.02m0 .082c.24 0 .43.185.43.426 0 .24-.19.425-.43.425a.423.423 0 0 1-.43-.425.42.42 0 0 1 .43-.426m-.17.155v.545h.1v-.222l.177.222h.112l-.14-.173a.06.06 0 0 1-.01-.034q-.002-.028.03-.033h.004a.15.15 0 0 0 .113-.143c0-.095-.08-.162-.188-.162zm.1.086h.094c.053 0 .09.03.09.08 0 .048-.034.075-.09.075h-.094z'></path>
                             </svg>
                         </div>
                         <span class='sidebar-text' data-i18n='nav_ndi'>NDI</span>
@@ -308,12 +264,8 @@
                 <li data-view='songidassigner'>
                     <a href='#' onclick="router.navigate('songidassigner'); return false;">
                         <div class='sidebar-icon'>
-                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
-                                <path d='M9 18V5l12-2v13'></path>
-                                <circle cx='6' cy='18' r='3'></circle>
-                                <circle cx='18' cy='16' r='3'></circle>
-                                <line x1='12' y1='14' x2='16' y2='14' stroke-width='2.5'></line>
-                            </svg>
+                            <svg class='sidebar-nav-icon sidebar-nav-icon--filled' viewBox='0 0 512 540' fill='currentColor'>
+                                <path d='M165,85.3v325.3c-9.7-3.3-20.5-5.3-32-5.3c-41.2,0-74.7,23.9-74.7,53.3c0,29.5,33.4,53.3,74.7,53.3c41.2,0,74.7-23.9,74.7-53.3c0-3.6-0.5-7.2-1.5-10.7h1.5V179.8L421,118.9v227.8c-9.7-3.3-20.5-5.3-32-5.3c-41.2,0-74.7,23.9-74.7,53.3c0,29.5,33.4,53.3,74.7,53.3c41.2,0,74.7-23.9,74.7-53.3c0-3.4-0.5-6.7-1.4-10l1.4-0.7V0L165,85.3z'/>
                         </div>
                         <span class='sidebar-text' data-i18n='nav_songids'>Song IDs</span>
                     </a>
@@ -325,13 +277,11 @@
                 <li data-view='supervisor'>
                     <a href='#' onclick="router.navigate('supervisor'); return false;">
                         <div class='sidebar-icon'>
-                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24'>
-                                <rect x='2' y='3' width='20' height='14' rx='2'></rect>
-                                <line x1='8' y1='21' x2='16' y2='21'></line>
-                                <line x1='12' y1='17' x2='12' y2='21'></line>
-                                <circle cx='18' cy='10' r='2' fill='currentColor'></circle>
-                                <circle cx='6' cy='10' r='2' fill='currentColor'></circle>
-                                <circle cx='12' cy='10' r='2' fill='currentColor'></circle>
+                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                                <line x1='22' y1='12' x2='2' y2='12'></line>
+                                <path d='M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'></path>
+                                <line x1='6' y1='16' x2='6.01' y2='16'></line>
+                                <line x1='10' y1='16' x2='10.01' y2='16'></line>
                             </svg>
                         </div>
                         <span class='sidebar-text' data-i18n='nav_supervisor'>Supervisor</span>
@@ -396,11 +346,65 @@
     <!-- Main Content Area -->
     <main class='main-content' id='app-container'>
 
+        <!-- SUPERVISOR VIEW -->
+        <div id='view-supervisor' class='app-view hidden'>
+            <div class="dashboard">
+                <div class='sv-header'>
+                    <div class='sv-title-block'>
+                        <h1>Supervisor Dashboard</h1>
+                        <p class='sv-subtitle'>Beheer updates, herstart de server en bewaak het systeem.</p>
+                    </div>
+                </div>
+
+                <div class="sv-content-area">
+                    <!-- Update Alert Banner -->
+                    <div id="sv-update-banner" class="sv-alert-banner hidden">
+                        <div class="sv-alert-header">
+                            <span>📦</span>
+                            <span id="sv-update-text" class="sv-update-text">Up-to-date — pull om te controleren op wijzigingen</span>
+                        </div>
+                        <div class="sv-alert-actions">
+                            <button id="sv-update-btn" class="sv-btn-pull" onclick="supervisorModule._doUpdate()">Pull & Herstart</button>
+                            <button class="sv-btn-dismiss" onclick="document.getElementById('sv-update-banner').classList.add('hidden')">✕</button>
+                        </div>
+                        <pre id="sv-update-output" class="sv-update-output hidden"></pre>
+                    </div>
+
+                    <!-- Auto-refresh status bar -->
+                    <div class="sv-status-bar">
+                        <span class="sv-status-label">Service status — automatisch verversen elke 5s</span>
+                        <button class="sv-btn-refresh" onclick="supervisorModule._poll()">🔄 Ververs nu</button>
+                    </div>
+
+                    <!-- Service Cards -->
+                    <div id="sv-services-container" class="sv-services-grid">
+                        <div class="sv-loading">🔄 Supervisor status laden…</div>
+                    </div>
+                </div>
+
+                <!-- Log Modal -->
+                <div id="sv-log-modal" class="sv-log-modal hidden">
+                    <div class="sv-log-dialog">
+                        <div class="sv-log-header">
+                            <h3 id="sv-log-title">Logs</h3>
+                            <button class="sv-log-close" onclick="supervisorModule._closeLogModal()" title="Sluiten">✕</button>
+                        </div>
+                        <div class="sv-log-content" id="sv-log-content">
+                            <div class="sv-log-loading">Logs laden…</div>
+                        </div>
+                    </div>
+                </div>
+            </div><!-- /dashboard -->
+        </div><!-- /view-supervisor -->
+
         <!-- AGENDA VIEW -->
         <div id='view-agenda' class='app-view hidden'>
-            <header>
-                <h1>AGENDA MAKER</h1>
-            </header>
+            <div class='ag-header'>
+                <div class='ag-title-block'>
+                    <h1>AGENDA MAKER</h1>
+                    <p class='ag-subtitle'>Maak een visuele agenda-afbeelding voor de dienst. Kies een template, haal de Tockify-agenda op en download als PNG.</p>
+                </div>
+            </div>
 
             <div class='dashboard'>
                 <div class='action-bar'>
@@ -715,10 +719,12 @@
         <div id='view-analytics' class='app-view hidden'>
             <div class="dashboard">
 
-                <!-- Minimalist Header with Brand Accent Line -->
-                <div class="simple-header">
-                    <h1>Service Tracking</h1>
-                    <div class="header-divider"></div>
+                <!-- Header block with subtitle -->
+                <div class='at-header'>
+                    <div class='at-title-block'>
+                        <h1>Service Tracking</h1>
+                        <p class='at-subtitle'>Volg diensten, liedervolgorde en service-elementen. Bekijk statistieken en exporteer sessiedata.</p>
+                    </div>
                 </div>
 
                 <!-- ========== KPI LIVE METRICS ========== -->
@@ -797,8 +803,7 @@
         <div id='view-ndi' class='app-view hidden'>
             <div class='ndi-header'>
                 <div class='ndi-header-content'>
-                    <div class='ndi-header-icon'>📡</div>
-                    <div>
+                    <div class='ndi-title-block'>
                         <h1 class='ndi-title'>NDI Bronnen</h1>
                         <p class='ndi-subtitle'>Ontdek alle NDI streams op uw netwerk</p>
                     </div>
@@ -809,8 +814,11 @@
                         <span class='slider'></span>
                         Auto-refresh (5s)
                     </label>
-                    <button id='ndi-refresh' class='ndi-refresh-btn'>
-                        🔄 Vernieuwen
+                    <button id='ndi-refresh' class='sb-icon-btn' title='Ververs NDI bronnen'>
+                        <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                            <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/>
+                            <path d='M21 3v5h-5'/>
+                        </svg>
                     </button>
                 </div>
             </div>
@@ -831,12 +839,11 @@
         <div id='view-integration' class='app-view hidden'>
             <div class='integration-dashboard'>
 
-                <div class='simple-header'>
-                    <h1>Integraties</h1>
-                    <p class='integration-subtitle'>
-                        Verbind met andere applicaties zoals ProPresenter.
-                    </p>
-                    <div class='header-divider'></div>
+                <div class='ig-header'>
+                    <div class='ig-title-block'>
+                        <h1>Integraties</h1>
+                        <p class='ig-subtitle'>Verbind met andere applicaties zoals ProPresenter.</p>
+                    </div>
                 </div>
 
                 <main class='integration-grid' id='integration-card-grid'>
@@ -897,13 +904,12 @@
         <div id='view-settings' class='app-view hidden'>
             <div class="dashboard">
 
-                <!-- Minimalist Header with Brand Accent Line -->
-                <div class="simple-header">
-                    <h1>Instellingen</h1>
-                    <p class='settings-subtitle'>
-                        Beheer je taal, netwerk, display- en voorkeuren.
-                    </p>
-                    <div class="header-divider"></div>
+                <!-- Header block with subtitle -->
+                <div class='sg-header'>
+                    <div class='sg-title-block'>
+                        <h1>Instellingen</h1>
+                        <p class='sg-subtitle'>Beheer je taal, netwerk, display- en voorkeuren.</p>
+                    </div>
                 </div>
 
                 <!-- ==========================================
@@ -1198,10 +1204,12 @@
         <div id='view-setlist' class='app-view hidden'>
             <div class="dashboard">
 
-                <!-- Clean Minimalist Header with Brand Accent Line -->
-                <div class="simple-header">
-                    <h1>Setlist Synchronization</h1>
-                    <div class="header-divider"></div>
+                <!-- Header block with subtitle -->
+                <div class='sl-header'>
+                    <div class='sl-title-block'>
+                        <h1>Setlist Synchronization</h1>
+                        <p class='sl-subtitle'>Synchroniseer de setlist van WorshipTools met je lokale bibliotheek. Bekijk liederen per categorie, bewerk templates en markeer songs met een interne ID.</p>
+                    </div>
                 </div>
 
                 <!-- Main Fluid Flex Architecture Layout -->
@@ -2221,9 +2229,9 @@
 
                 <!-- Status bar -->
                 <div class="sa-status-bar">
-                    <div class="simple-header" style="margin-bottom:0;">
+                    <div class="sa-title-block">
                         <h1>Song ID Assigner</h1>
-                        <div class="header-divider"></div>
+                        <p class='sa-subtitle'>Elk lied krijgt een uniek ID (bijv. D001, H023). Kies een prefix-letter en de app telt automatisch door. Importeer vanuit WorshipTools of plak een lijst.</p>
                     </div>
                     <div id="sa-status-pill" class="sa-status-pill">—</div>
                 </div>

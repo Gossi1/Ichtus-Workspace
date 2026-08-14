@@ -254,11 +254,31 @@
     border-radius: 7px;
 }
 
+/* --- Title block & subtitle --- */
+#view-songidassigner .sa-title-block {
+    flex: 1;
+}
+
+#view-songidassigner .sa-title-block h1 {
+    font-size: 27px;
+    margin-bottom: 2px;
+}
+
+#view-songidassigner .sa-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
+}
+
 /* --- Status bar --- */
 #view-songidassigner .sa-status-bar {
     display: flex;
     align-items: center;
     gap: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
     margin-bottom: 18px;
 }
 

@@ -11,47 +11,82 @@
 #view-ndi.active {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    padding: 28px 24px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
+/* --- Header block --- */
 .ndi-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
-    background: var(--bg-sidebar);
-    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-wrap: wrap;
     gap: 1rem;
+    margin-bottom: 16px;
 }
 
 .ndi-header-content {
     display: flex;
     align-items: center;
-    gap: 1rem;
 }
 
-.ndi-header-icon {
-    font-size: 2.5rem;
-}
-
-.ndi-title {
+.ndi-title-block h1 {
     font-family: 'Blockprint', sans-serif;
-    font-size: 1.75rem;
-    color: var(--ichtus-orange);
-    margin: 0;
-    letter-spacing: 0.05em;
+    font-size: 27px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
 }
 
-.ndi-subtitle {
-    font-size: 0.9rem;
-    color: #9ca3af;
-    margin: 0.25rem 0 0 0;
+.ndi-title-block .ndi-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 .ndi-header-controls {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+/* --- Refresh icon button (matches stage builder style) --- */
+#view-ndi .sb-icon-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #64748b;
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#view-ndi .sb-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#view-ndi .sb-icon-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .ndi-auto-toggle {
@@ -96,22 +131,7 @@
     transform: translateX(16px);
 }
 
-.ndi-refresh-btn {
-    background: var(--ichtus-orange);
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
 
-.ndi-refresh-btn:hover {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-}
 
 .ndi-status-bar {
     display: flex;
@@ -331,11 +351,7 @@
         align-items: flex-start;
     }
     
-    .ndi-header-icon {
-        font-size: 2rem;
-    }
-    
-    .ndi-title {
+    .ndi-title-block h1 {
         font-size: 1.4rem;
     }
     

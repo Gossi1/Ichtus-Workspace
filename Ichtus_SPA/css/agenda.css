@@ -12,14 +12,33 @@
     padding: 24px;
 }
 
-#view-agenda header h1 {
-    font-size: 1.8rem;
+/* --- Header block --- */
+#view-agenda .ag-header {
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+}
+
+#view-agenda .ag-title-block {
+    display: inline-block;
+}
+
+#view-agenda .ag-title-block h1 {
+    font-size: 27px;
     font-weight: 800;
     letter-spacing: -0.01em;
-    margin-bottom: 24px;
+    margin-bottom: 4px;
     color: #ffffff;
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    text-align: center;
+}
+
+#view-agenda .ag-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 /* Dashboard Layout — centered column */

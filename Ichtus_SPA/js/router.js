@@ -147,12 +147,12 @@ router._renderIntegrationTabs = () => {
         { tab: 'settings', label: 'Instellingen', view: 'settings' }
     ];
     const views = [
-        { selector: '#view-integration', label: 'Integratie navigatie' },
-        { selector: '#view-settings', label: 'Instellingen navigatie' }
+        { selector: '#view-integration', headerClass: '.ig-header', label: 'Integratie navigatie' },
+        { selector: '#view-settings', headerClass: '.sg-header', label: 'Instellingen navigatie' }
     ];
 
-    views.forEach(({ selector, label }) => {
-        const header = document.querySelector(`${selector} .simple-header`);
+    views.forEach(({ selector, headerClass, label }) => {
+        const header = document.querySelector(`${selector} ${headerClass}`);
         if (!header) return;
         const markup = tabs.map(t => {
             // The tab for the current view is a no-op (prevents re-navigation).

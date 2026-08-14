@@ -282,14 +282,7 @@ html, body {
    SETTINGS SPECIFIC STYLES — LIQUID GLASS MODERN
    ========================================================================== */
 
-#view-settings.active {
-    display: flex !important;
-    justify-content: center;
-    padding: 30px 24px;
-    width: 100%;
-    background-color: var(--bg-main);
-    box-sizing: border-box;
-}
+/* #view-settings.active is defined in layout.css */
 
 .settings-control-grid {
     display: flex;
@@ -592,26 +585,28 @@ html, body {
     max-width: 1100px;
 }
 
-#view-settings .simple-header {
+/* --- Header block --- */
+#view-settings .sg-header {
     width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
     margin-bottom: 8px;
-    text-align: left;
 }
 
-#view-settings .simple-header h1 {
-    font-size: 1.8rem;
+#view-settings .sg-title-block h1 {
+    font-size: 27px;
     font-weight: 800;
     color: var(--text-main);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     letter-spacing: -0.01em;
 }
 
-#view-settings .header-divider {
-    width: 100%;
-    height: 2px;
-    background: var(--ichtus-orange);
-    border-radius: 2px;
-    opacity: 0.8;
+#view-settings .sg-subtitle {
+    color: var(--text-muted, #9ca3af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 #view-settings .control-desc {
@@ -1216,14 +1211,33 @@ button:hover, .btn-label:hover {
     padding: 24px;
 }
 
-#view-agenda header h1 {
-    font-size: 1.8rem;
+/* --- Header block --- */
+#view-agenda .ag-header {
+    text-align: center;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
+    margin-bottom: 24px;
+}
+
+#view-agenda .ag-title-block {
+    display: inline-block;
+}
+
+#view-agenda .ag-title-block h1 {
+    font-size: 27px;
     font-weight: 800;
     letter-spacing: -0.01em;
-    margin-bottom: 24px;
+    margin-bottom: 4px;
     color: #ffffff;
     text-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-    text-align: center;
+}
+
+#view-agenda .ag-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 /* Dashboard Layout — centered column */
@@ -2520,25 +2534,28 @@ input:checked + .slider::before { transform: translateX(20px); }
 }
 
 /* ── Minimalist Header ── */
-#view-analytics .simple-header {
+/* --- Header block --- */
+#view-analytics .at-header {
     width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
     margin-bottom: 8px;
 }
 
-#view-analytics .simple-header h1 {
-    font-size: 1.8rem;
+#view-analytics .at-title-block h1 {
+    font-size: 27px;
     font-weight: 800;
     color: var(--text-main);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     letter-spacing: -0.01em;
 }
 
-#view-analytics .header-divider {
-    width: 100%;
-    height: 2px;
-    background: var(--ichtus-orange);
-    border-radius: 2px;
-    opacity: 0.8;
+#view-analytics .at-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 /* ── KPI Value numerals ── */
@@ -2746,47 +2763,82 @@ input:checked + .slider::before { transform: translateX(20px); }
 #view-ndi.active {
     display: flex;
     flex-direction: column;
+    justify-content: flex-start;
+    padding: 28px 24px;
+    width: 100%;
+    box-sizing: border-box;
 }
 
+/* --- Header block --- */
 .ndi-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 1.5rem 2rem;
-    background: var(--bg-sidebar);
-    border-bottom: 1px solid var(--border-light);
+    padding-bottom: 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
     flex-wrap: wrap;
     gap: 1rem;
+    margin-bottom: 16px;
 }
 
 .ndi-header-content {
     display: flex;
     align-items: center;
-    gap: 1rem;
 }
 
-.ndi-header-icon {
-    font-size: 2.5rem;
-}
-
-.ndi-title {
+.ndi-title-block h1 {
     font-family: 'Blockprint', sans-serif;
-    font-size: 1.75rem;
-    color: var(--ichtus-orange);
-    margin: 0;
-    letter-spacing: 0.05em;
+    font-size: 27px;
+    font-weight: 800;
+    color: var(--text-main);
+    margin-bottom: 4px;
+    letter-spacing: 0.02em;
 }
 
-.ndi-subtitle {
-    font-size: 0.9rem;
-    color: #9ca3af;
-    margin: 0.25rem 0 0 0;
+.ndi-title-block .ndi-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 .ndi-header-controls {
     display: flex;
     align-items: center;
     gap: 1rem;
+}
+
+/* --- Refresh icon button (matches stage builder style) --- */
+#view-ndi .sb-icon-btn {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #64748b;
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#view-ndi .sb-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.06);
+    color: #94a3b8;
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+#view-ndi .sb-icon-btn svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
 }
 
 .ndi-auto-toggle {
@@ -2831,22 +2883,7 @@ input:checked + .slider::before { transform: translateX(20px); }
     transform: translateX(16px);
 }
 
-.ndi-refresh-btn {
-    background: var(--ichtus-orange);
-    color: white;
-    border: none;
-    padding: 0.6rem 1.2rem;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.9rem;
-    transition: all 0.2s;
-}
 
-.ndi-refresh-btn:hover {
-    filter: brightness(1.1);
-    transform: translateY(-1px);
-}
 
 .ndi-status-bar {
     display: flex;
@@ -3066,11 +3103,7 @@ input:checked + .slider::before { transform: translateX(20px); }
         align-items: flex-start;
     }
     
-    .ndi-header-icon {
-        font-size: 2rem;
-    }
-    
-    .ndi-title {
+    .ndi-title-block h1 {
         font-size: 1.4rem;
     }
     
@@ -3129,26 +3162,28 @@ input:checked + .slider::before { transform: translateX(20px); }
     max-width: 1000px;
 }
 
-/* Minimalist header */
-#view-setlist .simple-header {
+/* --- Header block --- */
+#view-setlist .sl-header {
     width: 100%;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
     margin-bottom: 8px;
 }
 
-#view-setlist .simple-header h1 {
-    font-size: 1.8rem;
+#view-setlist .sl-title-block h1 {
+    font-size: 27px;
     font-weight: 800;
     color: var(--text-main);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     letter-spacing: -0.01em;
 }
 
-#view-setlist .header-divider {
-    width: 100%;
-    height: 2px;
-    background: var(--ichtus-orange);
-    border-radius: 2px;
-    opacity: 0.8;
+#view-setlist .sl-subtitle {
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin: 0;
+    max-width: 720px;
 }
 
 /* Split-grid layout */
@@ -3327,7 +3362,7 @@ input:checked + .slider::before { transform: translateX(20px); }
 }
 
 #view-stagebuilder .sb-title-block h1 {
-    font-size: 1.7rem;
+    font-size: 27px;
     font-weight: 800;
     color: var(--text-main);
     margin: 0 0 4px 0;

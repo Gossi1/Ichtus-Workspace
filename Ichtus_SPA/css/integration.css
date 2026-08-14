@@ -2,13 +2,7 @@
    INTEGRATIONS VIEW — Ichtus design system, no Tailwind
    ========================================================================== */
 
-#view-integration.active {
-    display: flex;
-    justify-content: center;
-    padding: 30px 24px;
-    width: 100%;
-    background-color: var(--bg-main, #1e1e1e);
-}
+/* #view-integration.active is now defined in layout.css alongside #view-settings.active */
 
 #view-integration .integration-dashboard {
     display: flex;
@@ -21,34 +15,29 @@
 
 /* ---------- Header (matches other views) ---------- */
 
-#view-integration .simple-header {
+/* --- Header block --- */
+#view-integration .ig-header {
     width: 100%;
-    margin-bottom: 4px;
-    text-align: left;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    padding-bottom: 14px;
+    margin-bottom: 8px;
 }
 
-#view-integration .simple-header h1 {
+#view-integration .ig-title-block h1 {
     font-family: 'Blockprint', sans-serif;
-    font-size: 1.8rem;
+    font-size: 27px;
     font-weight: 800;
     color: var(--text-main, #f9f9f7);
-    margin-bottom: 8px;
+    margin-bottom: 4px;
     letter-spacing: 0.02em;
 }
 
-#view-integration .simple-header .integration-subtitle {
+#view-integration .ig-subtitle {
     color: var(--text-muted, #9ca3af);
-    font-size: 0.9rem;
-    font-weight: 400;
+    font-size: 0.8rem;
+    font-weight: 500;
     margin: 0;
-}
-
-#view-integration .header-divider {
-    width: 100%;
-    height: 2px;
-    background: var(--ichtus-orange, #f47920);
-    border-radius: 2px;
-    opacity: 0.8;
+    max-width: 720px;
 }
 
 /* ---------- Tab navigation ---------- */
