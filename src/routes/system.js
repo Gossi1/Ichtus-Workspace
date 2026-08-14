@@ -18,6 +18,7 @@ import { hostname } from 'os';
 import { discoverNdISources } from '../lib/ndi.js';
 
 const execFileAsync = promisify(execFile);
+const PORT = parseInt(process.env.PORT, 10) || 8080;
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..', '..');
 
@@ -114,8 +115,34 @@ router.get('/health', (req, res) => {
     });
 });
 
-router.get('/status', (req, res) => {
+router.get('/status', async (req, res) => {
     const uptime = Math.floor((Date.now() - startTime) / 1000);
+
+    // Git update status (for supervisor badges)
+    let update = { update_available: false, behind_count: 0, branch: 'master' };
+    try {
+        const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT_DIR, timeout: 5_000 });
+        const branch = branchOut.trim();
+        const { stdout: countOut } = await execFileAsync('git', ['rev-list', '--count', `HEAD..origin/${branch}`], { cwd: ROOT_DIR, timeout: 10_000 });
+        const count = parseInt(countOut.trim(), 10) || 0;
+        update = { update_available: count > 0, behind_count: count, branch };
+    } catch (_) {}
+
+    // Services array — everything runs in one process now
+    const services = [
+        {
+            key: 'server',
+            label: 'Ichtus Server (Node.js)',
+            state: 'running',
+            pid: process.pid,
+            uptime_sec: uptime,
+            restart_count: 0,
+            last_exit_code: null,
+            default_port: PORT,
+            log_path: 'logs/service-output.log',
+        },
+    ];
+
     res.json({
         service: 'ichtus-spa',
         status: 'ok',
@@ -125,6 +152,8 @@ router.get('/status', (req, res) => {
         requests_served: requestCount,
         hostname: hostname(),
         version: UPDATE_CONFIG.current_version,
+        services,
+        update,
         log_tail: [...logBuffer],
         log_tail_size: logBuffer.length,
         log_buffer_capacity: LOG_BUFFER_MAX,

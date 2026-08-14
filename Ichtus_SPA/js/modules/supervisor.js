@@ -218,7 +218,7 @@ const supervisorModule = {
                         document.getElementById('sv-update-text').textContent = '✅ Code geüpdatet en services herstart';
                     }
                 } catch (restartErr) {
-                    document.getElementById('sv-update-text').textContent = 'Code geüpdatet, maar services herstarten mislukt: herstart handmatig met nssm restart IchtusSupervisor';
+                    document.getElementById('sv-update-text').textContent = 'Code geüpdatet, maar herstart mislukt: herstart handmatig met nssm restart IchtusServer';
                 }
                 setTimeout(() => {
                     banner.classList.add('hidden');
@@ -245,16 +245,18 @@ const supervisorModule = {
         if (!container) return;
         container.innerHTML = '';
 
-        // Show update banner if available
-        if (banner && this._updateData && this._updateData.update_available) {
+        // Always show the banner with update status + pull button
+        if (banner) {
             banner.classList.remove('hidden');
             banner.classList.remove('sv-update-success');
-            const count = this._updateData.behind_count || 0;
-            const branch = this._updateData.branch || 'master';
-            document.getElementById('sv-update-text').textContent =
-                `${count} nieuwe commit(s) beschikbaar op ${branch}`;
-        } else if (banner) {
-            banner.classList.add('hidden');
+            const textEl = document.getElementById('sv-update-text');
+            if (this._updateData && this._updateData.update_available) {
+                const count = this._updateData.behind_count || 0;
+                const branch = this._updateData.branch || 'master';
+                textEl.textContent = `${count} nieuwe commit(s) beschikbaar op ${branch}`;
+            } else {
+                textEl.textContent = 'Up-to-date — pull om te controleren op wijzigingen';
+            }
         }
 
         if (this._servicesCache.length === 0) {
@@ -322,8 +324,8 @@ const supervisorModule = {
                 <div class="sv-error-text">
                     <strong>Kan geen verbinding maken met supervisor</strong><br>
                     <span>${this._escapeHtml(err.message)}</span><br><br>
-                    Controleer of de supervisor service draait:<br>
-                    <code>nssm status IchtusSupervisor</code><br>
+                    Controleer of de server service draait:<br>
+                    <code>nssm status IchtusServer</code><br>
                     of open <a href="/api/status" target="_blank" rel="noopener">/api/status</a>
                 </div>
                 <button class="sv-btn sv-btn-retry" onclick="supervisorModule._poll()">🔄 Opnieuw proberen</button>

@@ -65,6 +65,9 @@ firebase-api-key.txt
 api-key.txt
 API Key.txt
 
+# Local server config (do not commit!)
+server-config.json
+
 # ===========================
 # Logs
 # ===========================

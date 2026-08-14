@@ -339,6 +339,11 @@ h1, h2, h3, .heading-font {
     stroke-linejoin: round;
 }
 
+.sidebar-nav-icon--filled {
+    fill: currentColor;
+    stroke: none;
+}
+
 /* Text */
 .sidebar-text {
     font-family: 'PMN Caecilia', serif;

@@ -27,6 +27,7 @@ module.exports = {
             NODE_ENV: 'production',
             PORT: 8080,
             HOST: '0.0.0.0',
+            X32_IP: '192.168.1.50',  // Standaard X32 IP (pas aan in je lokale copy)
         },
         env_development: {
             NODE_ENV: 'development',

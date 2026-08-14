@@ -14,6 +14,8 @@ import oscPkg from 'osc';
 const { UDPPort: OscPort } = oscPkg;
 
 // ── Defaults ───────────────────────────────────────────────────────────
+// Fallback IP — in de praktijk stuurt de SPA het IP altijd mee.
+// Alleen relevant als /api/x32/presets/connect zonder IP wordt aangeroepen.
 const DEFAULT_X32_IP = '192.168.1.50';
 const X32_OSC_PORT = 10023;
 const FULL_STRIP_SCOPE_MASK = 63;

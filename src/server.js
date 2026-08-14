@@ -34,8 +34,21 @@ import iemRoutes, { seedInitialConfig } from './routes/iem.js';
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..');
 const SPA_DIR = resolve(ROOT_DIR, 'Ichtus_SPA');
-const PORT = parseInt(process.env.PORT, 10) || 8080;
-const HOST = process.env.HOST || '0.0.0.0';
+
+// ── Local config (niet op GitHub) ─────────────────────────────────────
+// Kopieer server-config.example.json → server-config.json en vul je waarden in.
+// Environment variables have priority over config file.
+let localConfig = {};
+try {
+    const configPath = resolve(ROOT_DIR, 'server-config.json');
+    if (existsSync(configPath)) {
+        localConfig = JSON.parse(readFileSync(configPath, 'utf-8'));
+        console.log('  [CONFIG] server-config.json geladen');
+    }
+} catch (_) {}
+
+const PORT = parseInt(process.env.PORT, 10) || localConfig.port || 8080;
+const HOST = process.env.HOST || localConfig.host || '0.0.0.0';
 
 // ── Express App ────────────────────────────────────────────────────────
 const app = express();
