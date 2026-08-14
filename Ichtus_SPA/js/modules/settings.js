@@ -216,7 +216,7 @@ const settingsModule = {
         btn.textContent = '⏳ Controleren...';
         statusEl.style.display = 'none';
 
-        fetch('http://localhost:9090/api/check-update')
+        fetch('/api/check-update')
             .then(response => {
                 if (!response.ok) throw new Error('HTTP ' + response.status);
                 return response.json();

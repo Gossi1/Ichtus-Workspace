@@ -82,6 +82,9 @@ const router = {
 
         this.currentView = view;
 
+        // Render the Integraties/Instellingen tab switcher for the current route
+        this._renderIntegrationTabs();
+
         // Update URL hash (only if not already on correct hash)
         if (updateHash && window.location.hash !== `#${view}`) {
             window.location.hash = view;
@@ -134,6 +137,48 @@ router.isStageBuilderActive = () => router.currentView === 'stagebuilder';
 router.isSupervisorActive  = () => router.currentView === 'supervisor';
 router.isSongIdAssignerActive = () => router.currentView === 'songidassigner';
 router.isIntegrationActive  = () => router.currentView === 'integration';
+
+// Render the Integraties/Instellingen tab switcher into the integration and
+// settings views (right after each view's header). Keeping the markup here
+// instead of index.html avoids duplicating it across the two views.
+router._renderIntegrationTabs = () => {
+    const tabs = [
+        { tab: 'integrations', label: 'Integraties', view: 'integration' },
+        { tab: 'settings', label: 'Instellingen', view: 'settings' }
+    ];
+    const views = [
+        { selector: '#view-integration', label: 'Integratie navigatie' },
+        { selector: '#view-settings', label: 'Instellingen navigatie' }
+    ];
+
+    views.forEach(({ selector, label }) => {
+        const header = document.querySelector(`${selector} .simple-header`);
+        if (!header) return;
+        const markup = tabs.map(t => {
+            // The tab for the current view is a no-op (prevents re-navigation).
+            const onClick = t.view === router.currentView
+                ? 'event.preventDefault();'
+                : `event.preventDefault(); router.navigate('${t.view}');`;
+            return `\n                    <a href='#' data-tab='${t.tab}' onclick="${onClick}">${t.label}</a>`;
+        }).join('');
+        const nav = `\n                <nav class='integration-tabs' aria-label='${label}'>${markup}\n                </nav>`;
+        const parent = header.parentElement;
+        const existing = parent.querySelector('.integration-tabs');
+        if (existing) existing.remove();
+        header.insertAdjacentHTML('afterend', nav);
+    });
+
+    router._syncIntegrationTabs();
+};
+
+// Highlight the active tab in the Integraties/Instellingen switcher that
+// lives on both the integration and settings views. Called on every
+// navigation so the active state always matches the current route.
+router._syncIntegrationTabs = () => {
+    const activeTab = router.currentView === 'integration' ? 'integrations' : router.currentView;
+    document.querySelectorAll('#view-integration .integration-tabs a, #view-settings .integration-tabs a')
+        .forEach(a => a.classList.toggle('active', a.dataset.tab === activeTab));
+};
 
 // Initialize router when DOM is ready
 document.addEventListener('DOMContentLoaded', () => router.init());

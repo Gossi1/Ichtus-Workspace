@@ -15,7 +15,7 @@
         libchan-recall via the OSC bridge:
 
             OSC:     /load [s:"libchan", i:slot_idx, i:channel_idx, i:63]
-            Bridge:  POST http://127.0.0.1:3002/api/load-channel-preset
+            Bridge:  POST /api/x32/load-channel-preset
                      body = {ip, channel (1-32), slot (0-99)}
 
      Per-row state (channel + slot override) is keyed in
@@ -48,8 +48,8 @@ const stagebuilderModule = {
     _x32PendingFetches: [],      // [{ctrl,label}] — per-call AbortControllers
 
     // -------- X32 OSC bridge --------
-    _x32BridgeEndpoint: 'http://127.0.0.1:3002/api/load-channel-preset',
-    _x32PresetDiscoveryEndpoint: 'http://127.0.0.1:3002/api/x32-presets',
+    _x32BridgeEndpoint: '/api/x32/load-channel-preset',
+    _x32PresetDiscoveryEndpoint: '/api/x32/presets',
     DEFAULT_X32_IP: '192.168.180.198',
 
     _x32SessionConnected: false,
@@ -388,7 +388,6 @@ const stagebuilderModule = {
         try {
             const payload = { ts: Date.now() };
             if (patch.slot !== undefined) payload.slot = patch.slot;
-            if (patch.channel !== undefined) payload.channel = patch.channel;
             if (patch.sings !== undefined) payload.sings = !!patch.sings;
             if (patch.voxSlot !== undefined) payload.voxSlot = patch.voxSlot;
             if (patch.voxChannel !== undefined) payload.voxChannel = patch.voxChannel;
@@ -398,15 +397,15 @@ const stagebuilderModule = {
 
     _saveSlotMapping(slug, slot, voxSlot) {
         // Slot-only save — used by _autoSuggestPending. Preserves
-        // the operator's channel / sings / vox-channel state so the
-        // auto-suggest re-save never clobbers it. The role-based
-        // rules will re-derive channels for rows without overrides.
+        // the operator's sings / vox-channel state so the
+        // auto-suggest re-save never clobbers it. Channel is always
+        // derived from role rules (never persisted).
         try {
             const existing = this._loadRowMapping(slug) || {};
             const payload = { ts: Date.now() };
             if (slot != null) payload.slot = slot;
             if (voxSlot != null) payload.voxSlot = voxSlot;
-            if (existing.channel != null) payload.channel = existing.channel;
+            // Channel is NOT persisted — always derived from role rules.
             if (existing.sings != null) payload.sings = existing.sings;
             if (existing.voxChannel != null) payload.voxChannel = existing.voxChannel;
             localStorage.setItem('ichtus.sb.assign.' + slug, JSON.stringify(payload));
@@ -484,7 +483,11 @@ const stagebuilderModule = {
                 avatar: entry.avatar_url || '',
                 slug: slug,
                 slot: restored.slot,
-                channel: restored.channel, // null = let role rules decide
+                // Channel is ALWAYS derived from role rules — never restore from
+                // localStorage so the role-based assignment (CH 8 for bass,
+                // CH 10 for guitar, etc.) always wins. Manual changes via the
+                // dropdown apply during the session but don't persist across reloads.
+                channel: null,
                 autoSlot: null,
                 // Dual-recall vocal part (singing guitarists only):
                 // a second preset + channel for the mic, besides the
@@ -498,9 +501,15 @@ const stagebuilderModule = {
                 // get a vocal-mic part. Defaults to the role string
                 // saying so ("Gitarist + Zang"); a stored toggle from
                 // a previous session always wins.
+                // 'sings' enables dual recall (vocal mic channel in addition
+                // to the instrument channel). Only singing GUITARISTS need this;
+                // pure vocalists have a single channel. Default to true only
+                // when the role is BOTH vocalist AND guitarist.
                 sings: restored.sings != null
                     ? restored.sings
-                    : stagebuilderModule._detectRoles(entry.role).isVocalist,
+                    : (stagebuilderModule._detectRoles(entry.role).isVocalist &&
+                       stagebuilderModule._detectRoles(entry.role).isGuitarist &&
+                       !stagebuilderModule._detectRoles(entry.role).isBassist),
                 status: 'idle',  // 'idle' | 'pushing' | 'ok' | 'err'
                 lastPushedAt: null,
                 lastPushedSummary: ''
@@ -734,6 +743,7 @@ const stagebuilderModule = {
             if (row.channel != null) continue;
             const r = self._detectRoles(row.role);
             if (r.isPianist || r.isDrummer) continue; // blank per spec
+            if (r.isBassist) continue; // handled by Pass 2b (CH 8)
             if (r.isGuitarist) tryAssign(row, 10);
         }
         // Pass 2b: Bassist → CH 8 (per the operator's spec
@@ -1576,7 +1586,7 @@ const stagebuilderModule = {
         // Hidden for locked roles (never guitarists) and worship
         // leaders (the WL channel rules always win regardless).
         const dr = this._detectRoles(row.role);
-        const showsSingsToggle = dr.isGuitarist && !row.locked && !dr.isWL;
+        const showsSingsToggle = dr.isGuitarist && !dr.isBassist && !row.locked && !dr.isWL;
         // When singing, the row gets a SECOND preset + channel for
         // the mic (dual recall) — the guitar part stays untouched.
         const isSingingGuitarist = showsSingsToggle && row.sings;
@@ -1819,7 +1829,6 @@ const stagebuilderModule = {
         // nulls clear stored values).
         this._saveRowMapping(row.slug, {
             slot: row.slot,
-            channel: row.channel,
             sings: row.sings,
             voxSlot: row.voxSlot,
             voxChannel: row.voxChannel
@@ -1852,7 +1861,6 @@ const stagebuilderModule = {
         }
         this._saveRowMapping(row.slug, {
             slot: row.slot,
-            channel: row.channel,
             sings: row.sings,
             voxSlot: row.voxSlot,
             voxChannel: row.voxChannel

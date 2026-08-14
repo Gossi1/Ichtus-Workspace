@@ -32,24 +32,22 @@ Church service management Single Page Application (SPA) for coordinating worship
 **Then, continue with:**
 
 - **Copy your Firebase config** (optional — enables data sync)
-   - Either copy an existing `firebase-config.txt` (or `firebase-api-key.txt`) from another installation into this project
-   - Or paste your Firebase web-app config straight into `Ichtus_SPA/firebase-config.txt` — the browser fetches it on page boot, so the setup screen is skipped entirely
-   - Or enter values during `install.bat` setup
-   - Both files are excluded from git (.gitignore) for security
+   - Either copy an existing `firebase-api-key.txt` from another installation into the project root
+   - Or paste your Firebase web-app config straight into `firebase-api-key.txt` — the server injects it into HTML on page boot
+   - File is excluded from git (.gitignore) for security
 
-- **Run the installer**
+- **Install dependencies**
    ```bash
-   install.bat
+   npm install
    ```
-   This will automatically:
-   - Create a Python virtual environment (.venv)
-   - Install required packages (zeroconf)
-   - Prompt for Firebase configuration if needed
-   - Check all dependencies
 
 - **Start the server**
    ```bash
    start-server.bat
+   ```
+   Or directly:
+   ```bash
+   node src/server.js
    ```
 
 - **Open in browser**
@@ -59,123 +57,76 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ---
 
-## 🪟 Windows Service (Auto-start with Windows)
+## 🪟 Auto-start with PM2
 
-Want the server to **start automatically when you turn on your laptop**?
-(Without having to run `start-server.bat` manually.)
+Want the server to **start automatically and restart on crashes**?
 
-### Installation (recommended)
-
-Run these steps **as Administrator**:
-
-```cmd
-cd <project-root>\Ichtus_apps
-install-service.bat
+```bash
+pm2 start ecosystem.config.js
+pm2 save
+pm2 startup
 ```
 
-**Note:** `install-service.bat` installs the **SPA-only service** (`IchtusServer`).
-For the full **supervisor** (SPA + X32 bridge + mic/IEM), follow the manual steps below.
-
-### Supervisor as Windows service (manual — recommended)
-
-To have the **X32 bridge** and **mic/IEM monitor** start automatically too:
-
-> Replace `<project-root>` with the full path to your Ichtus_apps directory.
-> Replace `<python-path>` with the path to Python (e.g. `%LOCALAPPDATA%\Programs\Python\Python311\python.exe` or `<project-root>\.venv\Scripts\python.exe`).
-
-**1. Install the service**
-```cmd
-nssm install IchtusSupervisor "<python-path>" "<project-root>\supervisor.py"
-```
-
-**2. Configure the service**
-```cmd
-nssm set IchtusSupervisor AppDirectory "<project-root>"
-nssm set IchtusSupervisor AppStdout "<project-root>\logs\supervisor-output.log"
-nssm set IchtusSupervisor AppStderr "<project-root>\logs\supervisor-error.log"
-nssm set IchtusSupervisor AppRotateFiles 1
-nssm set IchtusSupervisor AppRotateOnline 1
-nssm set IchtusSupervisor AppRotateBytes 5000000
-nssm set IchtusSupervisor AppNoConsole 1
-nssm set IchtusSupervisor Start SERVICE_AUTO_START
-nssm set IchtusSupervisor DisplayName "Ichtus Workspace Supervisor"
-nssm set IchtusSupervisor AppThrottle 3000
-nssm set IchtusSupervisor AppExit Default Exit
-```
-
-**3. Start the service**
-```cmd
-nssm start IchtusSupervisor
-```
-
-### Management
+### PM2 Management
 
 | Action | Command |
 |--------|---------|
-| Check status | `nssm status IchtusSupervisor` |
-| Stop | `nssm stop IchtusSupervisor` |
-| Start | `nssm start IchtusSupervisor` |
-| Restart | `nssm restart IchtusSupervisor` |
-| Edit configuration | `nssm edit IchtusSupervisor` |
-| View logs | `type logs\supervisor-error.log` |
-| Remove service | `nssm remove IchtusSupervisor confirm` |
+| Check status | `pm2 status` |
+| View logs | `pm2 logs ichtus` |
+| Restart | `pm2 restart ichtus` |
+| Stop | `pm2 stop ichtus` |
+| Remove | `pm2 delete ichtus` |
 
 ### Service URLs
 
 | Service | URL |
 |---------|-----|
 | **SPA** (Ichtus Workspace) | `http://localhost:8080/Ichtus_SPA/` |
-| **Supervisor dashboard** | `http://localhost:9090/` |
-| **X32 bridge** | `http://localhost:3002/` |
-| **Mic/IEM monitor** | `http://localhost:3001/` |
-
-The supervisor automatically restarts crashed services with increasing delay (2s → 30s).
+| **Health check** | `http://localhost:8080/api/health` |
+| **Status + logs** | `http://localhost:8080/api/status` |
+| **WebSocket** | `ws://localhost:8080/ws` |
 
 ---
 
-## 💻 Manual Start (without service)
+## 💻 Manual Start
 
 ```bash
 start-server.bat
 ```
 
-This starts the **supervisor** (Python, `:9090`) which monitors the SPA server (`:8080`),
-the X32 OSC bridge (`:3002`), and the Mic/IEM monitor (`:3001`).
-On a crash, the supervisor restarts automatically.
-
-Or start only the SPA:
+Or directly with Node.js:
 ```bash
-python server.py --open
+node src/server.js
 ```
+
+All services run in one process on port 8080:
+- SPA HTTP server + Firebase config injection
+- X32 OSC bridge (UDP :10023)
+- Mic/IEM monitor (Firestore)
+- WebSocket realtime hub
+- Git update checking
 
 ---
 
-## 🛡️ Robustness / Supervisor
+## 🛡️ Architecture (v3.0)
 
-The dev stack now has a single supervisor (Python, no new deps) that
-watches every other service. Open `http://localhost:9090/` after launch
-for the unified status dashboard.
+Single Node.js server (`src/server.js`) on port 8080 replaces the previous
+4-process architecture (Python SPA server + Node X32 bridge + Node Mic/IEM server + Python supervisor).
 
-| Concern | Where it lives | Behaviour |
-|--------|----------------|-----------|
-| All services crash-resistant | `supervisor.py` | Capped backoff (2s / 4s / 8s / 16s / 30s) on non-zero exit; never gives up but logs loudly |
-| One-click service restart | `POST http://localhost:9090/api/restart/<key>` | Hard terminate + relaunch of `spa`, `x32`, or `mic_iem` |
-| Live crash tail | `GET http://localhost:9090/api/logs/<key>` | Last 50 lines of `logs/<name>.log` formatted as JSON |
-| "Why is the SPA slow" | `GET http://localhost:8080/api/status` | PID, uptime, request count, last 50 in-process log lines |
-| Liveness probe | `GET http://localhost:8080/api/health` / `:9090/api/health` | Always-fast (no NDI discovery dependency) |
-| Single-instance guard | `supervisor.pid` + heartbeat file | A second `start-server.bat` launch refuses to start a duplicate |
-| Clean Ctrl-C | `SIGINT` in ICHTUS — Supervisor window | 5s drain then `terminate()` stragglers |
+| Concern | Endpoint | Behaviour |
+|---------|----------|-----------|
+| Health check | `GET /api/health` | Always fast (< 50ms) |
+| Status + logs | `GET /api/status` | PID, uptime, request count, last 50 log lines |
+| NDI discovery | `GET /api/ndi/sources` | UDP broadcast + optional zeroconf |
+| X32 OSC bridge | `POST /api/x32/load-channel-preset` | HTTP → OSC/UDP to Behringer X32 |
+| X32 presets | `GET /api/x32/presets` | Library polling via persistent OSC session |
+| Mic/IEM roster | `POST /api/iem/update-roster` | WorshipTools → Firestore live sync |
+| Git update check | `GET /api/check-update` | Compares HEAD with origin |
+| WebSocket | `ws://localhost:8080/ws` | Realtime X32 + IEM status push |
 
-Logs land in `logs/<service>.log` (5 MB × 3 rotating via `RotatingFileHandler`).
+### Frontend endpoints (all relative)
 
-Manual control:
-
-```bash
-# Start the supervisor directly (no .bat launcher)
-python supervisor.py --open
-
-# Change the status UI port
-python supervisor.py --port 9100
+All frontend fetch calls use relative URLs (`/api/...`). No hardcoded `localhost` ports.
 
 # Stop everything: Ctrl-C in the supervisor console, or:
 #   taskkill /PID <pid from supervisor.pid>

@@ -589,7 +589,7 @@ html, body {
     align-items: stretch;
     gap: 16px;
     width: 100%;
-    max-width: 1000px;
+    max-width: 1100px;
 }
 
 #view-settings .simple-header {

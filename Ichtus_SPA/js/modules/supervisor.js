@@ -1,7 +1,7 @@
 /* ============================================
    Ichtus SPA — Supervisor Module
    Live status dashboard for the service supervisor
-   Fetches from http://localhost:9090/api/status
+   Fetches from /api/status
    ============================================ */
 
 // ── Global update checker ──
@@ -27,7 +27,7 @@ const updateChecker = {
 
     async _check() {
         try {
-            const resp = await fetch('http://localhost:9090/api/check-update');
+            const resp = await fetch('/api/check-update');
             if (!resp.ok) return;
             const data = await resp.json();
             this._updateBadges(data.update_available, data.behind_count);
@@ -107,7 +107,7 @@ const supervisorModule = {
 
     async _poll() {
         try {
-            const resp = await fetch('http://localhost:9090/api/status');
+            const resp = await fetch('/api/status');
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             this._servicesCache = data.services || [];
@@ -125,7 +125,7 @@ const supervisorModule = {
             btn.textContent = '…';
         }
         try {
-            const resp = await fetch(`http://localhost:9090/api/restart/${key}`, { method: 'POST' });
+            const resp = await fetch(`/api/restart/${key}`, { method: 'POST' });
             const data = await resp.json();
             // Wait a moment then refresh status
             setTimeout(() => this._poll(), 2000);
@@ -152,7 +152,7 @@ const supervisorModule = {
         modal.classList.remove('hidden');
 
         try {
-            const resp = await fetch(`http://localhost:9090/api/logs/${key}`);
+            const resp = await fetch(`/api/logs/${key}`);
             if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
             const data = await resp.json();
             const tail = data.tail || [];
@@ -198,7 +198,7 @@ const supervisorModule = {
             output.textContent = 'git pull uitvoeren...';
         }
         try {
-            const resp = await fetch('http://localhost:9090/api/update', { method: 'POST' });
+            const resp = await fetch('/api/update', { method: 'POST' });
             const data = await resp.json();
             if (output) {
                 output.textContent = data.output || data.message || 'Gereed.';
@@ -213,7 +213,7 @@ const supervisorModule = {
                 document.getElementById('sv-update-text').textContent = 'Code geüpdatet! Services herstarten...';
                 // After successful pull, restart all services
                 try {
-                    const restartResp = await fetch('http://localhost:9090/api/restart-all', { method: 'POST' });
+                    const restartResp = await fetch('/api/restart-all', { method: 'POST' });
                     if (restartResp.ok) {
                         document.getElementById('sv-update-text').textContent = '✅ Code geüpdatet en services herstart';
                     }
@@ -324,7 +324,7 @@ const supervisorModule = {
                     <span>${this._escapeHtml(err.message)}</span><br><br>
                     Controleer of de supervisor service draait:<br>
                     <code>nssm status IchtusSupervisor</code><br>
-                    of open <a href="http://localhost:9090/" target="_blank" rel="noopener">http://localhost:9090/</a>
+                    of open <a href="/api/status" target="_blank" rel="noopener">/api/status</a>
                 </div>
                 <button class="sv-btn sv-btn-retry" onclick="supervisorModule._poll()">🔄 Opnieuw proberen</button>
             </div>
