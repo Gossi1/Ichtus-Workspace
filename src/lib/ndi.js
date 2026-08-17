@@ -2,7 +2,7 @@
  * NDI Source Discovery
  *
  * Twee methoden:
- * 1. zeroconf mDNS (indien beschikbaar) — zoekt _ndi._tcp.local.
+ * 1. bonjour-service mDNS — zoekt _ndi._tcp.local. via multicast DNS
  * 2. Fallback: UDP broadcast op poort 5960/5961 met 'NDI_LIST' packet
  *
  * Resultaten worden gecachet (10 seconden) zodat rapid-fire requests
@@ -18,51 +18,47 @@ let scanning = false;
 
 const CACHE_TTL_MS = 10_000; // 10 seconden
 
-// ── zeroconf (lazy import) ─────────────────────────────────────────────
-let zeroconfAvailable = null;
+// ── bonjour-service mDNS (lazy import) ─────────────────────────────────
+let bonjourAvailable = null;
 
-async function tryZeroconfDiscovery() {
-    if (zeroconfAvailable === false) return [];
+async function tryMdnsDiscovery() {
+    if (bonjourAvailable === false) return [];
 
     try {
-        const { Zeroconf, ServiceBrowser } = await import('zeroconf');
-        zeroconfAvailable = true;
+        const { default: Bonjour } = await import('bonjour-service');
+        bonjourAvailable = true;
 
         return new Promise((resolve) => {
             const sources = [];
-            const zc = new Zeroconf();
-            const listener = {
-                addService(type, name) {
-                    try {
-                        const info = zc.getServiceInfo(type, name);
-                        if (info && info.addresses && info.addresses.length > 0) {
-                            const addr = info.addresses[0];
-                            sources.push({
-                                name: name.replace('._ndi._tcp.local.', '').replace('._ndi._tcp.', ''),
-                                address: addr,
-                                port: info.port,
-                                type: 'NDI Source',
-                                metadata: `Port: ${info.port}`,
-                            });
-                        }
-                    } catch (_) { /* skip individual failures */ }
-                },
-                removeService() {},
-                updateService() {},
-            };
+            const seen = new Set();
+            const bonjour = new Bonjour();
 
-            const browser = new ServiceBrowser(zc, '_ndi._tcp.local.', listener);
+            const browser = bonjour.find({ type: 'ndi' }, (service) => {
+                try {
+                    const addr = service.referer?.address || service.addresses?.[0] || '';
+                    if (!addr || seen.has(addr)) return;
+                    seen.add(addr);
 
-            // Max 3 seconden wachten op discoveries
+                    sources.push({
+                        name: service.name || `NDI Device@${addr}`,
+                        address: addr,
+                        port: service.port,
+                        type: 'NDI Source',
+                        metadata: `Port: ${service.port}`,
+                    });
+                } catch (_) { /* skip individual failures */ }
+            });
+
+            // Max 4 seconden wachten op mDNS discoveries
             setTimeout(() => {
                 try { browser.stop(); } catch (_) {}
-                try { zc.destroy(); } catch (_) {}
+                try { bonjour.destroy(); } catch (_) {}
                 resolve(sources);
-            }, 3000);
+            }, 4000);
         });
     } catch (err) {
-        zeroconfAvailable = false;
-        console.log('  ⚠️  zeroconf niet beschikbaar — NDI discovery gebruikt UDP fallback');
+        bonjourAvailable = false;
+        console.log('  ⚠️  bonjour-service niet beschikbaar — NDI discovery gebruikt UDP fallback');
         return [];
     }
 }
@@ -138,7 +134,7 @@ export async function discoverNdISources() {
     ndiCache = { sources: [], count: 0, timestamp: new Date().toISOString(), scanning: true };
 
     try {
-        let sources = await tryZeroconfDiscovery();
+        let sources = await tryMdnsDiscovery();
         if (sources.length === 0) {
             sources = await udpDiscovery();
         }

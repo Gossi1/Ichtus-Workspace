@@ -9,6 +9,7 @@
     "dev": "node --watch src/server.js"
   },
   "dependencies": {
+    "bonjour-service": "^1.4.4",
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "firebase-admin": "^12.0.0",

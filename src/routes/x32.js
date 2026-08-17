@@ -345,6 +345,39 @@ router.post('/send', async (req, res) => {
     }
 });
 
+// Batch send through the active session — uses the persistent
+// connection that already has /xremote active, so the X32
+// accepts commands on the subscribed port.
+router.post('/session/send', async (req, res) => {
+    if (!activeSession || !activeSession.connected || !activeSession.port) {
+        return res.status(400).json({ error: 'Geen actieve X32 sessie — klik eerst Connect.' });
+    }
+    const { messages } = req.body || {};
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return res.status(400).json({ error: 'messages moet een niet-lege array zijn.' });
+    }
+    const safe = [];
+    for (const m of messages) {
+        if (!m || typeof m !== 'object' || typeof m.address !== 'string') continue;
+        const safeArgs = Array.isArray(m.args) ? m.args.map((a) => {
+            if (!a || typeof a !== 'object') return null;
+            const t = String(a.type || '').toLowerCase();
+            if (!['i', 'f', 's', 'b'].includes(t)) return null;
+            return { type: t, value: a.value };
+        }).filter(Boolean) : [];
+        safe.push({ address: m.address, args: safeArgs });
+    }
+    try {
+        for (const m of safe) {
+            activeSession.port.send(m);
+        }
+        res.json({ ok: true, count: safe.length, ip: activeSession.ip });
+    } catch (err) {
+        console.error('  [X32 SESSION] send failed:', err.message);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 router.get('/osc-info', (req, res) => {
     res.json({
         address: '/load',

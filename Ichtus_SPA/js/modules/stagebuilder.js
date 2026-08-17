@@ -765,14 +765,15 @@ const stagebuilderModule = {
         // first non-WL vocalist will go to CH 2 if WL is present,
         // otherwise CH 1.) Plain vocalists get their MAIN channel
         // here. A singing guitarist already has the guitar channel
-        // (Pass 2) and gets the vocal mic in row.voxChannel instead.
+        // (Pass 2) and gets the vocal mic in row.voxChannel on CH 5
+        // (operator spec: singing guitarists default to CH 5).
         // Piano/drum rows are skipped (blank channel per spec).
         for (const row of this.rosterRows) {
             const r = self._detectRoles(row.role);
             if (r.isPianist || r.isDrummer) continue; // blank per spec
             if (r.isGuitarist) {
                 if (row.sings && row.voxChannel == null && !r.isWL) {
-                    for (const ch of [1, 2, 3]) {
+                    for (const ch of [5, 1, 2, 3]) {
                         if (tryAssignVox(row, ch)) break;
                     }
                 }
@@ -788,8 +789,8 @@ const stagebuilderModule = {
         // Pass 4: Everyone else → roster order (idx+1, skipping taken,
         // up to idx 31 — past that the X32 has no input strip).
         // Piano/drum rows are skipped (blank channel per spec).
-        // A singing guitarist whose vocal pool (1-3) was exhausted
-        // still gets a free channel for his mic here.
+        // A singing guitarist whose vox pool (CH 5 first, then 1-3)
+        // was exhausted still gets a free channel for his mic here.
         for (let i = 0; i < this.rosterRows.length; i++) {
             const row = this.rosterRows[i];
             if (i >= 32) continue;
@@ -797,8 +798,13 @@ const stagebuilderModule = {
             if (r.isPianist || r.isDrummer) continue; // blank per spec
             if (r.isGuitarist) {
                 if (row.sings && row.voxChannel == null && !r.isWL) {
-                    for (let ch = i + 1; ch <= 32; ch++) {
-                        if (tryAssignVox(row, ch)) break;
+                    if (!taken.has(5)) {
+                        tryAssignVox(row, 5);
+                    }
+                    if (row.voxChannel == null) {
+                        for (let ch = i + 1; ch <= 32; ch++) {
+                            if (tryAssignVox(row, ch)) break;
+                        }
                     }
                 }
                 // Guitarist whose guitar channel (CH 10) was already
@@ -914,7 +920,21 @@ const stagebuilderModule = {
         let candidates = [];
         for (const row of this.rosterRows) {
             if (row.slot != null) continue; // operator set this — keep sticky
+            // Locked roles (drums / piano / keys / synth / organ):
+            // ONLY consider presets whose name contains a role keyword
+            // (e.g. "piano", "drums"). Name-only matches are ignored
+            // so the instrument preset is never displaced by a slot
+            // that just happens to contain the person's first name.
+            const lockedKws = row.locked ? this._roleKeywords(row.role) : null;
             for (const p of presets) {
+                if (lockedKws) {
+                    const slotLower = this._normalizeName(p.name);
+                    let found = false;
+                    for (const kw of lockedKws) {
+                        if (slotLower.indexOf(kw) >= 0) { found = true; break; }
+                    }
+                    if (!found) continue;
+                }
                 candidates.push({ row: row, slot: p, score: this._scoreMatch(row, p) });
             }
         }
@@ -1026,6 +1046,33 @@ const stagebuilderModule = {
         }
     },
 
+    _roleKeywords(role) {
+        // Combine the curated exact-token map (_roleKeywordMap) with a
+        // substring-category fallback that mirrors _detectRoles. The
+        // map alone missed suffixed role names: "Pianist" tokenizes to
+        // "pianist" (no map key), so a piano row never searched the
+        // preset list for "piano". The category fallback closes that
+        // gap for every instrument/vocal role.
+        const norm = this._normalizeName(role);
+        const out = [];
+        if (!norm) return out;
+        const add = function (kw) {
+            if (out.indexOf(kw) === -1) out.push(kw);
+        };
+        const tokens = norm.split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });
+        for (const t of tokens) {
+            const arr = this._roleKeywordMap[t];
+            if (arr) for (const kw of arr) add(kw);
+        }
+        const dr = this._detectRoles(norm);
+        if (dr.isPianist)   ['piano', 'keys', 'keyboard'].forEach(add);
+        if (dr.isDrummer)   ['drum', 'drums', 'kick'].forEach(add);
+        if (dr.isGuitarist) ['gtr', 'guitar', 'gitaar', 'git', 'acc'].forEach(add);
+        if (dr.isBassist)   ['bass'].forEach(add);
+        if (dr.isVocalist)  ['vox', 'vocal', 'zang', 'sing', 'mic'].forEach(add);
+        return out;
+    },
+
     _scoreMatch(row, preset) {
         // Threshold-driven fit score. Returns 0 if the preset name is
         // empty (don't auto-suggest to bare-but-occupied slots — they
@@ -1048,17 +1095,21 @@ const stagebuilderModule = {
         if (lastName && lastName !== firstName && lastName.length > 1 &&
             slotName.indexOf(lastName) >= 0) score += 50;
 
-        // Role-keyword heuristic — only if role is non-trivial.
+        // Role-keyword heuristic — only if role is non-trivial. Uses
+        // _roleKeywords so suffixed / Dutch role names ("Pianist",
+        // "Pianiste", "Toetsen", "Gitarist", "Drummer", ...) still
+        // trigger their instrument keywords — the same substring
+        // category logic _detectRoles uses for the channel rules.
+        // Locked roles (drums / piano / keys / synth / organ) get a
+        // large bonus (+110 vs +20) so their instrument preset always
+        // outranks a name-only match — the instrument is fixed and
+        // shouldn't be displaced just because a slot happens to
+        // contain the person's first name.
         if (roleNorm) {
-            const roleTokens = roleNorm.split(/[^a-z0-9]+/).filter(function (t) { return t.length > 0; });
-            let roleMatched = false;
-            for (let i = 0; i < roleTokens.length && !roleMatched; i++) {
-                const kwArr = this._roleKeywordMap[roleTokens[i]];
-                if (kwArr) {
-                    for (const kw of kwArr) {
-                        if (slotName.indexOf(kw) >= 0) { score += 20; roleMatched = true; break; }
-                    }
-                }
+            const kwList = this._roleKeywords(roleNorm);
+            const isLocked = this._isLockedRole(roleNorm);
+            for (const kw of kwList) {
+                if (slotName.indexOf(kw) >= 0) { score += isLocked ? 110 : 20; break; }
             }
         }
 
@@ -2123,6 +2174,86 @@ const stagebuilderModule = {
             total: summary.total,
             rows: ready.map(function (r) { return r.name + ' / ' + r.role + ' → ' + r.status; })
         });
+        // After all presets are recalled, drop any CH 1-14 fader
+        // that nobody in the roster is using to -inf. Operators
+        // expect one-click "prep for service": recall everything,
+        // then silence what's left.
+        await this.muteUnassignedChannels();
+    },
+
+    /**
+     * Mute unassigned channels (CH 1-14) by setting their main-mix
+     * fader to -inf via OSC. Channels that ARE assigned to a roster
+     * row (main channel or singing-guitarist vox channel) are left
+     * untouched. Used before a service to silence unused inputs.
+     */
+    async muteUnassignedChannels() {
+        if (!this._x32DiscoveredPresets) {
+            this.showToast('X32 niet gepolld — klik Poll.', 'error');
+            return;
+        }
+        // Collect every channel that a roster row currently owns.
+        const assigned = new Set();
+        let hasPianist = false;
+        let hasDrummer = false;
+        for (const row of this.rosterRows) {
+            if (row.channel != null) assigned.add(row.channel);
+            if (row.voxChannel != null) assigned.add(row.voxChannel);
+            const r = this._detectRoles(row.role);
+            if (r.isPianist) hasPianist = true;
+            if (r.isDrummer) hasDrummer = true;
+        }
+        // Build the list of CH 1-14 that nobody is using. CH 11 and
+        // 12 are reserved for piano; CH 13 and 14 for drums. The
+        // locked-role channel rules leave piano/drum rows BLANK
+        // (per operator spec), so those rows don't claim the
+        // reserved channels via the normal assignment path — we
+        // skip them here when the corresponding role is present.
+        const unassigned = [];
+        for (let ch = 1; ch <= 14; ch++) {
+            if (assigned.has(ch)) continue;
+            if (hasPianist && (ch === 11 || ch === 12)) continue;
+            if (hasDrummer && (ch === 13 || ch === 14)) continue;
+            unassigned.push(ch);
+        }
+        if (unassigned.length === 0) {
+            this.showToast('Alle kanalen 1-14 zijn toegewezen — niets te muten.', 'success');
+            return;
+        }
+        const ip = this._getX32Ip();
+        const ctrl = this._x32AddPending('mute-unassigned');
+        try {
+            // Build all OSC messages up front, then fire them in
+            // one batch through the active session (which has
+            // /xremote running — the X32 only accepts fader
+            // commands on a subscribed port).
+            const messages = unassigned.map(function (ch) {
+                return {
+                    address: '/ch/' + String(ch).padStart(2, '0') + '/mix/fader',
+                    args: [{ type: 'f', value: 0.0 }]
+                };
+            });
+            const r = await fetch('/api/x32/session/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: messages }),
+                signal: ctrl ? ctrl.signal : undefined
+            });
+            if (!r.ok) {
+                const errData = await r.json().catch(function () { return {}; });
+                throw new Error(errData.error || ('HTTP ' + r.status));
+            }
+            const label = unassigned.map(function (c) {
+                return 'CH ' + String(c).padStart(2, '0');
+            }).join(', ');
+            this.showToast('\u2713 ' + unassigned.length + ' kanaal(en) op -inf gezet (' + label + ')', 'success');
+            console.log('[SB] muteUnassignedChannels:', { channels: unassigned, ip: ip });
+        } catch (ex) {
+            if (ex && ex.name === 'AbortError') return;
+            this.showToast('\u2717 Mute mislukt: ' + ex.message, 'error');
+        } finally {
+            this._x32RemovePending(ctrl);
+        }
     },
 
     /**

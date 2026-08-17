@@ -344,6 +344,12 @@ h1, h2, h3, .heading-font {
     stroke: none;
 }
 
+.sidebar-nav-icon-img {
+    width: 18px;
+    height: 18px;
+    filter: invert(1);
+}
+
 /* Text */
 .sidebar-text {
     font-family: 'PMN Caecilia', serif;
