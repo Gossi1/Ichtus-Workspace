@@ -67,7 +67,20 @@ async function loadConfigFromFile(url) {
             }
         }
 
-        // 2. Server-injected config (multi-tenant deployments, e.g. server.py writing window.FIREBASE_CONFIG)
+        // 2. Server API endpoint (network-first, SW can cache this)
+        try {
+            const resp = await fetch('/api/firebase-config', { cache: 'no-store' });
+            if (resp.ok) {
+                const apiConfig = await resp.json();
+                if (apiConfig && apiConfig.apiKey && apiConfig.apiKey !== 'YOUR_API_KEY_HERE' && apiConfig.apiKey.startsWith('AIza')) {
+                    firebaseConfig = apiConfig;
+                    initializeFirebase(firebaseConfig);
+                    return;
+                }
+            }
+        } catch (_) {}
+
+        // 3. Server-injected config (multi-tenant deployments, e.g. server.py writing window.FIREBASE_CONFIG)
         if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
             firebaseConfig = window.FIREBASE_CONFIG;
             if (firebaseConfig.apiKey && firebaseConfig.apiKey !== 'YOUR_API_KEY_HERE') {
@@ -76,7 +89,7 @@ async function loadConfigFromFile(url) {
             }
         }
 
-        // 3. User-dropped file in the served directory (auto-load, no manual auth)
+        // 4. User-dropped file in the served directory (auto-load, no manual auth)
         const fileConfig = await loadConfigFromFile('/Ichtus_SPA/firebase-config.txt');
         if (fileConfig) {
             firebaseConfig = fileConfig;
@@ -85,7 +98,7 @@ async function loadConfigFromFile(url) {
             return;
         }
 
-        // 4. Bundled config file (legacy template fallback)
+        // 5. Bundled config file (legacy template fallback)
         if (typeof FIREBASE_CONFIG !== 'undefined') {
             firebaseConfig = FIREBASE_CONFIG;
 

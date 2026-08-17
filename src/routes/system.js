@@ -101,6 +101,17 @@ router.use((req, res, next) => {
     next();
 });
 
+// ── Firebase Config (browser kan dit ophalen via fetch) ──────────────
+
+router.get('/firebase-config', (req, res) => {
+    const config = getFirebaseConfig();
+    if (!config) {
+        return res.status(404).json({ error: 'Firebase config niet gevonden. Maak firebase-api-key.txt aan in de project root.' });
+    }
+    res.set('Cache-Control', 'public, max-age=300');
+    res.json(config);
+});
+
 // ── Health & Status ────────────────────────────────────────────────────
 
 router.get('/health', (req, res) => {
