@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v3';
+const CACHE_NAME = 'ichtus-spa-v4';
 
 // Static assets to pre-cache on install.
 // NOTE: Firebase SDK CDN URLs (https://www.gstatic.com/…) are intentionally
@@ -38,7 +38,8 @@ const PRECACHE_URLS = [
   '/Ichtus_SPA/icons/icon.svg',
   '/Ichtus_SPA/icons/icon-192.png',
   '/Ichtus_SPA/icons/icon-512.png',
-  '/Ichtus_SPA/version.json'
+  '/Ichtus_SPA/version.json',
+  '/Ichtus_SPA/offline.html'
 ];
 
 // API patterns that should always go network-first
@@ -93,13 +94,13 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
 
-  // API calls → network first with cache fallback
+  // API calls → network only, no cache fallback (server offline = error)
   if (API_PATTERNS.some(pattern => event.request.url.includes(pattern))) {
     event.respondWith(networkFirst(event.request));
     return;
   }
 
-  // Navigation requests → network first (so Firebase auth etc works)
+  // Navigation requests → network first, offline page if server unreachable
   if (event.request.mode === 'navigate') {
     event.respondWith(networkFirst(event.request));
     return;
@@ -138,12 +139,14 @@ async function networkFirst(request) {
     }
     return networkResponse;
   } catch (error) {
-    const cachedResponse = await caches.match(request);
-    if (cachedResponse) {
-      return cachedResponse;
+    // API calls: no cache fallback — let the caller handle the error
+    if (API_PATTERNS.some(pattern => request.url.includes(pattern))) {
+      throw error;
     }
+    // Navigation: show offline page instead of cached SPA
     if (request.mode === 'navigate') {
-      return caches.match('/Ichtus_SPA/index.html');
+      const offlinePage = await caches.match('/Ichtus_SPA/offline.html');
+      if (offlinePage) return offlinePage;
     }
     throw error;
   }
