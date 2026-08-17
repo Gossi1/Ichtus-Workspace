@@ -343,5 +343,26 @@ echo   zonder deze folder mee te verhuizen):
 echo     !NSSM_PATH!
 echo   ==================================================
 echo.
+
+:: ------------------------------------------------
+::  Verifieer dat de service daadwerkelijk
+::  geregistreerd is (extra safety net).
+:: ------------------------------------------------
+echo   Verifying service registration...
+sc query !SVC_NAME! >nul 2>&1
+if !errorlevel!==0 (
+    echo   [OK] Service !SVC_NAME! IS geregistreerd in services.msc.
+) else (
+    echo   [FATAL] Service !SVC_NAME! is NIET geregistreerd.
+    echo           Iets ging mis in installatie. Hierboven staan details.
+)
+
+echo.
+echo   ==================================================
+echo   [DONE] install-service.bat completed at !TIME!
+echo   ==================================================
+echo   Exit-code: !ERRORLEVEL!
+echo.
+
 if "%INTERACTIVE%"=="1" pause
 endlocal
