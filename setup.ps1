@@ -185,14 +185,16 @@ try {
             Write-Ok "node_modules up-to-date (hash match) — overslaan npm install"
         } else {
             Write-Info "package.json is gewijzigd — `npm install` opnieuw draaien..."
-            & npm install
+            # 'cmd /c' omzeilt PowerShell's execution policy die npm.ps1 anders blokkeert
+            cmd /c npm install
             if ($LASTEXITCODE -ne 0) { Write-Err "npm install mislukt"; exit 1 }
             $pkgHashCurrent | Out-File ".setup-pkg-hash" -Encoding ASCII
             Write-Ok "Dependencies bijgewerkt"
         }
     } else {
         Write-Info "`npm install` (~1-2 min, internet nodig)..."
-        & npm install
+        # 'cmd /c' omzeilt PowerShell's execution policy die npm.ps1 anders blokkeert
+        cmd /c npm install
         if ($LASTEXITCODE -ne 0) { Write-Err "npm install mislukt"; exit 1 }
         (Get-FileHash package.json -Algorithm SHA256).Hash | Out-File ".setup-pkg-hash" -Encoding ASCII
         Write-Ok "Dependencies geinstalleerd"
