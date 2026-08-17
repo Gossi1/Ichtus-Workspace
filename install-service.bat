@@ -91,17 +91,13 @@ if not defined NSSM_ARCH_DIR              set "NSSM_ARCH_DIR=win64"
 
 set "NSSM_PATH="
 
-:: 3a. nssm-service.json -^> nssmPath. Een .ps1-file aanroepen
-:: ipv de inline powershell -Command met `^|` pipe-escape,
-:: want die escape lekt door naar PS en wordt als losse `^`
-:: gerapporteerd (zie history).
-> "%TEMP%\ichtus-np.ps1" (
-    echo $ErrorActionPreference = 'SilentlyContinue'
-    echo try {
-    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
-    echo   [string]$j.nssmPath
-    echo } catch { '' }
-)
+:: 3a. nssm-service.json -^> nssmPath via een .ps1-helper om
+:: de batch<->PS pipe-escape bug te vermijden.
+>  "%TEMP%\ichtus-np.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
+>> "%TEMP%\ichtus-np.ps1" echo try {
+>> "%TEMP%\ichtus-np.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+>> "%TEMP%\ichtus-np.ps1" echo   [string]$j.nssmPath
+>> "%TEMP%\ichtus-np.ps1" echo } catch { '' }
 for /f "delims=" %%i in ('powershell -NoProfile -File "%TEMP%\ichtus-np.ps1" 2^>nul') do set NSSM_PATH=%%i
 del "%TEMP%\ichtus-np.ps1" >nul 2>&1
 
@@ -332,15 +328,13 @@ goto :eof
 ::  pipe-escape (`^|` ziet PS als losse `^`) te omzeilen.
 :: ------------------------------------------
 :set_service_config
-> "%TEMP%\ichtus-rj.ps1" (
-    echo $ErrorActionPreference = 'SilentlyContinue'
-    echo try {
-    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
-    echo   if ($j) {
-    echo     ([string]$j.serviceName + ';' + [string]$j.serviceDisplayName + ';' + [string]$j.serviceDescription + ';' + [string]$j.stdoutLog + ';' + [string]$j.stderrLog)
-    echo   } else { ';;;;' }
-    echo } catch { ';;;;' }
-)
+>  "%TEMP%\ichtus-rj.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
+>> "%TEMP%\ichtus-rj.ps1" echo try {
+>> "%TEMP%\ichtus-rj.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+>> "%TEMP%\ichtus-rj.ps1" echo   if ($j) {
+>> "%TEMP%\ichtus-rj.ps1" echo     ([string]$j.serviceName + ';' + [string]$j.serviceDisplayName + ';' + [string]$j.serviceDescription + ';' + [string]$j.stdoutLog + ';' + [string]$j.stderrLog)
+>> "%TEMP%\ichtus-rj.ps1" echo   } else { ';;;;' }
+>> "%TEMP%\ichtus-rj.ps1" echo } catch { ';;;;' }
 for /f "tokens=1-5 delims=;" %%A in ('powershell -NoProfile -File "%TEMP%\ichtus-rj.ps1" 2^>nul') do (
     set "SVC_NAME=%%A"
     set "SVC_DISPLAY=%%B"
@@ -363,15 +357,13 @@ goto :eof
 :: ------------------------------------------
 :read_env_vars
 set "ENV_PAIRS="
-> "%TEMP%\ichtus-env.ps1" (
-    echo $ErrorActionPreference = 'SilentlyContinue'
-    echo try {
-    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
-    echo   if ($j.env) {
-    echo     $j.env.PSObject.Properties ^| ForEach-Object { '{0}={1}' -f $_.Name, $_.Value } ^| ConvertTo-Json -Compress
-    echo   } else { '[]' }
-    echo } catch { '[]' }
-)
+>  "%TEMP%\ichtus-env.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
+>> "%TEMP%\ichtus-env.ps1" echo try {
+>> "%TEMP%\ichtus-env.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+>> "%TEMP%\ichtus-env.ps1" echo   if ($j.env) {
+>> "%TEMP%\ichtus-env.ps1" echo     $j.env.PSObject.Properties ^| ForEach-Object { '{0}={1}' -f $_.Name, $_.Value } ^| ConvertTo-Json -Compress
+>> "%TEMP%\ichtus-env.ps1" echo   } else { '[]' }
+>> "%TEMP%\ichtus-env.ps1" echo } catch { '[]' }
 for /f "delims=" %%L in ('powershell -NoProfile -File "%TEMP%\ichtus-env.ps1" 2^>nul') do set "ENV_PAIRS=%%L"
 del "%TEMP%\ichtus-env.ps1" >nul 2>&1
 goto :eof
