@@ -88,6 +88,15 @@ if !errorlevel! neq 0 (
     exit /b 1
 )
 
+:: ------------------------------------------------
+::  Ruim eventuele overgebleven node.exe-processen op
+::  die vanuit deze map zijn gestart, anders houdt Windows
+::  de map lock-locked en lukt Remove-Item niet.
+:: ------------------------------------------------
+echo   Ruim overgebleven node.exe processen op...
+powershell -NoProfile -Command "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -like '*Ichtus_apps*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+echo   [OK] Processen opgeruimd
+
 echo.
 echo   ==================================================
 echo   [OK] Service !SVC_NAME! verwijderd.
