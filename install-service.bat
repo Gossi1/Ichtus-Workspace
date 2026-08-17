@@ -91,8 +91,19 @@ if not defined NSSM_ARCH_DIR              set "NSSM_ARCH_DIR=win64"
 
 set "NSSM_PATH="
 
-:: 3a. nssm-service.json -^> nssmPath
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).nssmPath"') do set NSSM_PATH=%%i
+:: 3a. nssm-service.json -^> nssmPath. Een .ps1-file aanroepen
+:: ipv de inline powershell -Command met `^|` pipe-escape,
+:: want die escape lekt door naar PS en wordt als losse `^`
+:: gerapporteerd (zie history).
+> "%TEMP%\ichtus-np.ps1" (
+    echo $ErrorActionPreference = 'SilentlyContinue'
+    echo try {
+    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+    echo   [string]$j.nssmPath
+    echo } catch { '' }
+)
+for /f "delims=" %%i in ('powershell -NoProfile -File "%TEMP%\ichtus-np.ps1" 2^>nul') do set NSSM_PATH=%%i
+del "%TEMP%\ichtus-np.ps1" >nul 2>&1
 
 :: 3b. nssm.exe op PATH
 if "!NSSM_PATH!"=="" (
@@ -152,12 +163,9 @@ if not exist "!NSSM_PATH!" (
 
 echo   [NSSM] !NSSM_PATH!
 
-:: Service config inlezen
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).serviceName"') do set SVC_NAME=%%i
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).serviceDisplayName"') do set SVC_DISPLAY=%%i
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).serviceDescription"') do set SVC_DESC=%%i
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).stdoutLog"') do set LOG_OUT=%%i
-for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm-service.json ^|^ ConvertFrom-Json).stderrLog"') do set LOG_ERR=%%i
+:: Service config inlezen (1x in plaats van 5x; gebruikt een
+:: temp .ps1-bestand om de batch<->PS pipe-escape bugs te omzeilen).
+call :set_service_config
 
 echo   [SVC]  !SVC_NAME! ^(!SVC_DISPLAY!^)
 echo.
@@ -234,7 +242,7 @@ echo.
 echo   Environment variabelen instellen...
 
 :: Bouw KEY=VALUE,KEY=VALUE string uit het JSON-bestand
-for /f "delims=" %%L in ('powershell -NoProfile -Command "$env = (Get-Content -Raw nssm-service.json ^| ConvertFrom-Json).env; if ($env) { $env.PSObject.Properties ^| ForEach-Object { '{0}={1}' -f $_.Name, $_.Value } ^| ConvertTo-Json -Compress }"') do set "ENV_PAIRS=%%L"
+call :read_env_vars
 
 set "ENV_STR=!ENV_PAIRS!"
 set "ENV_STR=!ENV_STR:[=!"
@@ -315,6 +323,57 @@ endlocal
 
 :_pause
 if "%INTERACTIVE%"=="1" pause >nul
+goto :eof
+
+:: ------------------------------------------
+::  :set_service_config  -- leest SVC_NAME, SVC_DISPLAY,
+::  SVC_DESC, LOG_OUT, LOG_ERR vanuit nssm-service.json.
+::  Schrijft een tijdelijk .ps1-bestand om de batch<->PS
+::  pipe-escape (`^|` ziet PS als losse `^`) te omzeilen.
+:: ------------------------------------------
+:set_service_config
+> "%TEMP%\ichtus-rj.ps1" (
+    echo $ErrorActionPreference = 'SilentlyContinue'
+    echo try {
+    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+    echo   if ($j) {
+    echo     ([string]$j.serviceName + ';' + [string]$j.serviceDisplayName + ';' + [string]$j.serviceDescription + ';' + [string]$j.stdoutLog + ';' + [string]$j.stderrLog)
+    echo   } else { ';;;;' }
+    echo } catch { ';;;;' }
+)
+for /f "tokens=1-5 delims=;" %%A in ('powershell -NoProfile -File "%TEMP%\ichtus-rj.ps1" 2^>nul') do (
+    set "SVC_NAME=%%A"
+    set "SVC_DISPLAY=%%B"
+    set "SVC_DESC=%%C"
+    set "LOG_OUT=%%D"
+    set "LOG_ERR=%%E"
+)
+del "%TEMP%\ichtus-rj.ps1" >nul 2>&1
+:: Defaults als JSON-velden ontbreken of de parse faalde
+if "%SVC_NAME%"==";;;;"       set "SVC_NAME=IchtusServer"
+if "%SVC_DISPLAY%"==""        set "SVC_DISPLAY=Ichtus Workspace Server"
+if "%SVC_DESC%"==""           set "SVC_DESC=Ichtus Workspace console server"
+if "%LOG_OUT%"==""            set "LOG_OUT=%CD%\logs\nssm-stdout.log"
+if "%LOG_ERR%"==""            set "LOG_ERR=%CD%\logs\nssm-stderr.log"
+goto :eof
+
+:: ------------------------------------------
+::  :read_env_vars -- leest de `env` sectie van
+::  nssm-service.json en geeft KEY=VALUE,KEY=VALUE,...
+:: ------------------------------------------
+:read_env_vars
+set "ENV_PAIRS="
+> "%TEMP%\ichtus-env.ps1" (
+    echo $ErrorActionPreference = 'SilentlyContinue'
+    echo try {
+    echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
+    echo   if ($j.env) {
+    echo     $j.env.PSObject.Properties ^| ForEach-Object { '{0}={1}' -f $_.Name, $_.Value } ^| ConvertTo-Json -Compress
+    echo   } else { '[]' }
+    echo } catch { '[]' }
+)
+for /f "delims=" %%L in ('powershell -NoProfile -File "%TEMP%\ichtus-env.ps1" 2^>nul') do set "ENV_PAIRS=%%L"
+del "%TEMP%\ichtus-env.ps1" >nul 2>&1
 goto :eof
 
 :download_nssm
