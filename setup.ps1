@@ -1,14 +1,14 @@
 <#
-  Ichtus Workspace — one-shot installer
+  Ichtus Workspace -- one-shot installer
   -------------------------------------
   Veilig om meerdere keren te draaien (idempotent).
 
   Doet het volgende automatisch:
-    1. Controleert winget, Git en Node.js — installeert ze via 'winget' indien nodig
+    1. Controleert winget, Git en Node.js -- installeert ze via 'winget' indien nodig
     2. Clone't de repository naar InstallPath (default: C:\Ichtus_apps)
     3. npm install (overslaan als node_modules al klopt)
     4. Kopieert nssm-service.example.json naar nssm-service.json
-    5. Draait install-service.bat — registreert IchtusServer als Windows-service
+    5. Draait install-service.bat -- registreert IchtusServer als Windows-service
        (downloadt NSSM automatisch als het niet gevonden wordt)
 
   Gebruik:
@@ -42,9 +42,9 @@ function Write-Warn($msg)   { Write-Host "  [WARN] $msg" -ForegroundColor Yellow
 function Write-Err($msg)    { Write-Host "  [ERROR] $msg" -ForegroundColor Red }
 function Write-Info($msg)   { Write-Host "  [INFO] $msg" -ForegroundColor Gray }
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 #  Pre-flight: draaien we als admin?
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
     [Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -53,9 +53,9 @@ if (-not $isAdmin) {
     exit 1
 }
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 #  Banner
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 Write-Host ""
 Write-Host "  ==================================================" -ForegroundColor White
 Write-Host "      ICHTUS WORKSPACE - ONE-SHOT INSTALLER" -ForegroundColor White
@@ -64,18 +64,18 @@ Write-Host "  Doelmap:    $InstallPath"
 Write-Host "  Repository: $RepoUrl"
 Write-Host "  =================================================="
 
-# ──────────────────────────────────────────────────────────────────
-#  Stap 1 — winget / Git / Node.js
-# ──────────────────────────────────────────────────────────────────
-Write-Section "Stap 1 — Git en Node.js controleren"
+# ------------------------------------------------------------------
+#  Stap 1 -- winget / Git / Node.js
+# ------------------------------------------------------------------
+Write-Section "Stap 1 -- Git en Node.js controleren"
 
 $hasWinget = [bool](Get-Command winget -ErrorAction SilentlyContinue)
 if (-not $hasWinget) {
     Write-Warn "winget niet gevonden op deze PC."
     Write-Info "Installeer 'App Installer' vanuit de Microsoft Store, of installeer Git en Node.js handmatig."
-    Write-Info "(Git: https://git-scm.com/download/win — Node.js LTS: https://nodejs.org/)"
+    Write-Info "(Git: https://git-scm.com/download/win -- Node.js LTS: https://nodejs.org/)"
     if (-not $SkipWinget) {
-        Write-Err "Stop — herstart dit script met -SkipWinget als je Git en Node al handmatig hebt geinstalleerd."
+        Write-Err "Stop -- herstart dit script met -SkipWinget als je Git en Node al handmatig hebt geinstalleerd."
         exit 1
     }
 }
@@ -85,15 +85,15 @@ function Install-IfMissing {
     $cmd = Get-Command $Tool -ErrorAction SilentlyContinue
     if ($cmd) {
         $ver = & $Tool --version 2>$null | Select-Object -First 1
-        Write-Ok "$Tool gevonden — $ver"
+        Write-Ok "$Tool gevonden -- $ver"
         return
     }
     if ($SkipWinget) {
-        Write-Warn "$Tool ontbreekt en -SkipWinget is gezet — ga verder en hoop dat het pad later pakt."
+        Write-Warn "$Tool ontbreekt en -SkipWinget is gezet -- ga verder en hoop dat het pad later pakt."
         return
     }
     if (-not $hasWinget) {
-        Write-Err "$Tool ontbreekt maar winget ook — installeer $Tool handmatig."
+        Write-Err "$Tool ontbreekt maar winget ook -- installeer $Tool handmatig."
         exit 1
     }
     Write-Info "$Tool installeren via winget (kan ~1 min duren)..."
@@ -110,7 +110,7 @@ function Install-IfMissing {
         Write-Info "Open een nieuwe admin-PowerShell en draai dit script opnieuw."
         exit 1
     }
-    Write-Ok "$Tool geinstalleerd — $((& $Tool --version 2>$null | Select-Object -First 1))"
+    Write-Ok "$Tool geinstalleerd -- $((& $Tool --version 2>$null | Select-Object -First 1))"
 }
 
 Install-IfMissing -Tool git  -WingetId "Git.Git"
@@ -125,24 +125,24 @@ if ($nodeVer -notmatch 'v(\d+)\.') {
 }
 $nodeMajor = [int]$Matches[1]
 if ($nodeMajor -lt 18) {
-    Write-Err "Node.js $nodeVer is te oud — vereist 18 of nieuwer."
+    Write-Err "Node.js $nodeVer is te oud -- vereist 18 of nieuwer."
     exit 1
 }
 Write-Ok "Node.js $nodeVer voldoet (>= 18)"
 
-# ──────────────────────────────────────────────────────────────────
-#  Stap 2 — Repository ophalen
-# ──────────────────────────────────────────────────────────────────
-Write-Section "Stap 2 — Code ophalen"
+# ------------------------------------------------------------------
+#  Stap 2 -- Repository ophalen
+# ------------------------------------------------------------------
+Write-Section "Stap 2 -- Code ophalen"
 
 if ($SkipClone) {
-    Write-Info "-SkipClone gezet — ga uit van een bestaande map."
+    Write-Info "-SkipClone gezet -- ga uit van een bestaande map."
     if (-not (Test-Path $InstallPath)) {
         Write-Err "$InstallPath bestaat niet."
         exit 1
     }
 } elseif (Test-Path "$InstallPath\.git") {
-    Write-Ok "Git repo gevonden in $InstallPath — overslaan klonen, wel even `git pull` draaien"
+    Write-Ok "Git repo gevonden in $InstallPath -- overslaan klonen, wel even `git pull` draaien"
     Push-Location $InstallPath
     try {
         # 'cmd /c ... 2>nul' voorkomt dat PowerShell git's stderr-output
@@ -152,7 +152,7 @@ if ($SkipClone) {
         # Zelfs als de pull succesvol was.
         $pullOutput = cmd /c "git pull --ff-only 2>nul"
         if ($LASTEXITCODE -ne 0) {
-            Write-Warn "`git pull` faalde — niet kritisch als je deze setup al had draaien."
+            Write-Warn "`git pull` faalde -- niet kritisch als je deze setup al had draaien."
             if ($pullOutput) { Write-Info ($pullOutput -join "`n") }
         } else {
             if ($pullOutput) { Write-Info ($pullOutput -join "`n") }
@@ -166,7 +166,7 @@ if ($SkipClone) {
     }
     Write-Info "Klonen naar $InstallPath ..."
     # git clone maakt de doelmap (en parents) zelf aan. Geen New-Item nodig
-    # — dat struikelt over paden als 'C:\'.
+    # -- dat struikelt over paden als 'C:\'.
     & git clone --branch $Branch $RepoUrl $InstallPath
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Klonen mislukt (exit $LASTEXITCODE)."
@@ -177,10 +177,10 @@ if ($SkipClone) {
 
 Push-Location $InstallPath
 try {
-    # ──────────────────────────────────────────────────────────────
-    #  Stap 3 — npm install
-    # ──────────────────────────────────────────────────────────────
-    Write-Section "Stap 3 — npm install"
+    # --------------------------------------------------------------
+    #  Stap 3 -- npm install
+    # --------------------------------------------------------------
+    Write-Section "Stap 3 -- npm install"
 
     if (Test-Path "node_modules") {
         $pkgHashCurrent  = (Get-FileHash package.json -Algorithm SHA256).Hash
@@ -189,9 +189,9 @@ try {
             $pkgHashOld = (Get-Content ".setup-pkg-hash" -Raw).Trim()
         }
         if ($pkgHashCurrent -eq $pkgHashOld) {
-            Write-Ok "node_modules up-to-date (hash match) — overslaan npm install"
+            Write-Ok "node_modules up-to-date (hash match) -- overslaan npm install"
         } else {
-            Write-Info "package.json is gewijzigd — `npm install` opnieuw draaien..."
+            Write-Info "package.json is gewijzigd -- `npm install` opnieuw draaien..."
             # 'cmd /c' omzeilt PowerShell's execution policy die npm.ps1 anders blokkeert
             cmd /c npm install
             if ($LASTEXITCODE -ne 0) { Write-Err "npm install mislukt"; exit 1 }
@@ -207,26 +207,26 @@ try {
         Write-Ok "Dependencies geinstalleerd"
     }
 
-    # ──────────────────────────────────────────────────────────────
-    #  Stap 4 — NSSM service config + service registratie
-    # ──────────────────────────────────────────────────────────────
-    Write-Section "Stap 4 — NSSM service"
+    # --------------------------------------------------------------
+    #  Stap 4 -- NSSM service config + service registratie
+    # --------------------------------------------------------------
+    Write-Section "Stap 4 -- NSSM service"
 
     if (-not (Test-Path "nssm-service.json")) {
         if (Test-Path "nssm-service.example.json") {
             Copy-Item "nssm-service.example.json" "nssm-service.json"
             Write-Ok "nssm-service.json aangemaakt (defaults zijn OK voor de meeste setups)"
         } else {
-            Write-Err "nssm-service.example.json ontbreekt — repository klopt niet."
+            Write-Err "nssm-service.example.json ontbreekt -- repository klopt niet."
             exit 1
         }
     } else {
-        Write-Ok "nssm-service.json bestaat al — overslaan"
+        Write-Ok "nssm-service.json bestaat al -- overslaan"
     }
 
     if (-not $SkipService) {
         if (-not (Test-Path "install-service.bat")) {
-            Write-Err "install-service.bat ontbreekt — repository klopt niet."
+            Write-Err "install-service.bat ontbreekt -- repository klopt niet."
             exit 1
         }
         Write-Info "install-service.bat draaien (downloadt evt. NSSM en registreert de service)..."
@@ -236,20 +236,20 @@ try {
         try {
             & .\install-service.bat
             if ($LASTEXITCODE -ne 0) {
-                Write-Err "install-service.bat faalde — zie output hierboven."
+                Write-Err "install-service.bat faalde -- zie output hierboven."
                 exit 1
             }
         } finally {
             Remove-Item Env:AUTO_INSTALL_NSSM -ErrorAction SilentlyContinue
         }
     } else {
-        Write-Info "-SkipService gezet — service wordt niet geregistreerd. Draai later: install-service.bat"
+        Write-Info "-SkipService gezet -- service wordt niet geregistreerd. Draai later: install-service.bat"
     }
 } finally { Pop-Location }
 
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 #  Einde
-# ──────────────────────────────────────────────────────────────────
+# ------------------------------------------------------------------
 Write-Host ""
 Write-Host "  ==================================================" -ForegroundColor Green
 Write-Host "    INSTALLATIE VOLTOOID" -ForegroundColor Green

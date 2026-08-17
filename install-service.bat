@@ -3,14 +3,14 @@ setlocal EnableDelayedExpansion
 
 cd /d "%~dp0"
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  Headless / silent mode?
 ::  Wordt aangezet door setup.ps1 via:
 ::      set AUTO_INSTALL_NSSM=1
 ::  In die modus:
 ::    - alle interactieve prompts worden automatisch beantwoord
 ::    - `pause` aan het eind slaat over
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 if "%AUTO_INSTALL_NSSM%"=="1" (
     set "INTERACTIVE=0"
 ) else (
@@ -27,12 +27,12 @@ echo   ==================================================
 echo      ICHTUS SERVER - NSSM SERVICE INSTALLER
 echo   ==================================================
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  Helper: download en extract NSSM
 ::  Wordt aangeroepen vanuit sectie 3 als NSSM niet
 ::  gevonden is. Staat bovenaan zodat endlocal hem niet
 ::  kan onderbreken.
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 :download_nssm
 set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
 set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
@@ -44,9 +44,9 @@ echo   URL: !NSSM_URL!
 if not exist "%NSSM_TEMP_DIR%" mkdir "%NSSM_TEMP_DIR%" >nul 2>&1
 
 :: Download via PowerShell Invoke-WebRequest (Windows 7+)
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  Probeer methode 1: PowerShell Invoke-WebRequest
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 powershell -NoProfile -Command ^
     "try { $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop; 'OK' } catch { 'FAIL: ' + $_.Exception.Message }" > "%NSSM_TEMP_DIR%\ps-result.txt" 2>&1
 set "DL_OK=0"
@@ -61,9 +61,9 @@ if !DL_OK!==1 (
 echo   [WARN] PowerShell download mislukt:
 type "%NSSM_TEMP_DIR%\ps-result.txt"
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  Probeer methode 2: curl.exe (sinds Windows 10 1803 inbegrepen)
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 echo   Probeer methode 2: curl.exe...
 where curl >nul 2>&1
 if !errorlevel! neq 0 (
@@ -108,9 +108,9 @@ exit /b 0
 
 echo.
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  1. nssm-service.json aanwezig?
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 if not exist "nssm-service.json" (
     echo   [ERROR] nssm-service.json niet gevonden.
     echo.
@@ -120,9 +120,9 @@ if not exist "nssm-service.json" (
     exit /b 1
 )
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  2. Node.js aanwezig?
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo   [ERROR] Node.js niet gevonden. Installeer Node.js LTS.
@@ -141,9 +141,9 @@ for /f "delims=" %%i in ('where node') do (
 echo   [NODE] Locatie: !NODE_EXE!
 echo.
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  3. NSSM zoeken of automatisch downloaden
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 set "NSSM_VER=2.24"
 set "NSSM_TEMP_DIR=%CD%\nssm_temp"
 
@@ -223,18 +223,18 @@ for /f "delims=" %%i in ('powershell -NoProfile -Command "(Get-Content -Raw nssm
 echo   [SVC]  !SVC_NAME! ^(!SVC_DISPLAY!^)
 echo.
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  4. Log directory aanmaken
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 for %%L in ("!LOG_OUT!" "!LOG_ERR!") do (
     for %%D in ("%%~dpL") do (
         if not exist "%%~fd" mkdir "%%~fd" >nul 2>&1
     )
 )
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  5. Service bestaat al?
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 sc query !SVC_NAME! >nul 2>&1
 if !errorlevel!==0 (
     echo   [WARN] Service !SVC_NAME! bestaat al.
@@ -261,9 +261,9 @@ if !errorlevel!==0 (
     echo   [OK] Bestaande service verwijderd
 )
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  6. Service installeren
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 echo.
 echo   Service installeren...
 
@@ -288,9 +288,9 @@ call "!NSSM_PATH!" set !SVC_NAME! AppRotateFiles 1
 call "!NSSM_PATH!" set !SVC_NAME! AppRotateBytes 5242880
 call "!NSSM_PATH!" set !SVC_NAME! AppRotateSeconds 0
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  7. Environment variabelen
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 echo.
 echo   Environment variabelen instellen...
 
@@ -309,9 +309,9 @@ if not "!ENV_STR!"=="" (
     echo   [INFO] Geen environment variabelen gevonden in nssm-service.json.
 )
 
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 ::  8. Service starten
-:: ──────────────────────────────────────────
+:: ------------------------------------------
 echo.
 echo   Service starten...
 call "!NSSM_PATH!" start !SVC_NAME!
