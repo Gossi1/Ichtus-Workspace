@@ -21,6 +21,14 @@ if "%AUTO_INSTALL_NSSM%"=="1" (
 :: anders zou `goto :eof` bij line-by-line doorloop de hele
 :: bat voortijdig beeindigen.
 
+:: ------------------------------------------------
+::  Constanten die de hele bat door gebruikt worden.
+::  Eerder werden deze pas in sectie 3 gezet, waardoor
+::  subroutines zoals :download_nssm ze leeg expandeden.
+:: ------------------------------------------------
+set "NSSM_VER=2.24"
+set "NSSM_TEMP_DIR=%CD%\nssm_temp"
+
 echo.
 echo   ==================================================
 echo      ICHTUS SERVER - NSSM SERVICE INSTALLER
@@ -33,6 +41,11 @@ echo   ==================================================
 ::  kan onderbreken.
 :: ------------------------------------------
 :download_nssm
+:: Safety net: als deze vars om een of andere reden leeg
+:: zijn wanneer de subroutine wordt aangeroepen, zet ze
+:: hier alsnog vanuit defaults in plaats van leeg te laten.
+if "%NSSM_VER%"==""        set "NSSM_VER=2.24"
+if "%NSSM_TEMP_DIR%"==""   set "NSSM_TEMP_DIR=%CD%\nssm_temp"
 set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
 set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
 
