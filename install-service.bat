@@ -34,90 +34,9 @@ echo   ==================================================
 echo      ICHTUS SERVER - NSSM SERVICE INSTALLER
 echo   ==================================================
 
-:: ------------------------------------------
-::  Helper: download en extract NSSM
-::  Wordt aangeroepen vanuit sectie 3 als NSSM niet
-::  gevonden is. Staat bovenaan zodat endlocal hem niet
-::  kan onderbreken.
-:: ------------------------------------------
-:download_nssm
-:: Safety net: als deze vars om een of andere reden leeg
-:: zijn wanneer de subroutine wordt aangeroepen, zet ze
-:: hier alsnog vanuit defaults in plaats van leeg te laten.
-if "%NSSM_VER%"==""        set "NSSM_VER=2.24"
-if "%NSSM_TEMP_DIR%"==""   set "NSSM_TEMP_DIR=%CD%\nssm_temp"
-if "%NSSM_ARCH_DIR%"==""   set "NSSM_ARCH_DIR=win64"
-set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
-set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
-
-echo.
-echo   NSSM downloaden...
-echo   URL: !NSSM_URL!
-
-if not exist "%NSSM_TEMP_DIR%" mkdir "%NSSM_TEMP_DIR%" >nul 2>&1
-
-:: Download via PowerShell Invoke-WebRequest (Windows 7+)
-:: ------------------------------------------
-::  Probeer methode 1: PowerShell Invoke-WebRequest
-:: ------------------------------------------
-powershell -NoProfile -Command ^
-    "try { $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop; 'OK' } catch { 'FAIL: ' + $_.Exception.Message }" > "%NSSM_TEMP_DIR%\ps-result.txt" 2>&1
-set "DL_OK=0"
-for /f "delims=" %%R in ('type "%NSSM_TEMP_DIR%\ps-result.txt" 2^>nul') do (
-    set "LINE=%%R"
-    if /i "!LINE!"=="OK" set "DL_OK=1"
-)
-if !DL_OK!==1 (
-    echo   [OK] PowerShell download geslaagd
-    goto :extract_nssm
-)
-echo   [WARN] PowerShell download mislukt:
-type "%NSSM_TEMP_DIR%\ps-result.txt"
-
-:: ------------------------------------------
-::  Probeer methode 2: curl.exe (sinds Windows 10 1803 inbegrepen)
-:: ------------------------------------------
-echo   Probeer methode 2: curl.exe...
-where curl >nul 2>&1
-if !errorlevel! neq 0 (
-    echo   [WARN] curl.exe niet beschikbaar
-    goto :download_failed
-)
-curl -sSL --fail -o "!NSSM_ZIP!" "!NSSM_URL!"
-if !errorlevel!==0 (
-    if exist "!NSSM_ZIP!" (
-        echo   [OK] curl download geslaagd
-        goto :extract_nssm
-    )
-)
-echo   [WARN] curl download faalde
-
-:download_failed
-echo   [ERROR] Geen download-methode slaagde. Installeer NSSM handmatig:
-echo           https://nssm.cc/download
-exit /b 1
-
-:extract_nssm
-echo   [OK] ZIP gedownload (~300 KB)
-
-:: Extract via PowerShell Expand-Archive (PowerShell 5.0+ / Windows 10+)
-echo   Uitpakken...
-powershell -NoProfile -Command ^
-    "try { Expand-Archive -Path '!NSSM_ZIP!' -DestinationPath '%NSSM_TEMP_DIR%' -Force -ErrorAction Stop } catch { Write-Host ('   [POWERSHELL] Extractie mislukt: ' + $_.Exception.Message); exit 1 }"
-if !errorlevel! neq 0 (
-    echo   [ERROR] Extractie mislukt. PowerShell 5.0+ ^>= Windows 10 vereist.
-    exit /b 1
-)
-
-set "NSSM_PATH=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe"
-if not exist "!NSSM_PATH!" (
-    echo   [ERROR] nssm.exe niet gevonden op:
-    echo           !NSSM_PATH!
-    exit /b 1
-)
-
-echo   [OK] NSSM !NSSM_VER! ^(!NSSM_ARCH_DIR!^) geinstalleerd in nssm_temp\
-exit /b 0
+:: :download_nssm subroutine staat onderaan het bestand
+:: (na endlocal) om te voorkomen dat line-by-line parse
+:: de `exit /b 0` aan het einde triggert.
 
 echo.
 
@@ -388,9 +307,82 @@ if "%INTERACTIVE%"=="1" pause
 endlocal
 
 :: ------------------------------------------
-::  Helper subroutine :_pause  (staat hier onderaan
-::  zodat `goto :eof` de hoofdstroom niet onderbreekt)
+::  Helper subroutines (staan hier onderaan de bat
+::  zodat hun `exit /b`/`goto :eof` de hoofdstroom
+::  niet voortijdig beeindigen tijdens line-by-line
+::  doorloop).
 :: ------------------------------------------
+
 :_pause
 if "%INTERACTIVE%"=="1" pause >nul
 goto :eof
+
+:download_nssm
+if "%NSSM_VER%"==""      set "NSSM_VER=2.24"
+if "%NSSM_TEMP_DIR%"=="" set "NSSM_TEMP_DIR=%CD%\nssm_temp"
+if "%NSSM_ARCH_DIR%"=="" set "NSSM_ARCH_DIR=win64"
+set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
+set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
+
+echo.
+echo   NSSM downloaden...
+echo   URL: !NSSM_URL!
+
+if not exist "%NSSM_TEMP_DIR%" mkdir "%NSSM_TEMP_DIR%" >nul 2>&1
+
+:: Probeer methode 1: PowerShell Invoke-WebRequest
+powershell -NoProfile -Command ^
+    "try { $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop; 'OK' } catch { 'FAIL: ' + $_.Exception.Message }" > "%NSSM_TEMP_DIR%\ps-result.txt" 2>&1
+set "DL_OK=0"
+for /f "delims=" %%R in ('type "%NSSM_TEMP_DIR%\ps-result.txt" 2^>nul') do (
+    set "LINE=%%R"
+    if /i "!LINE!"=="OK" set "DL_OK=1"
+)
+if !DL_OK!==1 (
+    echo   [OK] PowerShell download geslaagd
+    goto :extract_nssm
+)
+echo   [WARN] PowerShell download mislukt:
+type "%NSSM_TEMP_DIR%\ps-result.txt"
+
+:: Probeer methode 2: curl.exe (Windows 10 1803+)
+echo   Probeer methode 2: curl.exe...
+where curl >nul 2>&1
+if !errorlevel! neq 0 (
+    echo   [WARN] curl.exe niet beschikbaar
+    goto :download_failed
+)
+curl -sSL --fail -o "!NSSM_ZIP!" "!NSSM_URL!"
+if !errorlevel!==0 (
+    if exist "!NSSM_ZIP!" (
+        echo   [OK] curl download geslaagd
+        goto :extract_nssm
+    )
+)
+echo   [WARN] curl download faalde
+goto :download_failed
+
+:download_failed
+echo   [ERROR] Geen download-methode slaagde. Installeer NSSM handmatig:
+echo           https://nssm.cc/download
+exit /b 1
+
+:extract_nssm
+echo   [OK] ZIP gedownload (~300 KB)
+echo   Uitpakken...
+powershell -NoProfile -Command ^
+    "try { Expand-Archive -Path '!NSSM_ZIP!' -DestinationPath '%NSSM_TEMP_DIR%' -Force -ErrorAction Stop } catch { Write-Host ('   [POWERSHELL] Extractie mislukt: ' + $_.Exception.Message); exit 1 }"
+if !errorlevel! neq 0 (
+    echo   [ERROR] Extractie mislukt. PowerShell 5.0+ ^>= Windows 10 vereist.
+    exit /b 1
+)
+
+set "NSSM_PATH=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe"
+if not exist "!NSSM_PATH!" (
+    echo   [ERROR] nssm.exe niet gevonden op:
+    echo           !NSSM_PATH!
+    exit /b 1
+)
+
+echo   [OK] NSSM !NSSM_VER! ^(!NSSM_ARCH_DIR!^) geinstalleerd in nssm_temp\
+exit /b 0
