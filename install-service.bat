@@ -3,6 +3,25 @@ setlocal EnableDelayedExpansion
 
 cd /d "%~dp0"
 
+:: ──────────────────────────────────────────
+::  Headless / silent mode?
+::  Wordt aangezet door setup.ps1 via:
+::      set AUTO_INSTALL_NSSM=1
+::  In die modus:
+::    - alle interactieve prompts worden automatisch beantwoord
+::    - `pause` aan het eind slaat over
+:: ──────────────────────────────────────────
+if "%AUTO_INSTALL_NSSM%"=="1" (
+    set "INTERACTIVE=0"
+) else (
+    set "INTERACTIVE=1"
+)
+
+:: Helper: alleen pauzeren in interactieve modus
+:_pause
+if "%INTERACTIVE%"=="1" pause >nul
+goto :eof
+
 echo.
 echo   ==================================================
 echo      ICHTUS SERVER - NSSM SERVICE INSTALLER
@@ -25,12 +44,47 @@ echo   URL: !NSSM_URL!
 if not exist "%NSSM_TEMP_DIR%" mkdir "%NSSM_TEMP_DIR%" >nul 2>&1
 
 :: Download via PowerShell Invoke-WebRequest (Windows 7+)
+:: ──────────────────────────────────────────
+::  Probeer methode 1: PowerShell Invoke-WebRequest
+:: ──────────────────────────────────────────
 powershell -NoProfile -Command ^
-    "try { Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop } catch { Write-Host ('   [POWERSHELL] Download mislukt: ' + $_.Exception.Message); exit 1 }"
-if !errorlevel! neq 0 (
-    echo   [ERROR] Download mislukt. Controleer internetverbinding of firewall.
-    exit /b 1
+    "try { $ProgressPreference = 'SilentlyContinue'; Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop; 'OK' } catch { 'FAIL: ' + $_.Exception.Message }" > "%NSSM_TEMP_DIR%\ps-result.txt" 2>&1
+set "DL_OK=0"
+for /f "delims=" %%R in ('type "%NSSM_TEMP_DIR%\ps-result.txt" 2^>nul') do (
+    set "LINE=%%R"
+    if /i "!LINE!"=="OK" set "DL_OK=1"
 )
+if !DL_OK!==1 (
+    echo   [OK] PowerShell download geslaagd
+    goto :extract_nssm
+)
+echo   [WARN] PowerShell download mislukt:
+type "%NSSM_TEMP_DIR%\ps-result.txt"
+
+:: ──────────────────────────────────────────
+::  Probeer methode 2: curl.exe (sinds Windows 10 1803 inbegrepen)
+:: ──────────────────────────────────────────
+echo   Probeer methode 2: curl.exe...
+where curl >nul 2>&1
+if !errorlevel! neq 0 (
+    echo   [WARN] curl.exe niet beschikbaar
+    goto :download_failed
+)
+curl -sSL --fail -o "!NSSM_ZIP!" "!NSSM_URL!"
+if !errorlevel!==0 (
+    if exist "!NSSM_ZIP!" (
+        echo   [OK] curl download geslaagd
+        goto :extract_nssm
+    )
+)
+echo   [WARN] curl download faalde
+
+:download_failed
+echo   [ERROR] Geen download-methode slaagde. Installeer NSSM handmatig:
+echo           https://nssm.cc/download
+exit /b 1
+
+:extract_nssm
 echo   [OK] ZIP gedownload (~300 KB)
 
 :: Extract via PowerShell Expand-Archive (PowerShell 5.0+ / Windows 10+)
@@ -49,9 +103,6 @@ if not exist "!NSSM_PATH!" (
     exit /b 1
 )
 
-:: Verwijder zip om ruimte te besparen (folder met binaries blijft)
-del "!NSSM_ZIP!" >nul 2>&1
-
 echo   [OK] NSSM !NSSM_VER! ^(!NSSM_ARCH_DIR!^) geinstalleerd in nssm_temp\
 exit /b 0
 
@@ -65,7 +116,7 @@ if not exist "nssm-service.json" (
     echo.
     echo   Kopieer nssm-service.example.json naar nssm-service.json
     echo   en pas de paden aan jouw installatie aan.
-    pause
+    call :_pause
     exit /b 1
 )
 
@@ -75,7 +126,7 @@ if not exist "nssm-service.json" (
 where node >nul 2>&1
 if %errorlevel% neq 0 (
     echo   [ERROR] Node.js niet gevonden. Installeer Node.js LTS.
-    pause
+    call :_pause
     exit /b 1
 )
 
@@ -121,9 +172,7 @@ if "!NSSM_PATH!"=="" (
         set "NSSM_PATH=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe"
         echo   [NSSM] Gevonden in nssm_temp\ (hergebruikt)
     )
-)
-
-:: 3d. Automatische download als alles mislukt
+)::  3d. Automatische download als alles mislukt
 if "!NSSM_PATH!"=="" (
     echo.
     echo   [INFO] nssm.exe niet gevonden op deze PC.
@@ -133,19 +182,24 @@ if "!NSSM_PATH!"=="" (
     echo     Locatie: nssm_temp\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe
     echo     Grootte: ~300 KB
     echo.
-    set /p DL_CHOICE="   Downloaden nu? (J/N) > "
+    if "%INTERACTIVE%"=="1" (
+        set /p DL_CHOICE="   Downloaden nu? (J/N) > "
+    ) else (
+        set "DL_CHOICE=J"
+        echo   [AUTO] Download NSSM zonder prompt (silent mode)
+    )
     if /i not "!DL_CHOICE!"=="J" (
         echo.
         echo   [ERROR] Geen NSSM. Installeer handmatig:
         echo           1. Download nssm-%NSSM_VER%.zip van https://nssm.cc/download
         echo           2. Plaats nssm.exe ergens op je PC
         echo           3. Pas nssm-service.json -^> nssmPath aan.
-        pause
+        call :_pause
         exit /b 1
     )
     call :download_nssm
     if !errorlevel! neq 0 (
-        pause
+        call :_pause
         exit /b 1
     )
 )
@@ -153,7 +207,7 @@ if "!NSSM_PATH!"=="" (
 :nssm_ready
 if not exist "!NSSM_PATH!" (
     echo   [ERROR] NSSM niet gevonden op "!NSSM_PATH!"
-    pause
+    call :_pause
     exit /b 1
 )
 
@@ -187,11 +241,16 @@ if !errorlevel!==0 (
     echo.
     echo   Wil je de service opnieuw installeren?
     echo   (Stopt en verwijdert eerst de bestaande service)
-    set /p REINSTALL="   J/N > "
+    if "%INTERACTIVE%"=="1" (
+        set /p REINSTALL="   J/N > "
+    ) else (
+        set "REINSTALL=J"
+        echo   [AUTO] Herinstallatie zonder prompt (silent mode)
+    )
     if /i not "!REINSTALL!"=="J" (
         echo.
         echo   [INFO] Installatie afgebroken.
-        pause
+        call :_pause
         exit /b 0
     )
     echo.
@@ -211,7 +270,7 @@ echo   Service installeren...
 call "!NSSM_PATH!" install !SVC_NAME! "!NODE_EXE!" "src\server.js"
 if !errorlevel! neq 0 (
     echo   [ERROR] nssm install mislukt.
-    pause
+    call :_pause
     exit /b 1
 )
 
@@ -284,5 +343,5 @@ echo   zonder deze folder mee te verhuizen):
 echo     !NSSM_PATH!
 echo   ==================================================
 echo.
-pause
+if "%INTERACTIVE%"=="1" pause
 endlocal

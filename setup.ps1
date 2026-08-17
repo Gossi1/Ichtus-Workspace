@@ -230,10 +230,17 @@ try {
             exit 1
         }
         Write-Info "install-service.bat draaien (downloadt evt. NSSM en registreert de service)..."
-        & .\install-service.bat
-        if ($LASTEXITCODE -ne 0) {
-            Write-Err "install-service.bat faalde — zie output hierboven."
-            exit 1
+        # Zet silent mode zodat install-service.bat geen interactieve
+        # prompts of 'pause' toont tijdens de geautomatiseerde install.
+        $env:AUTO_INSTALL_NSSM = '1'
+        try {
+            & .\install-service.bat
+            if ($LASTEXITCODE -ne 0) {
+                Write-Err "install-service.bat faalde — zie output hierboven."
+                exit 1
+            }
+        } finally {
+            Remove-Item Env:AUTO_INSTALL_NSSM -ErrorAction SilentlyContinue
         }
     } else {
         Write-Info "-SkipService gezet — service wordt niet geregistreerd. Draai later: install-service.bat"
