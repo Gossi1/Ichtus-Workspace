@@ -158,7 +158,8 @@ if ($SkipClone) {
         exit 1
     }
     Write-Info "Klonen naar $InstallPath ..."
-    New-Item -ItemType Directory -Path (Split-Path $InstallPath) -Force | Out-Null
+    # git clone maakt de doelmap (en parents) zelf aan. Geen New-Item nodig
+    # — dat struikelt over paden als 'C:\'.
     & git clone --branch $Branch $RepoUrl $InstallPath
     if ($LASTEXITCODE -ne 0) {
         Write-Err "Klonen mislukt (exit $LASTEXITCODE)."
