@@ -385,6 +385,297 @@ const agendaModule = {
         this.render();
     },
 
+    /**
+     * Render the pipe column as explicit DOM children instead of
+     * relying on innerText + \n, which can be unreliable in a
+     * flex-direction:column container after programmatic updates.
+     */
+    _setPipeColumn(el, count) {
+        el.innerHTML = '';
+        for (let i = 0; i < count; i++) {
+            const span = document.createElement('div');
+            span.textContent = '|';
+            el.appendChild(span);
+        }
+    },
+
+    /**
+     * Render an arbitrary column as one <div> row per line. We avoid
+     * `el.innerText = "\n"-joined-string` because the column inherits
+     * `white-space: nowrap` from its grandparent and would collapse all
+     * newlines into a single horizontal line if the input ever ends up
+     * as a flat text node (which Chrome's contentEditable can produce
+     * after a native Enter + Backspace cycle). Explicit <div>
+     * children stack vertically in the `flex-direction: column`
+     * container regardless of white-space, so the rows are guaranteed
+     * to render one per line in every state.
+     *
+     * Empty rows get a single zero-width-space so:
+     *   1. Chrome renders them with the same line-height as content
+     *      rows (an empty <div></div> with no character would be
+     *      visually height-0).
+     *   2. The pipe-counting field stays in lockstep with the visible
+     *      row count: `countRows` uses Range.getClientRects with
+     *      distinct `top` coordinates, so each <div> — even an empty
+     *      one — contributes exactly one row. Without the ZWSP the
+     *      empty rows would still get one row each (Chrome inserts a
+     *      placeholder <br> at focus time) but the column's height
+     *      would be 0 until the user starts typing.
+     */
+    _setColumnRows(el, lines) {
+        if (!el) return;
+        el.innerHTML = '';
+        for (const line of lines) {
+            const row = document.createElement('div');
+            row.textContent = line || '\u200b';
+            el.appendChild(row);
+        }
+    },
+
+    /**
+     * Keep the pipe column in sync with the other columns while the
+     * operator edits contentEditable text. Without this, adding a new
+     * line in date/time/event via Enter only creates a row in that
+     * column — the pipe column keeps its original row count and the
+     * downloaded PNG is the only place where extra pipes appear.
+     */
+    _wirePipeSync() {
+        const colPipe = document.getElementById('col-pipe');
+        if (!colPipe) return;
+        const doSync = () => {
+            // Count rows as the number of <div> children in each editable
+            // column. With `_setColumnRows` the agenda module itself
+            // creates exactly one <div> per visible row, so the pipe
+            // count = max(children) tracks the longest column 1:1.
+            // Counting via Range.getClientRects / innerText.split was
+            // sensitive to Chrome's contentEditable DOM quirks (extra
+            // placeholder rects, double-counted anonymous lines), which
+            // could leave the pipe column with one or two extra rows
+            // even after refresh. Counting element children directly is
+            // a flat, deterministic count of division boundaries.
+            const d = (this.colDate && this.colDate.children.length)  || 0;
+            const t = (this.colTime && this.colTime.children.length)  || 0;
+            const e = (this.colEvent && this.colEvent.children.length) || 0;
+            const maxRows = Math.max(d, t, e);
+            const currentRows = colPipe.children.length || 0;
+            if (maxRows > 0 && maxRows !== currentRows) {
+                agendaModule._setPipeColumn(colPipe, maxRows);
+            }
+        };
+
+        const sync = () => {
+            doSync();
+            // The editable columns have `transition: all 0.2s`, so after
+            // a line is removed the column's height animates over 200ms.
+            // Measuring immediately (and even one frame later) still sees
+            // the old height, which is why deleted lines' pipes "hang".
+            // Re-measure after the transition completes so the pipes
+            // shrink to match what the operator actually sees.
+            if (this._pipeSyncRaf) cancelAnimationFrame(this._pipeSyncRaf);
+            this._pipeSyncRaf = requestAnimationFrame(() => {
+                this._pipeSyncRaf = null;
+                doSync();
+            });
+            if (this._pipeSyncTimer) clearTimeout(this._pipeSyncTimer);
+            this._pipeSyncTimer = setTimeout(() => {
+                this._pipeSyncTimer = null;
+                doSync();
+            }, 250);
+        };
+        // Disconnect any previous observer so we don't stack them
+        // across render() calls.
+        if (this._pipeObserver) this._pipeObserver.disconnect();
+
+        // Use a MutationObserver to detect ANY DOM change in the
+        // editable columns (Enter, paste, cut, undo, etc.) and
+        // immediately update the pipe column. This is more reliable
+        // than input/keyup events which don't always fire on
+        // contentEditable in every browser.
+        const editableCols = [this.colDate, this.colTime, this.colEvent].filter(Boolean);
+        this._pipeObserver = new MutationObserver(sync);
+        editableCols.forEach(col => {
+            this._pipeObserver.observe(col, { childList: true, subtree: true, characterData: true });
+        });
+
+        // While a column is focused, poll at a slow interval. Chrome's
+        // contentEditable sometimes performs line cleanup outside any
+        // mutation we observe, so periodic re-measuring while the
+        // operator is typing guarantees pipes stay in sync in BOTH
+        // directions (add AND remove).
+        const startPolling = () => {
+            if (this._pipePoll) return;
+            this._pipePoll = setInterval(doSync, 150);
+        };
+        const stopPolling = () => {
+            if (this._pipePoll) {
+                clearInterval(this._pipePoll);
+                this._pipePoll = null;
+            }
+        };
+        editableCols.forEach(col => {
+            col.addEventListener('focus', startPolling);
+            col.addEventListener('blur', () => { stopPolling(); doSync(); });
+        });
+
+        // Bind the Backspace/Delete-on-empty-line cleanup once. Chrome's
+        // contentEditable often leaves an empty <div> behind when you
+        // press Enter in the middle of a line, and its own Backspace
+        // sometimes "skips" that line — so it stays as a leftover row
+        // with only a pipe. We intercept Backspace/Delete and remove
+        // empty lines ourselves, including the line directly above/below
+        // the caret that Chrome skips.
+        if (!this._pipeKeyBound) {
+            this._pipeKeyBound = true;
+            const onKeydown = (e) => {
+                // ---- Enter: split the line OURSELVES so Chrome never
+                // gets to insert its phantom empty <div><br></div>.
+                // Pressing Enter in the middle of a line then creates
+                // exactly ONE new line (the split), not an extra one.
+                // We only touch the line under the caret — the column is
+                // NEVER rebuilt, so leftover empty divs/<br>s can't get
+                // duplicated into extra lines.
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    // Delegate entirely to Chrome's native Enter. Native
+                    // splitting reliably produces one new line without
+                    // disrupting the editor's internal undo/redo state --
+                    // critical: when we manually mutate the DOM
+                    // (lineEl.textContent + appendChild new div),
+                    // Chrome's contentEditable bookkeeping gets confused
+                    // and subsequent Enter presses either swipe the caret
+                    // above the current row or stop working entirely.
+                    // The MutationObserver-driven pipe sync in
+                    // _wirePipeSync (immediate, next animation frame, and
+                    // again 250ms after the 200ms height transition)
+                    // keeps the pipe column in lockstep with whatever
+                    // Chrome actually renders.
+                    return;
+                }
+
+                if (e.key !== 'Backspace' && e.key !== 'Delete') return;
+                const col = e.currentTarget;
+                const sel = window.getSelection();
+                if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) return;
+                const range = sel.getRangeAt(0);
+                // Find the direct-child line element of this column
+                // that contains the caret.
+                let node = range.startContainer;
+                let lineEl = node.nodeType === Node.TEXT_NODE ? node.parentElement : node;
+                while (lineEl && lineEl.parentElement && lineEl.parentElement !== col) {
+                    lineEl = lineEl.parentElement;
+                }
+                if (!lineEl || !lineEl.parentElement || lineEl.parentElement !== col) return;
+                const children = Array.prototype.slice.call(col.children);
+                const idx = children.indexOf(lineEl);
+                if (idx < 0) return;
+                // Use Range probes to detect AT-START / AT-END relative
+                // to lineEl itself rather than to a possibly-nested
+                // startContainer. Works when the caret sits in a text
+                // node, in the lineEl element directly, or inside any
+                // nested child like Chrome's auto-inserted <br></br>
+                // placeholder in an empty line.
+                const caretAtStartOfLine = () => {
+                    const probe = document.createRange();
+                    probe.selectNodeContents(lineEl);
+                    probe.setEnd(range.startContainer, range.startOffset);
+                    return probe.toString().length === 0;
+                };
+                const caretAtEndOfLine = () => {
+                    const probe = document.createRange();
+                    probe.selectNodeContents(lineEl);
+                    probe.setStart(range.startContainer, range.startOffset);
+                    return probe.toString().length ===
+                        (lineEl.textContent || '').length;
+                };
+                // True for a line with no usable content -- counts an
+                // auto-inserted <br> as empty (Chrome's contentEditable
+                // inserts <br><br></br> placeholders so empty divs stay
+                // focusable, and we must not count those placeholder tags
+                // as content).
+                const isEmpty = (el) => {
+                    if (!el) return false;
+                    const txt = (el.textContent || '');
+                    return txt.replace(/\u200b/g, '').trim() === '';
+                };
+
+                if (e.key === 'Backspace') {
+                    // Case A: caret is INSIDE an empty line → remove it.
+                    if (isEmpty(lineEl)) {
+                        e.preventDefault();
+                        const prev = idx > 0 && col.contains(children[idx - 1]) ? children[idx - 1] : null;
+                        lineEl.remove();
+                        if (prev) {
+                            const r = document.createRange();
+                            r.selectNodeContents(prev);
+                            r.collapse(false);
+                            sel.removeAllRanges();
+                            sel.addRange(r);
+                        }
+                        doSync();
+                        // Belt-and-braces: schedule a delayed sync so the
+                        // pipe column definitely converges even if the
+                        // MutationObserver + transition delay race.
+                        requestAnimationFrame(doSync);
+                        return;
+                    }
+                    // Case B: caret at the START of a non-empty line and
+                    // the line ABOVE is empty → Chrome's own Backspace
+                    // skips it, so remove that empty line first.
+                    if (caretAtStartOfLine() && idx > 0 && isEmpty(children[idx - 1])) {
+                        e.preventDefault();
+                        children[idx - 1].remove();
+                        // Keep caret at start of the same line.
+                        const r = document.createRange();
+                        r.selectNodeContents(lineEl);
+                        r.collapse(true);
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                        doSync();
+                        requestAnimationFrame(doSync);
+                    }
+                    return;
+                }
+
+                // Delete key.
+                if (e.key === 'Delete') {
+                    // Case C: caret is INSIDE an empty line → remove it.
+                    if (isEmpty(lineEl)) {
+                        e.preventDefault();
+                        const next = idx < children.length - 1 && col.contains(children[idx + 1]) ? children[idx + 1] : null;
+                        lineEl.remove();
+                        if (next) {
+                            const r = document.createRange();
+                            r.selectNodeContents(next);
+                            r.collapse(true);
+                            sel.removeAllRanges();
+                            sel.addRange(r);
+                        }
+                        doSync();
+                        requestAnimationFrame(doSync);
+                        return;
+                    }
+                    // Case D: caret at the END of a non-empty line and
+                    // the line BELOW is empty → remove that empty line.
+                    if (caretAtEndOfLine() && idx < children.length - 1 && isEmpty(children[idx + 1])) {
+                        e.preventDefault();
+                        children[idx + 1].remove();
+                        // Keep caret at end of the same line.
+                        const r = document.createRange();
+                        r.selectNodeContents(lineEl);
+                        r.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                        doSync();
+                        requestAnimationFrame(doSync);
+                    }
+                }
+            };
+            editableCols.forEach(col => col.addEventListener('keydown', onKeydown));
+        }
+
+        // Initial sync in case columns already differ in row count
+        doSync();
+    },
+
     render() {
         const status = document.getElementById('status');
         const agendaGroup = document.getElementById('agenda-group');
@@ -461,14 +752,19 @@ const agendaModule = {
                 }
             });
 
-            if (this.colDate) this.colDate.innerText = fD.join('\n');
-            if (colPipe) colPipe.innerText = fP.join('\n');
-            if (this.colTime) this.colTime.innerText = activeEvents.map(e => e.timeStr).join('\n');
-            if (this.colEvent) this.colEvent.innerText = activeEvents.map(e => '  ' + e.currentDisplayTitle).join('\n');
+            if (this.colDate)  agendaModule._setColumnRows(this.colDate, fD);
+            if (colPipe)       agendaModule._setPipeColumn(colPipe, fP.length);
+            if (this.colTime)  agendaModule._setColumnRows(this.colTime, activeEvents.map(e => e.timeStr));
+            if (this.colEvent) agendaModule._setColumnRows(this.colEvent, activeEvents.map(e => '  ' + (e.currentDisplayTitle || '')));
 
             [this.colDate, this.colTime, this.colEvent].forEach(col => {
                 if (col) col.contentEditable = 'true';
             });
+
+            // Sync the pipe column whenever any editable column changes
+            // (e.g. the operator presses Enter to add a new row). Without
+            // this, only the PNG export draws pipes for extra rows.
+            this._wirePipeSync();
 
             if (agendaGroup) agendaGroup.style.display = 'flex';
             if (status) status.innerText = `${activeEvents.length} ${__('agenda_items_visible')}`;
@@ -526,29 +822,43 @@ const agendaModule = {
         const times = this.colTime.innerText.split('\n');
         const events = this.colEvent.innerText.split('\n');
 
+        // Use the LONGEST column so every line the operator sees on
+        // screen also appears in the downloaded PNG. Missing values in
+        // shorter columns render as empty (safe because fillText('') is
+        // a no-op).
+        const rowCount = Math.max(dates.length, times.length, events.length);
+
         let maxD = 0;
-        dates.forEach(l => {
-            if (l !== '') maxD = Math.max(maxD, tX.measureText(l).width);
-        });
+        let maxT = 0;
+        for (let i = 0; i < rowCount; i++) {
+            const d = dates[i] || '';
+            if (d !== '') maxD = Math.max(maxD, tX.measureText(d).width);
+            const t = times[i] || '';
+            if (t !== '') maxT = Math.max(maxT, tX.measureText(t).width);
+        }
 
         const columnGap = 25;
         const LINE_HEIGHT = 1.6;
 
-        dates.forEach((line, i) => {
+        const timeX = x + maxD + columnGap + tX.measureText('|').width + columnGap;
+        const eventX = timeX + maxT + columnGap;
+
+        for (let i = 0; i < rowCount; i++) {
             const rowY = y + (i * (fontSize * LINE_HEIGHT));
 
-            if (line !== '') {
-                tX.fillText(line, x + (maxD - tX.measureText(line).width), rowY);
+            const dateStr = dates[i] || '';
+            if (dateStr !== '') {
+                tX.fillText(dateStr, x + (maxD - tX.measureText(dateStr).width), rowY);
             }
 
             tX.fillText('|', x + maxD + columnGap, rowY);
 
-            const timeX = x + maxD + columnGap + tX.measureText('|').width + columnGap;
-            tX.fillText(times[i], timeX, rowY);
+            const timeStr = times[i] || '';
+            tX.fillText(timeStr, timeX, rowY);
 
-            const eventX = timeX + tX.measureText(times[i]).width + columnGap;
-            tX.fillText(events[i] || '', eventX, rowY);
-        });
+            const eventStr = events[i] || '';
+            tX.fillText(eventStr, eventX, rowY);
+        }
 
         const link = document.createElement('a');
         link.download = 'Ichtus_Agenda.png';

@@ -1570,6 +1570,16 @@ button:hover, .btn-label:hover {
     font-size: 34px;
     color: white;
     line-height: 2;
+    /*
+     * Override the inherited `white-space: nowrap` from #agenda-group.
+     * Without `pre`, any \n in a flat text node (the structure Chrome's
+     * native Enter + Backspace can leave behind in a contentEditable)
+     * is collapsed to a single space and the rows render as one
+     * horizontal line. `pre` preserves the \n as a real line break
+     * regardless of whether the column has <div> children or a flat
+     * text node, so dates/times/events always stack vertically.
+     */
+    white-space: pre;
 }
 
 #view-agenda #col-date {
