@@ -48,7 +48,10 @@ Desktop.ini
 nul
 
 # Browser extension builds
-# (extensions are source-only, no build output)
+*.crx
+*.pem
+extensions/*.crx
+extensions/*.pem
 
 # Local development
 *.local

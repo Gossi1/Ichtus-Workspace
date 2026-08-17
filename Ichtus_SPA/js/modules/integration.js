@@ -251,6 +251,35 @@ const integrationModule = {
         if (modal) modal.classList.add('hidden');
     },
 
+    installWorshipToolsExt() {
+        // Download the .crx file from the server
+        window.open('/extensions/worshiptools-sync.crx', '_blank');
+    },
+
+    async copyExtPath() {
+        const extPath = window.location.origin + '/extensions/worshiptools-sync';
+        try {
+            await navigator.clipboard.writeText(extPath);
+            this._showCopyFeedback('Pad gekopieerd!');
+        } catch (_) {
+            // Fallback: select text for manual copy
+            const input = document.createElement('input');
+            input.value = extPath;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+            this._showCopyFeedback('Pad gekopieerd!');
+        }
+    },
+
+    _showCopyFeedback(msg) {
+        const status = document.getElementById('wt-ext-status');
+        if (!status) return;
+        status.innerHTML = `<div class='wt-ext-copied'>✓ ${msg}</div>`;
+        setTimeout(() => { status.innerHTML = ''; }, 2000);
+    },
+
     _applyWorshipToolsExtState() {
         const status = document.documentElement.dataset.ichtusBridge;
         const card = this.INTEGRATIONS.find(i => i.id === 'worshiptools-ext');
