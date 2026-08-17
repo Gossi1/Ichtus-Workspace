@@ -4,90 +4,182 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ---
 
-## 🚀 Quick Start (New Installation)
+## 🛠️ Install on a Windows PC
 
-### On a NEW PC:
+Follow these steps in order on any Windows 10 / 11 PC. Total time: **~10 minutes**. Everything else (NSSM, dependencies, service registration) is handled automatically.
 
-#### Option A: Using Git (recommended)
-
-**1. Install Git** (if not already installed)
-   ```cmd
-   winget install --id Git.Git -e --source winget
-   ```
-   Or download from [git-scm.com/download/win](https://git-scm.com/download/win).
-
-**2. Clone the repository**
-   ```bash
-   git clone https://github.com/Gossi1/Ichtus-Workspace.git
-   cd Ichtus_apps
-   ```
-
-#### Option B: Without Git (Download ZIP)
-
-1. Go to [github.com/Gossi1/Ichtus-Workspace](https://github.com/Gossi1/Ichtus-Workspace) in your browser
-2. Click **Code** → **Download ZIP**
-3. Extract the ZIP to a folder (e.g. `C:\Ichtus_apps\`)
-4. Open a **Command Prompt** in that folder and continue below
-
-**Then, continue with:**
-
-- **Copy your Firebase config** (optional — enables data sync)
-   - Either copy an existing `firebase-api-key.txt` from another installation into the project root
-   - Or paste your Firebase web-app config straight into `firebase-api-key.txt` — the server injects it into HTML on page boot
-   - File is excluded from git (.gitignore) for security
-
-- **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-- **Start the server**
-   ```bash
-   start-server.bat
-   ```
-   Or directly:
-   ```bash
-   node src/server.js
-   ```
-
-- **Open in browser**
-   ```
-   http://localhost:8080/Ichtus_SPA/
-   ```
+> **Prerequisites:** Windows 10 or 11 (64-bit recommended). Admin rights needed only for installing Git, Node.js and optionally a system-wide NSSM — the actual server runs as a regular Windows service.
 
 ---
 
-## 🪟 Auto-start with NSSM
+### Step 1 — Install Git *(skip this step if you'll download the ZIP)*
 
-Want the server to **start automatically and restart on crashes** as a proper Windows service?
+Git is needed only if you want to pull updates later instead of re-downloading the ZIP each time.
 
-**1. Install NSSM** (if not already present)
-   Download from [nssm.cc/download](https://nssm.cc/download) and extract
-   `nssm.exe` to `C:\Program Files\nssm\win64\` (or somewhere on `PATH`).
+```cmd
+winget install --id Git.Git -e --source winget
+```
 
-**2. Create your local service config**
-   ```cmd
-   copy nssm-service.example.json nssm-service.json
-   ```
-   Edit `nssm-service.json` to match your install paths, port, X32 IP, etc.
+If `winget` is missing: download the installer from <https://git-scm.com/download/win> and run it (next → next → finish, accept defaults).
 
-**3. Run the installer**
-   ```cmd
-   install-service.bat
-   ```
-   This registers a Windows service called `IchtusServer` (auto-start, log
-   rotation, restart-on-crash) and starts it immediately.
+Verify in a fresh Command Prompt:
+```cmd
+git --version
+```
 
-### NSSM Management
+---
+
+### Step 2 — Install Node.js LTS *(required)*
+
+The server runs on Node.js 18 or newer.
+
+```cmd
+winget install --id OpenJS.NodeJS.LTS -e --source winget
+```
+
+If `winget` is missing: download the LTS installer from <https://nodejs.org/> and run it (next → next → finish, **enable "Add to PATH"** which is on by default).
+
+**Open a fresh Command Prompt** (so the new PATH is picked up) and verify:
+```cmd
+node --version    :: should print v18.x.x or higher
+npm --version
+```
+
+---
+
+### Step 3 — Get the code
+
+Pick one of the two options below.
+
+#### Option A — Clone with Git *(recommended: lets you pull future updates)*
+
+```cmd
+cd C:\
+git clone https://github.com/Gossi1/Ichtus-Workspace.git C:\Ichtus_apps
+cd C:\Ichtus_apps
+```
+
+#### Option B — Download ZIP *(no Git required)*
+
+1. Open <https://github.com/Gossi1/Ichtus-Workspace> in a browser.
+2. Click **Code → Download ZIP**.
+3. Extract the ZIP contents into `C:\Ichtus_apps\` (you should see `install-service.bat`, `package.json`, `src\`, … directly inside the folder).
+4. Open a **Command Prompt** in `C:\Ichtus_apps\`: right-click the folder in Explorer → *Open in Terminal* / *Open Command Prompt here*.
+
+> Going forward, all commands assume your current directory is the project root (`C:\Ichtus_apps`).
+
+---
+
+### Step 4 — Install JavaScript dependencies
+
+```cmd
+npm install
+```
+
+This downloads Express, Firebase Admin, `ws`, etc. into `node_modules\`. Takes 1–2 minutes. You only re-run this if `package.json` changes (e.g. after `git pull`).
+
+---
+
+### Step 5 — Add Firebase config *(optional, for cloud data sync)*
+
+The app works fully offline if you skip this step — a setup modal will ask for your config on first launch and store it in browser `localStorage`.
+
+If you already have a Firebase project (or want to copy config from another installation), pick one of:
+
+- Drop a `firebase-api-key.txt` into the project root — the server injects it into every served HTML page.
+- Drop `Ichtus_SPA\firebase-config.txt` — the browser fetches it at runtime.
+
+Both files are gitignored, so secrets never accidentally leak.
+
+---
+
+### Step 6 — Configure NSSM service
+
+Copy the example config and edit it:
+
+```cmd
+copy nssm-service.example.json nssm-service.json
+```
+
+Open `nssm-service.json` in Notepad and adjust at least these:
+
+| Key | What to put |
+|-----|-------------|
+| `stdoutLog` / `stderrLog` | Where NSSM writes server logs (default: `C:\Ichtus_apps\logs\…`) |
+| `env.PORT` | TCP port for the SPA + API (default: `8080`) |
+| `env.X32_IP` | IP of your Behringer X32 mixer on the LAN |
+| `nssmPath` | Leave empty to auto-download, or set to e.g. `C:\Program Files\nssm\win64\nssm.exe` |
+
+> `nssm-service.json` itself is gitignored — your local paths stay private.
+
+---
+
+### Step 7 — Register the Windows service
+
+```cmd
+install-service.bat
+```
+
+This single command:
+
+1. Verifies Node.js is installed.
+2. Looks for NSSM in this order: `nssm-service.json → nssmPath` → on `PATH` → previously downloaded `nssm_temp\`.
+3. **If NSSM isn't found anywhere, it offers to download NSSM 2.24 (~300 KB) into the project's `nssm_temp\` folder.** Answer `J` to accept. Internet access required.
+4. Registers the Windows service `IchtusServer` with auto-start, restart-on-crash, log rotation.
+5. Starts the service immediately.
+
+When you see **`[OK] Service gestart`**, open in a browser:
+
+```
+http://localhost:8080/Ichtus_SPA/
+```
+
+🎉 You're done. The server now starts with Windows and restarts automatically if it ever crashes.
+
+---
+
+### Verifying the install
+
+In a Command Prompt:
+
+```cmd
+nssm status IchtusServer
+curl http://localhost:8080/api/health
+```
+
+Expected outputs:
+
+- `SERVICE_RUNNING` (or `SERVICE_START_PENDING` for a second or two after boot).
+- `{"status":"ok",...}`
+
+### Updating later
+
+```cmd
+git pull                  :: only if you cloned with Git
+npm install               :: only if package.json changed
+nssm restart IchtusServer :: picks up new code without rebooting Windows
+```
+
+Or use the in-app **Supervisor** tab, which does `git pull` + restart with one click.
+
+### Uninstalling
+
+```cmd
+uninstall-service.bat
+```
+
+Removes the Windows service cleanly. Your project files stay intact — delete the folder manually if you want a full uninstall.
+
+### NSSM command reference
 
 | Action | Command |
 |--------|---------|
 | Check status | `nssm status IchtusServer` |
-| View logs | open the paths set in `stdoutLog` / `stderrLog` |
+| View logs | open `stdoutLog` / `stderrLog` from `nssm-service.json` |
 | Restart | `nssm restart IchtusServer` |
 | Stop | `nssm stop IchtusServer` |
 | Open config GUI | `nssm edit IchtusServer` |
-| Remove | run `uninstall-service.bat` |
+| Remove | `uninstall-service.bat` |
 
 ### Service URLs
 
