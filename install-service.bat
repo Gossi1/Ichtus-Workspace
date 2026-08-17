@@ -17,10 +17,9 @@ if "%AUTO_INSTALL_NSSM%"=="1" (
     set "INTERACTIVE=1"
 )
 
-:: Helper: alleen pauzeren in interactieve modus
-:_pause
-if "%INTERACTIVE%"=="1" pause >nul
-goto :eof
+:: Helper subroutine :_pause staat onderaan het bestand,
+:: anders zou `goto :eof` bij line-by-line doorloop de hele
+:: bat voortijdig beeindigen.
 
 echo.
 echo   ==================================================
@@ -366,3 +365,11 @@ echo.
 
 if "%INTERACTIVE%"=="1" pause
 endlocal
+
+:: ------------------------------------------
+::  Helper subroutine :_pause  (staat hier onderaan
+::  zodat `goto :eof` de hoofdstroom niet onderbreekt)
+:: ------------------------------------------
+:_pause
+if "%INTERACTIVE%"=="1" pause >nul
+goto :eof
