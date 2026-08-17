@@ -318,7 +318,14 @@ const agendaModule = {
                             return `${capitalizedDay} ${s.getDate()} ${month}`;
                         })(),
                         timeStr: `${s.toLocaleTimeString(i18n.getLocale(), { hour:'2-digit', minute:'2-digit' })} - ${e.endDate.toJSDate().toLocaleTimeString(i18n.getLocale(), { hour:'2-digit', minute:'2-digit' })}`,
-                        summary: e.summary
+                        // Strip any stray whitespace the iCal feed might
+                        // carry. Some calendars prefix event titles with a
+                        // single space — without this trim the leading
+                        // space propagates into col-event as an offset
+                        // relative to customLabel-derived titles like
+                        // 'EREDIENST' (which never has whitespace), making
+                        // the column look misaligned.
+                        summary: (typeof e.summary === 'string' ? e.summary : '').trim()
                     });
                 }
             });
@@ -706,7 +713,7 @@ const agendaModule = {
                 const isTargetService = isSunday && (timeVal >= 9.5 && timeVal <= 10.5) && !isExcluded;
 
                 if (e.isOverridden || (hideSpeakers && isTargetService)) {
-                    displayTitle = customLabel;
+                    displayTitle = (customLabel || '').trim();
                 }
 
                 e.currentDisplayTitle = displayTitle;
@@ -752,10 +759,18 @@ const agendaModule = {
                 }
             });
 
+            // col-event gets the title verbatim — no leading '  ' indent.
+            // Earlier the indent was added to "give breathing room between
+            // time and title", but on short titles (especially the
+            // `customLabel` value 'EREDIENST' that hideSpeakers swaps in)
+            // it pushed the text visibly further right than the rest of
+            // the rows. Visual spacing between columns is already handled
+            // by the `gap: 25px` on #view-agenda, so a hard text-prefix
+            // is what made column 4 misalign.
             if (this.colDate)  agendaModule._setColumnRows(this.colDate, fD);
             if (colPipe)       agendaModule._setPipeColumn(colPipe, fP.length);
             if (this.colTime)  agendaModule._setColumnRows(this.colTime, activeEvents.map(e => e.timeStr));
-            if (this.colEvent) agendaModule._setColumnRows(this.colEvent, activeEvents.map(e => '  ' + (e.currentDisplayTitle || '')));
+            if (this.colEvent) agendaModule._setColumnRows(this.colEvent, activeEvents.map(e => (e.currentDisplayTitle || '').trim()));
 
             [this.colDate, this.colTime, this.colEvent].forEach(col => {
                 if (col) col.contentEditable = 'true';
