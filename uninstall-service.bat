@@ -93,17 +93,23 @@ timeout /t 3 /nobreak >nul
 echo   Service verwijderen...
 "!NSSM_PATH!" remove !SVC_NAME! confirm
 if !errorlevel! neq 0 (
-    echo   [ERROR] Verwijderen faalde ^(exit !errorlevel!^).
-    echo   Mogelijk moet je de service handmatig uit services.msc verwijderen.
-    pause
-    exit /b 1
+    echo   [INFO] nssm remove faalde, probeer sc delete...
+    sc stop !SVC_NAME! >nul 2>&1
+    sc delete !SVC_NAME! >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo   [ERROR] sc delete faalde ook ^(exit !errorlevel!^).
+        echo   Verwijder de service handmatig via services.msc.
+        pause
+        exit /b 1
+    )
+    echo   [OK] Service verwijderd via sc delete.
 )
 
 :: Controleer of de service echt weg is
 sc query !SVC_NAME! >nul 2>&1
 if !errorlevel! equ 0 (
     echo   [WARN] Service !SVC_NAME! lijkt er nog steeds te staan.
-    echo   Probeer: sc delete !SVC_NAME!
+    echo   Verwijder handmatig via services.msc ^(sc delete !SVC_NAME!^).
     pause
     exit /b 1
 )
