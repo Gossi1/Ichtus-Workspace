@@ -1,6 +1,17 @@
 @echo off
 setlocal EnableDelayedExpansion
 
+:: ------------------------------------------
+::  Self-elevation: herstart als Administrator als nodig
+:: ------------------------------------------
+net session >nul 2>&1
+if %errorlevel% neq 0 (
+    echo.
+    echo   Administrator-rechten nodig. Opnieuw starten met UAC...
+    powershell -NoProfile -Command "Start-Process -FilePath '%~f0' -Verb RunAs"
+    exit /b
+)
+
 cd /d "%~dp0"
 
 echo.
@@ -84,6 +95,15 @@ echo   Service verwijderen...
 if !errorlevel! neq 0 (
     echo   [ERROR] Verwijderen faalde ^(exit !errorlevel!^).
     echo   Mogelijk moet je de service handmatig uit services.msc verwijderen.
+    pause
+    exit /b 1
+)
+
+:: Controleer of de service echt weg is
+sc query !SVC_NAME! >nul 2>&1
+if !errorlevel! equ 0 (
+    echo   [WARN] Service !SVC_NAME! lijkt er nog steeds te staan.
+    echo   Probeer: sc delete !SVC_NAME!
     pause
     exit /b 1
 )
