@@ -126,7 +126,6 @@ echo   [NSSM] !NSSM_PATH!
 :: =============================================
 call :read_json_config
 echo   [SVC]  !SVC_NAME! (!SVC_DISPLAY!)
-echo   [DEBUG] INTERACTIVE=!INTERACTIVE! AUTO_INSTALL_NSSM=!AUTO_INSTALL_NSSM!
 echo.
 
 :: =============================================
@@ -138,17 +137,12 @@ if not exist "%CD%\logs" mkdir "%CD%\logs" >nul 2>&1
 ::  6. Service bestaat al?
 :: =============================================
 sc query !SVC_NAME! >nul 2>&1
-set "_SCRC=!errorlevel!"
-if "!_SCRC!"=="0" (
+if !errorlevel!==0 (
     echo   [WARN] Service !SVC_NAME! bestaat al.
     echo.
-    if "%INTERACTIVE%"=="1" (
-        set /p REINSTALL="   Opnieuw installeren? (J/N) > "
-    ) else (
-        set "REINSTALL=J"
-        echo   [AUTO] Herinstallatie (silent mode)
-    )
-    echo   [DEBUG] INTERACTIVE=!INTERACTIVE! REINSTALL=!REINSTALL!
+    if "!INTERACTIVE!"=="1" set /p REINSTALL="   Opnieuw installeren? (J/N) > "
+    if "!INTERACTIVE!"=="0" set "REINSTALL=J"
+    if "!INTERACTIVE!"=="0" echo   [AUTO] Herinstallatie (silent mode)
     if /i not "!REINSTALL!"=="J" (
         echo   [INFO] Installatie afgebroken.
         call :_pause
