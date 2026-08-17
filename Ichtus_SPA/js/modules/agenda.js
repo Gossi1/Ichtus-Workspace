@@ -155,7 +155,107 @@ const agendaModule = {
         // user resizes the browser window (canvas.offsetWidth changes).
         window.addEventListener('resize', () => this.applyScaleForCanvas());
 
+        // Custom caret overlay — see CSS `.custom-caret`. Native caret is
+        // hidden via caret-color: transparent; this JS caret sits at the
+        // exact caret rectangle derived from getBoundingClientRect().
+        // Tunable via CSS custom properties --caret-w / --caret-h.
+        this._installCustomCaret();
+
         this.initialized = true;
+    },
+
+    /**
+     * Create one black rectangle (`.custom-caret`) inside #agenda-group
+     * and re-position it on every selection change inside any
+     * contentEditable column. Native caret is hidden in CSS
+     * (`caret-color: transparent`); this overlay is what the user sees.
+     *
+     * Why custom: `caret-color`/`caret-shape` only give us bar /
+     * underscore / block — no in-between widths. We want a thin stripe
+     * that's clearly visible without dominating the cell.
+     */
+    _installCustomCaret() {
+        if (this._customCaretInstalled) return;
+        this._customCaretInstalled = true;
+
+        const group = document.getElementById('agenda-group');
+        if (!group) return;
+
+        const caret = document.createElement('div');
+        caret.className = 'custom-caret';
+        caret.style.transform = 'translate(-9999px, -9999px)';
+        group.appendChild(caret);
+
+        // Read --caret-w / --caret-h so changing the CSS knobs updates
+        // the caret without touching JS. Defaults match the CSS
+        // baseline so this still works even if the rule isn't loaded.
+        const readCaretSize = () => {
+            const cs = window.getComputedStyle(caret);
+            const w = parseFloat(cs.getPropertyValue('--caret-w')) || 3;
+            const h = parseFloat(cs.getPropertyValue('--caret-h')) || 20;
+            return { w, h };
+        };
+
+        const positionCaret = () => {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) {
+                caret.style.opacity = '0';
+                return;
+            }
+            const range = sel.getRangeAt(0);
+            const node = range.startContainer;
+            // Only show inside one of our agenda cells, never in any
+            // other contentEditable on the page (event-selector labels,
+            // customLabel input, etc.).
+            let editableHost = null;
+            if (node && node.nodeType === 1) editableHost = node;
+            else if (node && node.parentElement) editableHost = node.parentElement;
+            if (!editableHost ||
+                !(editableHost.closest && editableHost.closest('#col-date, #col-time, #col-event'))) {
+                caret.style.opacity = '0';
+                return;
+            }
+
+            // The caret's visual position in viewport coordinates.
+            const rect = range.getBoundingClientRect();
+            if (!rect || (rect.left === 0 && rect.top === 0 && rect.width === 0 && rect.height === 0)) {
+                caret.style.opacity = '0';
+                return;
+            }
+
+            // Translate the viewport rect into agenda-group-local
+            // coordinates because the overlay is positioned absolutely
+            // relative to that parent (which is itself scaled by
+            // `transform: scale(N)`). To compensate, divide the
+            // delta by the current visual scale read from the group.
+            const scaleStr = (group.style.transform || '').match(/scale\(([^)]+)\)/);
+            const scale = scaleStr ? parseFloat(scaleStr[1]) : 1;
+            const groupRect = group.getBoundingClientRect();
+            const left = (rect.left - groupRect.left) / scale;
+            // Anchor the caret at the rendered font's baseline-ish area:
+            // halfway down the line-height cell, which matches where
+            // Chrome's native bar sits.
+            const top = (rect.top - groupRect.top) / scale + ((rect.height || 0) - readCaretSize().h) / 2;
+
+            const { w, h } = readCaretSize();
+            // Compensate the agenda-group's CSS scale so the caret's
+            // visual width stays constant regardless of canvas-fit
+            // scaling. At scale=1 we render `w N x h N` pixels visually
+            // (= w x h logical), and at scale=0.4 we render
+            // (w/0.4) x (h/0.4) logical pixels (= w x h visual again).
+            caret.style.width = (w / scale) + 'px';
+            caret.style.height = (h / scale) + 'px';
+            caret.style.transform = `translate(${left}px, ${top}px)`;
+            caret.style.opacity = '1';
+        };
+
+        document.addEventListener('selectionchange', positionCaret);
+        // Keep the overlay glued while the user types, drags the
+        // agenda-group, or resizes the window.
+        ['keyup', 'mouseup', 'click', 'focusin', 'focusout'].forEach((evt) =>
+            document.addEventListener(evt, positionCaret, true)
+        );
+        window.addEventListener('resize', positionCaret);
     },
 
     /**

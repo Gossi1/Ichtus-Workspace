@@ -1598,6 +1598,35 @@ button:hover, .btn-label:hover {
     border-radius: 4px;
     transition: all 0.2s;
     outline: none;
+    /* Native caret hidden — the agenda.js custom JS caretaker paints
+     * a thin, animated black rectangle at the exact caret rectangle
+     * via Range.getBoundingClientRect(). Width, height and padding
+     * are tunable via the .custom-caret class below.
+     */
+    caret-color: transparent;
+}
+
+/*
+ * Custom caret overlay. Created once by agenda.js init(), positioned
+ * via inline `transform: translate(Xpx, Ypx)` and `width/height`
+ * derived from `Range.getBoundingClientRect()`.
+ */
+#view-agenda .custom-caret {
+    --caret-w: 3px;
+    --caret-h: 20px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--caret-w);
+    height: var(--caret-h);
+    background: #000000;
+    pointer-events: none;
+    z-index: 50;
+    animation: ichtus-caret-blink 1s steps(1) infinite;
+    transform: translate(-9999px, -9999px);
+}
+@keyframes ichtus-caret-blink {
+    50% { opacity: 0; }
 }
 
 #view-agenda .column[contenteditable="true"]:hover {

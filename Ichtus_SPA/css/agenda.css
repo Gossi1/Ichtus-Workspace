@@ -399,6 +399,44 @@
     border-radius: 4px;
     transition: all 0.2s;
     outline: none;
+    /* Native caret hidden — the agenda.js custom JS caretaker paints
+     * a thin, animated black rectangle at the exact caret rectangle
+     * via Range.getBoundingClientRect(). Width, height and padding
+     * are tunable via the .custom-caret class below (see `--caret-w`,
+     * `--caret-h`). Going custom lets us sit between the native
+     * `bar` (too thin) and `block`/`underscore` (too thick), plus
+     * keep the shape stable across browsers whenever the user
+     * scrolls or the agenda group is scaled.
+     */
+    caret-color: transparent;
+}
+
+/*
+ * Custom caret overlay. Created once by agenda.js init(), positioned
+ * via inline `transform: translate(Xpx, Ypx)` and `width/height`
+ * derived from `Range.getBoundingClientRect()`. Tunable visual
+ * properties are exposed via CSS custom properties so a future
+ * commit can change them without touching agenda.js.
+ */
+#view-agenda .custom-caret {
+    --caret-w: 3px;       /* width  — bump to 4 or 5 for a chunkier rect */
+    --caret-h: 20px;      /* height — shorter than the line-height cell so
+                             * the caret reads as a slim tab rather than a
+                             * full-height bar. */
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--caret-w);
+    height: var(--caret-h);
+    background: #000000;
+    pointer-events: none;
+    z-index: 50;
+    /* 1s blink, like the native one, but on the overlay only. */
+    animation: ichtus-caret-blink 1s steps(1) infinite;
+    transform: translate(-9999px, -9999px); /* off-screen until positioned */
+}
+@keyframes ichtus-caret-blink {
+    50% { opacity: 0; }
 }
 
 #view-agenda .column[contenteditable="true"]:hover {
