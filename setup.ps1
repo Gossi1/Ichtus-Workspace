@@ -248,6 +248,50 @@ try {
 } finally { Pop-Location }
 
 # ------------------------------------------------------------------
+#  Stap 5 -- Server starten + browser openen
+# ------------------------------------------------------------------
+if (-not $SkipService) {
+    Write-Section "Stap 5 -- Server starten"
+
+    # Wacht tot de service actief is (max 15 seconden)
+    $ready = $false
+    for ($i = 1; $i -le 15; $i++) {
+        $status = & nssm status IchtusServer 2>$null
+        if ($status -eq 'SERVICE_RUNNING') {
+            $ready = $true
+            break
+        }
+        Start-Sleep -Seconds 1
+    }
+
+    if ($ready) {
+        Write-Ok "IchtusServer draait"
+
+        # Wacht tot de HTTP-server reageert (max 10 seconden)
+        $url = 'http://localhost:8080/api/health'
+        for ($i = 1; $i -le 10; $i++) {
+            try {
+                $resp = Invoke-WebRequest -Uri $url -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+                if ($resp.StatusCode -eq 200) {
+                    Write-Ok "Server reageert op $url"
+                    break
+                }
+            } catch {
+                Start-Sleep -Seconds 1
+            }
+        }
+
+        # Open de browser -- de gebruiker kan dan de PWA installeren
+        $pwaUrl = 'http://localhost:8080/Ichtus_SPA/'
+        Write-Info "Browser openen: $pwaUrl"
+        Start-Process $pwaUrl
+        Write-Ok "Browser geopend -- klik op het installatie-icoon (\u2191) in de adresbalk om de PWA te installeren"
+    } else {
+        Write-Warn "Service startte niet binnen 15 seconden. Controleer handmatig."
+    }
+}
+
+# ------------------------------------------------------------------
 #  Einde
 # ------------------------------------------------------------------
 Write-Host ""
@@ -257,6 +301,10 @@ Write-Host "  ==================================================" -ForegroundCol
 Write-Host "  Locatie:  $InstallPath"
 Write-Host "  Service:  IchtusServer  (Windows-services.msc)"
 Write-Host "  Browser:  http://localhost:8080/Ichtus_SPA/"
+Write-Host ""
+Write-Host "  PWA installeren:"
+Write-Host "    Klik op het installatie-icoon (\u2191) in de adresbalk"
+Write-Host "    Of: Chrome menu > More tools > Create shortcut > 'Open as window'"
 Write-Host ""
 Write-Host "  Onderhoud:"
 Write-Host "    Updates ophalen + herstart:  nssm restart IchtusServer"
