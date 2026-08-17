@@ -5,40 +5,29 @@ cd /d "%~dp0"
 
 echo.
 echo   ==================================================
-echo      ICHTUS SERVER - NSSM SERVICE UNINSTALLER
+echo     ICHTUS SERVER - NSSM SERVICE UNINSTALLER
 echo   ==================================================
 echo.
 
 :: ------------------------------------------
-::  Service naam: default 'IchtusServer' en probeer
-::  die uit nssm-service.json te lezen als die er is.
+::  Service naam (default IchtusServer; wijzig hier
+::  als je de service hernoemd hebt)
 :: ------------------------------------------
 set "SVC_NAME=IchtusServer"
-if exist "nssm-service.json" (
-    for /f "usebackq delims=" %%i in (`powershell -NoProfile -Command "$j = Get-Content -Raw nssm-service.json ^| ConvertFrom-Json; if ($j.serviceName) { $j.serviceName } else { '' }"`) do (
-        if not "%%i"=="" set "SVC_NAME=%%i"
-    )
-)
-echo   [SVC] !SVC_NAME!  ^(uit nssm-service.json of default^)
+echo   [SVC]  !SVC_NAME!
 
 :: ------------------------------------------
-::  NSSM-pad zoeken in deze volgorde:
-::    1. nssm-service.json -^> nssmPath
-::    2. nssm_temp\nssm-2.24\<arch>\nssm.exe  (onze portable install)
+::  nssm.exe zoeken in deze volgorde:
+::    1. nssm_temp\nssm-2.24\win64\nssm.exe (64-bit portable)
+::    2. nssm_temp\nssm-2.24\win32\nssm.exe (32-bit portable)
 ::    3. nssm.exe ergens op PATH
 :: ------------------------------------------
 set "NSSM_PATH="
-if exist "nssm-service.json" (
-    for /f "usebackq delims=" %%i in (`powershell -NoProfile -Command "$j = Get-Content -Raw nssm-service.json ^| ConvertFrom-Json; if ($j.nssmPath) { $j.nssmPath } else { '' }"`) do (
-        if not "%%i"=="" set "NSSM_PATH=%%i"
-    )
+if exist "nssm_temp\nssm-2.24\win64\nssm.exe" (
+    set "NSSM_PATH=nssm_temp\nssm-2.24\win64\nssm.exe"
 )
-if "!NSSM_PATH!"=="" (
-    if exist "nssm_temp\nssm-2.24\win64\nssm.exe" (
-        set "NSSM_PATH=nssm_temp\nssm-2.24\win64\nssm.exe"
-    ) else if exist "nssm_temp\nssm-2.24\win32\nssm.exe" (
-        set "NSSM_PATH=nssm_temp\nssm-2.24\win32\nssm.exe"
-    )
+if "!NSSM_PATH!"=="" if exist "nssm_temp\nssm-2.24\win32\nssm.exe" (
+    set "NSSM_PATH=nssm_temp\nssm-2.24\win32\nssm.exe"
 )
 if "!NSSM_PATH!"=="" (
     where nssm >nul 2>&1
@@ -53,7 +42,7 @@ if "!NSSM_PATH!"=="" (
 :nssm_found
 if "!NSSM_PATH!"=="" (
     echo   [ERROR] nssm.exe niet gevonden.
-    echo   Installeer NSSM of zet het pad in nssm-service.json.
+    echo   Geinstalleerd in nssm_temp\ wordt verwacht, of op PATH.
     pause
     exit /b 1
 )
@@ -70,33 +59,31 @@ echo.
 :: ------------------------------------------
 sc query !SVC_NAME! >nul 2>&1
 if !errorlevel! neq 0 (
-    echo   [INFO] Service !SVC_NAME! is niet geregistreerd.
+    echo   [INFO] Service !SVC_NAME! is niet geregistreerd. Niets te doen.
     pause
     exit /b 0
 )
 
-echo   Weet je zeker dat je service !SVC_NAME! wilt verwijderen? (J/N)
-set /p CONFIRM="   > "
+:: ------------------------------------------
+::  Bevestiging + uitvoeren
+:: ------------------------------------------
+set /p CONFIRM="   Verwijderen? (J/N) > "
 if /i not "!CONFIRM!"=="J" (
     echo   [INFO] Afgebroken.
     pause
     exit /b 0
 )
 
-:: ------------------------------------------
-::  Stoppen + verwijderen. Directe exec (geen `call`
-::  keyword) vermijdt cmd's edge-case met gecombineerde
-::  quoted/unquoted argumenten.
-:: ------------------------------------------
 echo.
 echo   Service stoppen...
-"!NSSM_PATH!" stop !SVC_NAME!
+"!NSSM_PATH!" stop !SVC_NAME! >nul 2>&1
 timeout /t 3 /nobreak >nul
 
 echo   Service verwijderen...
 "!NSSM_PATH!" remove !SVC_NAME! confirm
 if !errorlevel! neq 0 (
-    echo   [ERROR] Verwijderen mislukt (exit !errorlevel!).
+    echo   [ERROR] Verwijderen faalde ^(exit !errorlevel!^).
+    echo   Mogelijk moet je de service handmatig uit services.msc verwijderen.
     pause
     exit /b 1
 )
