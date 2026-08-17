@@ -251,11 +251,6 @@ const integrationModule = {
         if (modal) modal.classList.add('hidden');
     },
 
-    installWorshipToolsExt() {
-        // Download the .crx file from the server
-        window.open('/extensions/worshiptools-sync.crx', '_blank');
-    },
-
     async copyExtPath() {
         const extPath = window.location.origin + '/extensions/worshiptools-sync';
         try {

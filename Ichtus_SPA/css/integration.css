@@ -498,17 +498,6 @@
     border-color: rgba(255, 255, 255, 0.28);
 }
 
-.wt-ext-btn.primary {
-    background: rgba(0, 166, 81, 0.14);
-    border-color: rgba(0, 166, 81, 0.45);
-    color: #00a651;
-}
-
-.wt-ext-btn.primary:hover {
-    background: rgba(0, 166, 81, 0.22);
-    border-color: #00a651;
-}
-
 .wt-ext-copied {
     padding: 8px 12px;
     background: rgba(0, 166, 81, 0.12);

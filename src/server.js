@@ -126,12 +126,8 @@ app.use((req, res, next) => {
 // Serveer de hele project-root als static (behalve src/, node_modules/)
 app.use(express.static(ROOT_DIR, {
     index: false, // We handelen index.html hierboven af
-    setHeaders: (res, path) => {
+    setHeaders: (res) => {
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
-        // Correct Content-Type for Chrome extension files
-        if (path.endsWith('.crx')) {
-            res.set('Content-Type', 'application/x-chrome-extension');
-        }
     },
 }));
 
