@@ -414,3 +414,82 @@
     color: #ff6b6b;
 }
 }
+
+/* ---------- Green icon theme for WorshipTools ---------- */
+#view-integration .int-icon-green { background: rgba(0, 166, 81, 0.18); color: #00a651; }
+
+/* ---------- WorshipTools Extension install modal ---------- */
+
+#integration-wt-ext-modal .task-modal-dialog {
+    max-width: 520px;
+}
+
+.wt-ext-status {
+    margin-bottom: 16px;
+}
+
+.wt-ext-steps {
+    text-align: left;
+    margin-bottom: 20px;
+}
+
+.wt-ext-steps h4 {
+    color: var(--text-main, #f9f9f7);
+    font-family: 'Blockprint', sans-serif;
+    font-size: 0.95rem;
+    margin: 0 0 12px 0;
+}
+
+.wt-ext-steps ol {
+    color: #cbd5e1;
+    font-size: 0.85rem;
+    line-height: 1.7;
+    padding-left: 20px;
+    margin: 0;
+}
+
+.wt-ext-steps li {
+    margin-bottom: 4px;
+}
+
+.wt-ext-steps code {
+    background: rgba(0, 0, 0, 0.4);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    color: var(--ichtus-orange, #f47920);
+}
+
+.wt-ext-note {
+    margin-top: 16px;
+    padding: 10px 14px;
+    background: rgba(244, 195, 32, 0.08);
+    border: 1px solid rgba(244, 195, 32, 0.25);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    color: #e2c85a;
+    line-height: 1.5;
+}
+
+.wt-ext-links {
+    text-align: center;
+    margin-top: 12px;
+}
+
+.wt-ext-link {
+    display: inline-block;
+    padding: 8px 16px;
+    background: rgba(0, 166, 81, 0.12);
+    border: 1px solid rgba(0, 166, 81, 0.35);
+    border-radius: 8px;
+    color: #00a651;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: background 0.15s ease;
+}
+
+.wt-ext-link:hover {
+    background: rgba(0, 166, 81, 0.22);
+}
+

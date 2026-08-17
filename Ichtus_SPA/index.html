@@ -884,6 +884,48 @@
             </div>
         </div>
 
+        <!-- WORSHIPTOOLS EXTENSION INSTALL MODAL -->
+        <div id='integration-wt-ext-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog' role='dialog' aria-labelledby='integration-wt-ext-title'>
+                <div class='modal-header-row'>
+                    <h3 id='integration-wt-ext-title' class='modal-dialog-title heading-font'>WorshipTools Extensie</h3>
+                    <button type='button' class='btn-close-modal' onclick='integrationModule.closeWorshipToolsExtModal()' aria-label='Sluiten'>✕</button>
+                </div>
+
+                <div class='modal-content-scroll'>
+                    <div class='wt-ext-status' id='wt-ext-status'></div>
+
+                    <div class='wt-ext-steps'>
+                        <h4>Installatie gids</h4>
+                        <ol>
+                            <li>Open Chrome en ga naar <code>chrome://extensions/</code></li>
+                            <li>Schakel <strong>Ontwikkelaarsmodus</strong> in (rechtsboven)</li>
+                            <li>Klik op <strong>Laden uit pakket</strong> (Load unpacked)</li>
+                            <li>Selecteer de map: <code>extensions/worshiptools-sync</code> vanuit de Ichtus Workspace installatie</li>
+                            <li>De extensie verschijnt nu in je browsertoolbar</li>
+                        </ol>
+
+                        <div class='wt-ext-note'>
+                            <strong>Tip:</strong> Zet "Toegang tot bestands-URL" aan bij de extensie-instellingen
+                            voor optimale werking met lokale bestanden.
+                        </div>
+                    </div>
+
+                    <div class='wt-ext-links'>
+                        <a href='https://planning.worshiptools.com/app' target='_blank' class='wt-ext-link'>
+                            Open WorshipTools Planning ↗
+                        </a>
+                    </div>
+                </div>
+
+                <div class='modal-footer-row layout-right'>
+                    <div class='footer-right'>
+                        <button type='button' class='btn-secondary' onclick='integrationModule.closeWorshipToolsExtModal()'>Sluiten</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- SETTINGS VIEW -->
         <div id='view-settings' class='app-view hidden'>
             <div class="dashboard">

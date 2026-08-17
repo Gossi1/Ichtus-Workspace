@@ -43,6 +43,19 @@ const integrationModule = {
             accountName: 'Macbook Mic',
             primaryAction: false,
             actionLabel: 'Manage'
+        },
+        {
+            id: 'worshiptools-ext',
+            name: 'WorshipTools Extensie',
+            icon: 'WT',
+            iconTheme: 'green',
+            tagline: 'Chrome Extension',
+            description: 'Extract setlists from WorshipTools Planning and sync them directly to the Setlist module.',
+            connected: false,
+            accountName: '',
+            primaryAction: true,
+            actionLabel: 'Installeer',
+            managedByModal: true
         }
     ],
 
@@ -78,8 +91,9 @@ const integrationModule = {
             const id = btn.dataset.action;
             if (id === 'propresenter') {
                 this.openProPresenterModal();
+            } else if (id === 'worshiptools-ext') {
+                this.openWorshipToolsExtModal();
             }
-            // Other integrations intentionally no-op for now.
         });
     },
 
@@ -87,6 +101,7 @@ const integrationModule = {
         const grid = document.getElementById('integration-card-grid');
         if (!grid) return;
         this._applyProPresenterState();
+        this._applyWorshipToolsExtState();
         grid.innerHTML = this.INTEGRATIONS.map(i => this._cardMarkup(i)).join('');
     },
 
@@ -214,10 +229,42 @@ const integrationModule = {
         // Esc to close
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                const m = document.getElementById('integration-pp-modal');
-                if (m && !m.classList.contains('hidden')) this.closeProPresenterModal();
+                const pp = document.getElementById('integration-pp-modal');
+                const wt = document.getElementById('integration-wt-ext-modal');
+                if (pp && !pp.classList.contains('hidden')) this.closeProPresenterModal();
+                if (wt && !wt.classList.contains('hidden')) this.closeWorshipToolsExtModal();
             }
         });
+    },
+
+    // ── Modal: WorshipTools Extension ────────────────────────────────────
+
+    openWorshipToolsExtModal() {
+        const modal = document.getElementById('integration-wt-ext-modal');
+        if (!modal) return;
+        this._applyWorshipToolsExtState();
+        modal.classList.remove('hidden');
+    },
+
+    closeWorshipToolsExtModal() {
+        const modal = document.getElementById('integration-wt-ext-modal');
+        if (modal) modal.classList.add('hidden');
+    },
+
+    _applyWorshipToolsExtState() {
+        const status = document.documentElement.dataset.ichtusBridge;
+        const card = this.INTEGRATIONS.find(i => i.id === 'worshiptools-ext');
+        if (!card) return;
+
+        if (status === 'active' || status === 'loaded') {
+            card.connected = true;
+            card.accountName = status === 'active' ? 'Actief ✓' : 'Geladen...';
+            card.actionLabel = 'Geïnstalleerd';
+        } else {
+            card.connected = false;
+            card.accountName = '';
+            card.actionLabel = 'Installeer';
+        }
     },
 
     toggleProPresenterPasswordVisibility() {
