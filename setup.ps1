@@ -145,10 +145,17 @@ if ($SkipClone) {
     Write-Ok "Git repo gevonden in $InstallPath — overslaan klonen, wel even `git pull` draaien"
     Push-Location $InstallPath
     try {
-        & git pull --ff-only 2>$null
+        # 'cmd /c ... 2>nul' voorkomt dat PowerShell git's stderr-output
+        # als RemoteException op het error-stream zet. Zonder die omweg ziet
+        # de gebruiker een spook-error zoals:
+        #   git.exe : From https://github.com/... Ichtus-Workspace
+        # Zelfs als de pull succesvol was.
+        $pullOutput = cmd /c "git pull --ff-only 2>nul"
         if ($LASTEXITCODE -ne 0) {
             Write-Warn "`git pull` faalde — niet kritisch als je deze setup al had draaien."
+            if ($pullOutput) { Write-Info ($pullOutput -join "`n") }
         } else {
+            if ($pullOutput) { Write-Info ($pullOutput -join "`n") }
             Write-Ok "Code bijgewerkt"
         }
     } finally { Pop-Location }
