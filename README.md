@@ -6,13 +6,37 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ## 🛠️ Install on a Windows PC
 
-Follow these steps in order on any Windows 10 / 11 PC. Total time: **~10 minutes**. Everything else (NSSM, dependencies, service registration) is handled automatically.
+> **Prerequisites:** Windows 10 / 11 (64-bit). Admin PowerShell (run *Windows PowerShell* via *Run as administrator*).
 
-> **Prerequisites:** Windows 10 or 11 (64-bit recommended). Admin rights needed only for installing Git, Node.js and optionally a system-wide NSSM — the actual server runs as a regular Windows service.
+### ⚡ One-command install *(recommended)*
+
+Open **PowerShell as Administrator**, then paste exactly **one** line. The script handles Git + Node.js installation, cloning, `npm install`, NSSM download and Windows-service registration — no further input needed.
+
+```powershell
+irm https://raw.githubusercontent.com/Gossi1/Ichtus-Workspace/master/setup.ps1 | iex
+```
+
+No Git installed yet? That's fine — the script installs it (and Node.js LTS) automatically via `winget` on Windows 10/11.
+
+Once you see **`INSTALLATIE VOLTOOID`** at the bottom of the output, the server is live at:
+
+```
+http://localhost:8080/Ichtus_SPA/
+```
+
+The Windows service **`IchtusServer`** will now start with Windows and restart itself after crashes.
+
+> **Prefer double-clicking a file?** Right-click and save the link below as `setup.bat`, then double-click it. It does the same thing via the same GitHub-hosted script:
+>
+> [⬇ setup.bat](https://raw.githubusercontent.com/Gossi1/Ichtus-Workspace/master/setup.bat)
+
+### 🪜 Manual steps (fallback)
+
+Volg deze stappen alleen als de one-liner hierboven niet werkt (bijv. winget ontbreekt, GitHub geblokkeerd op het netwerk, of je liever stap-voor-stap werkt). Alles wat hieronder staat, doet het one-liner-script ook automatisch.
 
 ---
 
-### Step 1 — Install Git *(skip this step if you'll download the ZIP)*
+#### Step 1 — Install Git *(skip this step if you'll download the ZIP)*
 
 Git is needed only if you want to pull updates later instead of re-downloading the ZIP each time.
 
@@ -29,7 +53,7 @@ git --version
 
 ---
 
-### Step 2 — Install Node.js LTS *(required)*
+#### Step 2 — Install Node.js LTS *(required)*
 
 The server runs on Node.js 18 or newer.
 
@@ -47,7 +71,7 @@ npm --version
 
 ---
 
-### Step 3 — Get the code
+#### Step 3 — Get the code
 
 Pick one of the two options below.
 
@@ -70,7 +94,7 @@ cd C:\Ichtus_apps
 
 ---
 
-### Step 4 — Install JavaScript dependencies
+#### Step 4 — Install JavaScript dependencies
 
 ```cmd
 npm install
@@ -80,7 +104,7 @@ This downloads Express, Firebase Admin, `ws`, etc. into `node_modules\`. Takes 1
 
 ---
 
-### Step 5 — Add Firebase config *(optional, for cloud data sync)*
+#### Step 5 — Add Firebase config *(optional, for cloud data sync)*
 
 The app works fully offline if you skip this step — a setup modal will ask for your config on first launch and store it in browser `localStorage`.
 
@@ -93,7 +117,7 @@ Both files are gitignored, so secrets never accidentally leak.
 
 ---
 
-### Step 6 — Configure NSSM service
+#### Step 6 — Configure NSSM service
 
 Copy the example config and edit it:
 
@@ -114,7 +138,7 @@ Open `nssm-service.json` in Notepad and adjust at least these:
 
 ---
 
-### Step 7 — Register the Windows service
+#### Step 7 — Register the Windows service
 
 ```cmd
 install-service.bat
