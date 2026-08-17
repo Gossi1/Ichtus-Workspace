@@ -134,22 +134,11 @@ echo.
 if not exist "%CD%\logs" mkdir "%CD%\logs" >nul 2>&1
 
 :: =============================================
-::  6. Service bestaat al?
+::  6. Evt. bestaande service verwijderen
 :: =============================================
 sc query !SVC_NAME! >nul 2>&1
 if !errorlevel!==0 (
-    echo   [WARN] Service !SVC_NAME! bestaat al.
-    echo.
-    if "!INTERACTIVE!"=="1" set /p REINSTALL="   Opnieuw installeren? (J/N) > "
-    if "!INTERACTIVE!"=="0" set "REINSTALL=J"
-    if "!INTERACTIVE!"=="0" echo   [AUTO] Herinstallatie (silent mode)
-    if /i not "!REINSTALL!"=="J" (
-        echo   [INFO] Installatie afgebroken.
-        call :_pause
-        exit /b 0
-    )
-    echo.
-    echo   Bestaande service stoppen en verwijderen...
+    echo   [INFO] Service !SVC_NAME! bestaat al -- verwijderen eerst...
     "!NSSM_PATH!" stop !SVC_NAME! >nul 2>&1
     timeout /t 2 /nobreak >nul
     "!NSSM_PATH!" remove !SVC_NAME! confirm >nul 2>&1
