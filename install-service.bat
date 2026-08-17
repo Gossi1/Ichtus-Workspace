@@ -166,8 +166,6 @@ if !errorlevel! neq 0 (
 "!NSSM_PATH!" set !SVC_NAME! AppExit Default Restart
 "!NSSM_PATH!" set !SVC_NAME! AppStdout "!LOG_OUT!"
 "!NSSM_PATH!" set !SVC_NAME! AppStderr "!LOG_ERR!"
-"!NSSM_PATH!" set !SVC_NAME! AppStdoutCreationDisposition Append
-"!NSSM_PATH!" set !SVC_NAME! AppStderrCreationDisposition Append
 "!NSSM_PATH!" set !SVC_NAME! AppRotateFiles 1
 "!NSSM_PATH!" set !SVC_NAME! AppRotateBytes 5242880
 "!NSSM_PATH!" set !SVC_NAME! AppRotateSeconds 0
