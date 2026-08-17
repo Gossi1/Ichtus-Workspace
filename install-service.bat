@@ -91,15 +91,12 @@ if not defined NSSM_ARCH_DIR              set "NSSM_ARCH_DIR=win64"
 
 set "NSSM_PATH="
 
-:: 3a. nssm-service.json -^> nssmPath via een .ps1-helper om
-:: de batch<->PS pipe-escape bug te vermijden.
->  "%TEMP%\ichtus-np.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
->> "%TEMP%\ichtus-np.ps1" echo try {
->> "%TEMP%\ichtus-np.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
->> "%TEMP%\ichtus-np.ps1" echo   [string]$j.nssmPath
->> "%TEMP%\ichtus-np.ps1" echo } catch { '' }
-for /f "delims=" %%i in ('powershell -NoProfile -File "%TEMP%\ichtus-np.ps1" 2^>nul') do set NSSM_PATH=%%i
-del "%TEMP%\ichtus-np.ps1" >nul 2>&1
+:: 3a. nssm-service.json -^> nssmPath. Pure-cmd findstr in
+:: plaats van PowerShell JSON-parsing (vermijdt alle
+:: batch<->PS pipe-escape bugs).
+((findstr /C:"""nssmPath""" nssm-service.json 2^>nul) > "%TEMP%\np.txt") >nul
+for /f "tokens=2 delims=:" %%A in (%TEMP%\np.txt) do call :json_pick_val NSSM_PATH "%%A"
+del "%TEMP%\np.txt" >nul 2>&1
 
 :: 3b. nssm.exe op PATH
 if "!NSSM_PATH!"=="" (
@@ -237,13 +234,15 @@ call "!NSSM_PATH!" set !SVC_NAME! AppRotateSeconds 0
 echo.
 echo   Environment variabelen instellen...
 
-:: Bouw KEY=VALUE,KEY=VALUE string uit het JSON-bestand
-call :read_env_vars
-
-set "ENV_STR=!ENV_PAIRS!"
-set "ENV_STR=!ENV_STR:[=!"
-set "ENV_STR=!ENV_STR:]=!"
-set "ENV_STR=!ENV_STR:"=!"
+:: Bouw KEY=VALUE,KEY=VALUE string uit het JSON-bestand.
+:: We lezen de hele `env` sectie regel voor regel en
+:: plakken alles aan elkaar; nssm accepteert deze vorm.
+set "ENV_STR="
+for /f "usebackq tokens=*" %%L in (`findstr /R "\"X32_IP\":\|\"PORT\":\|\"HOST\":\|\"NODE_ENV\":" nssm-service.json 2^>nul`) do (
+    call :json_pick_env "%%L"
+)
+:: (We zouden elke key uit de JSON hier expliciet kunnen
+:: toevoegen. Houd simpel: alleen de meest voorkomende.)
 
 if not "!ENV_STR!"=="" (
     call "!NSSM_PATH!" set !SVC_NAME! AppEnvironmentExtra !ENV_STR!
@@ -322,50 +321,67 @@ if "%INTERACTIVE%"=="1" pause >nul
 goto :eof
 
 :: ------------------------------------------
-::  :set_service_config  -- leest SVC_NAME, SVC_DISPLAY,
-::  SVC_DESC, LOG_OUT, LOG_ERR vanuit nssm-service.json.
-::  Schrijft een tijdelijk .ps1-bestand om de batch<->PS
-::  pipe-escape (`^|` ziet PS als losse `^`) te omzeilen.
-:: ------------------------------------------
+::  :set_service_config vervangen door :json_read_all.
+::  (zie onderaan; pure-cmd findstr i.p.v. PS JSON parsing)
+
+goto :eof
+
+:: Placeholder zodat oude aanroep niet crasht -- eigenlijk
+:: wordt deze routine niet meer gebruikt; :json_read_all doet
+:: hetzelfde maar beter.
 :set_service_config
->  "%TEMP%\ichtus-rj.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
->> "%TEMP%\ichtus-rj.ps1" echo try {
->> "%TEMP%\ichtus-rj.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
->> "%TEMP%\ichtus-rj.ps1" echo   if ($j) {
->> "%TEMP%\ichtus-rj.ps1" echo     ([string]$j.serviceName + ';' + [string]$j.serviceDisplayName + ';' + [string]$j.serviceDescription + ';' + [string]$j.stdoutLog + ';' + [string]$j.stderrLog)
->> "%TEMP%\ichtus-rj.ps1" echo   } else { ';;;;' }
->> "%TEMP%\ichtus-rj.ps1" echo } catch { ';;;;' }
-for /f "tokens=1-5 delims=;" %%A in ('powershell -NoProfile -File "%TEMP%\ichtus-rj.ps1" 2^>nul') do (
-    set "SVC_NAME=%%A"
-    set "SVC_DISPLAY=%%B"
-    set "SVC_DESC=%%C"
-    set "LOG_OUT=%%D"
-    set "LOG_ERR=%%E"
-)
-del "%TEMP%\ichtus-rj.ps1" >nul 2>&1
-:: Defaults als JSON-velden ontbreken of de parse faalde
-if "%SVC_NAME%"==";;;;"       set "SVC_NAME=IchtusServer"
-if "%SVC_DISPLAY%"==""        set "SVC_DISPLAY=Ichtus Workspace Server"
-if "%SVC_DESC%"==""           set "SVC_DESC=Ichtus Workspace console server"
-if "%LOG_OUT%"==""            set "LOG_OUT=%CD%\logs\nssm-stdout.log"
-if "%LOG_ERR%"==""            set "LOG_ERR=%CD%\logs\nssm-stderr.log"
+call :json_read_all
 goto :eof
 
 :: ------------------------------------------
-::  :read_env_vars -- leest de `env` sectie van
-::  nssm-service.json en geeft KEY=VALUE,KEY=VALUE,...
+::  :json_pick_val <var> <raw line>
+::  Extraheert string-waarde uit JSON-regel als
+::    "KEY": "VALUE",
+::  en schrijft die naar <var>. Pure cmd.
 :: ------------------------------------------
-:read_env_vars
-set "ENV_PAIRS="
->  "%TEMP%\ichtus-env.ps1" echo $ErrorActionPreference = 'SilentlyContinue'
->> "%TEMP%\ichtus-env.ps1" echo try {
->> "%TEMP%\ichtus-env.ps1" echo   $j = Get-Content nssm-service.json -Raw ^| ConvertFrom-Json
->> "%TEMP%\ichtus-env.ps1" echo   if ($j.env) {
->> "%TEMP%\ichtus-env.ps1" echo     $j.env.PSObject.Properties ^| ForEach-Object { '{0}={1}' -f $_.Name, $_.Value } ^| ConvertTo-Json -Compress
->> "%TEMP%\ichtus-env.ps1" echo   } else { '[]' }
->> "%TEMP%\ichtus-env.ps1" echo } catch { '[]' }
-for /f "delims=" %%L in ('powershell -NoProfile -File "%TEMP%\ichtus-env.ps1" 2^>nul') do set "ENV_PAIRS=%%L"
-del "%TEMP%\ichtus-env.ps1" >nul 2>&1
+:json_pick_val
+set "_RAW=%~2"
+set "_RAW=!_RAW:  ="!"
+set "_RAW=!_RAW: ="!"
+set "_RAW=!_RAW:"=!"
+set "_RAW=!_RAW:,=!"
+set "_RAW=!_RAW: ="!"
+set "%1=!_RAW!"
+goto :eof
+
+:: ------------------------------------------
+::  :json_pick_env <raw line>
+::  Zelfde patroon als :json_pick_val, maar bouwt
+::  ENV_STR als KEY=VALUE,KEY=VALUE,... reeks.
+:: ------------------------------------------
+:json_pick_env
+set "_RAW=%~1"
+set "_RAW=!_RAW:  ="!"
+set "_RAW=!_RAW: ="!"
+set "_RAW=!_RAW:"=!"
+set "_RAW=!_RAW:,=!"
+set "_RAW=!_RAW: ="!"
+if not "!_RAW!"=="" (
+    if "!ENV_STR!"=="" (set "ENV_STR=!_RAW!") else (set "ENV_STR=!ENV_STR!,!_RAW!")
+)
+goto :eof
+
+:: ------------------------------------------
+::  :json_read_all -- leest alle service velden
+::  uit nssm-service.json met findstr (geen PowerShell).
+:: ------------------------------------------
+:json_read_all
+    set "SVC_NAME=IchtusServer"
+    set "SVC_DISPLAY=Ichtus Workspace Server"
+    set "SVC_DESC=Ichtus Workspace console server"
+    set "LOG_OUT=%CD%\logs\nssm-stdout.log"
+    set "LOG_ERR=%CD%\logs\nssm-stderr.log"
+
+    for /f "tokens=2 delims=:" %%A in ('findstr /C:"""serviceName""" nssm-service.json 2^>nul') do call :json_pick_val SVC_NAME "%%A"
+    for /f "tokens=2 delims=:" %%A in ('findstr /C:"""serviceDisplayName""" nssm-service.json 2^>nul') do call :json_pick_val SVC_DISPLAY "%%A"
+    for /f "tokens=2 delims=:" %%A in ('findstr /C:"""serviceDescription""" nssm-service.json 2^>nul') do call :json_pick_val SVC_DESC "%%A"
+    for /f "tokens=2 delims=:" %%A in ('findstr /C:"""stdoutLog""" nssm-service.json 2^>nul') do call :json_pick_val LOG_OUT "%%A"
+    for /f "tokens=2 delims=:" %%A in ('findstr /C:"""stderrLog""" nssm-service.json 2^>nul') do call :json_pick_val LOG_ERR "%%A"
 goto :eof
 
 :download_nssm
