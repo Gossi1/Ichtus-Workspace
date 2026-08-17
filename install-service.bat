@@ -91,10 +91,9 @@ if not defined NSSM_ARCH_DIR              set "NSSM_ARCH_DIR=win64"
 
 set "NSSM_PATH="
 
-:: 3a. nssm-service.json -^> nssmPath. Pure-cmd findstr in
-:: plaats van PowerShell JSON-parsing (vermijdt alle
-:: batch<->PS pipe-escape bugs).
-((findstr /C:"""nssmPath""" nssm-service.json 2^>nul) > "%TEMP%\np.txt") >nul
+:: 3a. nssm-service.json -^> nssmPath via een directe findstr
+:: in een tijdelijk bestand (geen piping, geen parens).
+findstr /C:"""nssmPath""" nssm-service.json 1>"%TEMP%\np.txt" 2>nul
 for /f "tokens=2 delims=:" %%A in (%TEMP%\np.txt) do call :json_pick_val NSSM_PATH "%%A"
 del "%TEMP%\np.txt" >nul 2>&1
 
