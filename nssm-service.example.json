@@ -1,0 +1,22 @@
+{
+  "_comment": "NSSM service configuration. Copy to nssm-service.json (gitignored) and edit. Used by install-service.bat to register the IchtusServer Windows service.",
+
+  "serviceName": "IchtusServer",
+  "serviceDisplayName": "Ichtus Workspace Server",
+  "serviceDescription": "Ichtus Workspace — consolidated Node.js server (SPA + X32 OSC + Mic/IEM + Supervisor)",
+
+  "_nssmPath_comment": "Vol pad naar nssm.exe. Opties: (1) leeg laten — install-service.bat downloadt NSSM zelf naar nssm_temp\\nssm-2.24\\win64\\nssm.exe (portable, aanbevolen). (2) handmatig systeempad, bv. C:\\Program Files\\nssm\\win64\\nssm.exe. (3) nssm.exe ergens op PATH.",
+  "nssmPath": "",
+
+  "_logDir_comment": "Absolute paths; log files are rotated by NSSM (5 MB per file).",
+  "stdoutLog": "C:\\Ichtus_apps\\logs\\nssm-stdout.log",
+  "stderrLog": "C:\\Ichtus_apps\\logs\\nssm-stderr.log",
+
+  "_env_comment": "Extra environment variables passed to the Node process (KEY=VALUE strings, comma-separated by NSSM).",
+  "env": {
+    "NODE_ENV": "production",
+    "PORT": "8080",
+    "HOST": "0.0.0.0",
+    "X32_IP": "192.168.1.50"
+  }
+}

@@ -239,19 +239,19 @@ router.get('/check-update', async (req, res) => {
     }
 });
 
-// ── Service Restart (minimalistic — signals PM2 or self) ───────────────
+// ── Service Restart (minimalistic — signals NSSM or self) ──────────────
 
 router.post('/restart/:key', async (req, res) => {
     const { key } = req.params;
     log(`restart requested for: ${key}`);
-    // In PM2 context, pm2.restart() is called externally
-    // For now we just acknowledge — PM2 handles the actual restart
-    res.json({ success: true, message: `Restart ${key} aangevraagd. PM2 handelt het af.` });
+    // In NSSM context, nssm restart IchtusServer is run externally
+    // (e.g. from the supervisor UI). NSSM handles the actual restart.
+    res.json({ success: true, message: `Restart ${key} aangevraagd. NSSM handelt het af.` });
 });
 
 router.post('/restart-all', async (req, res) => {
     log('restart-all requested');
-    res.json({ success: true, message: 'Alle services worden herstart door PM2.' });
+    res.json({ success: true, message: 'Alle services worden herstart door NSSM.' });
 });
 
 // ── Logs ───────────────────────────────────────────────────────────────

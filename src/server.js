@@ -12,7 +12,7 @@
  * Vervangt: server.py + x32/server.js + mic-iem-server/server.js + supervisor.py
  *
  * Start:  node src/server.js
- * PM2:    pm2 start ecosystem.config.js
+ * NSSM:   install-service.bat   (registers "IchtusServer" Windows service)
  */
 
 import express from 'express';

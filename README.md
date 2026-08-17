@@ -57,25 +57,37 @@ Church service management Single Page Application (SPA) for coordinating worship
 
 ---
 
-## 🪟 Auto-start with PM2
+## 🪟 Auto-start with NSSM
 
-Want the server to **start automatically and restart on crashes**?
+Want the server to **start automatically and restart on crashes** as a proper Windows service?
 
-```bash
-pm2 start ecosystem.config.js
-pm2 save
-pm2 startup
-```
+**1. Install NSSM** (if not already present)
+   Download from [nssm.cc/download](https://nssm.cc/download) and extract
+   `nssm.exe` to `C:\Program Files\nssm\win64\` (or somewhere on `PATH`).
 
-### PM2 Management
+**2. Create your local service config**
+   ```cmd
+   copy nssm-service.example.json nssm-service.json
+   ```
+   Edit `nssm-service.json` to match your install paths, port, X32 IP, etc.
+
+**3. Run the installer**
+   ```cmd
+   install-service.bat
+   ```
+   This registers a Windows service called `IchtusServer` (auto-start, log
+   rotation, restart-on-crash) and starts it immediately.
+
+### NSSM Management
 
 | Action | Command |
 |--------|---------|
-| Check status | `pm2 status` |
-| View logs | `pm2 logs ichtus` |
-| Restart | `pm2 restart ichtus` |
-| Stop | `pm2 stop ichtus` |
-| Remove | `pm2 delete ichtus` |
+| Check status | `nssm status IchtusServer` |
+| View logs | open the paths set in `stdoutLog` / `stderrLog` |
+| Restart | `nssm restart IchtusServer` |
+| Stop | `nssm stop IchtusServer` |
+| Open config GUI | `nssm edit IchtusServer` |
+| Remove | run `uninstall-service.bat` |
 
 ### Service URLs
 

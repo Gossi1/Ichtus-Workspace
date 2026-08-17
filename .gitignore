@@ -86,6 +86,9 @@ tmp/
 nssm*.zip
 nssm_temp/
 
+# NSSM service config (local install paths, do not commit)
+nssm-service.json
+
 # Runtime artifacts (auto-generated)
 supervisor.heartbeat
 supervisor.pid
