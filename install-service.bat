@@ -46,6 +46,7 @@ echo   ==================================================
 :: hier alsnog vanuit defaults in plaats van leeg te laten.
 if "%NSSM_VER%"==""        set "NSSM_VER=2.24"
 if "%NSSM_TEMP_DIR%"==""   set "NSSM_TEMP_DIR=%CD%\nssm_temp"
+if "%NSSM_ARCH_DIR%"==""   set "NSSM_ARCH_DIR=win64"
 set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
 set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
 
@@ -159,8 +160,15 @@ echo.
 set "NSSM_VER=2.24"
 set "NSSM_TEMP_DIR=%CD%\nssm_temp"
 
-:: Architectuur detecteren (win64 voor AMD64/ARM64, anders win32)
-for /f "delims=" %%A in ('powershell -NoProfile -Command "$a=$env:PROCESSOR_ARCHITECTURE; if($a -eq 'AMD64' -or $a -eq 'ARM64'){'win64'}else{'win32'}"') do set NSSM_ARCH_DIR=%%A
+:: Architectuur detecteren. PROCESSOR_ARCHITECTURE is een
+:: ingebouwde cmd-variabele (altijd beschikbaar), dus geen
+:: PowerShell-subproces nodig -- dat was eerder een bron van
+:: bugs waarbij NSSM_ARCH_DIR leeg bleef.
+if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "NSSM_ARCH_DIR=win64"
+if "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "NSSM_ARCH_DIR=win64"
+if "%PROCESSOR_ARCHITECTURE%"=="x86"   set "NSSM_ARCH_DIR=win32"
+if "%PROCESSOR_ARCHITECTURE%"=="IA64"  set "NSSM_ARCH_DIR=win64"
+if not defined NSSM_ARCH_DIR              set "NSSM_ARCH_DIR=win64"
 
 set "NSSM_PATH="
 
