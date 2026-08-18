@@ -2431,7 +2431,206 @@
     <script src='js/modules/supervisor.js'></script>
     <script src='js/modules/songidassigner.js'></script>
     <script src='js/ws-client.js'></script>
+    <script src='js/modules/update-popup.js?v=1'></script>
     <script src='js/app.js'></script>
+
+<!-- Server-side update popup (matches Ichtus liquid-glass theme, system fonts) -->
+<div id='ichtus-update-modal' class='ichtus-update-modal hidden' role='dialog' aria-modal='true' aria-labelledby='ichtus-update-title'>
+    <div class='ichtus-update-card' role='document'>
+        <div class='ichtus-update-header'>
+            <div class='ichtus-update-icon'>
+                <svg width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'>
+                    <path d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'></path>
+                    <polyline points='7 10 12 15 17 10'></polyline>
+                    <line x1='12' y1='15' x2='12' y2='3'></line>
+                </svg>
+            </div>
+            <div class='ichtus-update-titlegroup'>
+                <h2 id='ichtus-update-title'>
+                    Update Beschikbaar
+                    <span class='ichtus-update-badge' data-up-target='version-label'>v—</span>
+                </h2>
+                <div class='ichtus-update-subtitle-row'>
+                    <span data-up-target='subtitle'>— nieuwe commits</span>
+                    <span class='ichtus-update-dot'>·</span>
+                    <span data-up-target='new-version'>nieuw</span>
+                </div>
+            </div>
+        </div>
+
+        <div class='ichtus-update-content'>
+            <div class='ichtus-update-changelog' data-up-target='changelog'>
+                <!-- Populated by js/modules/update-popup.js -->
+            </div>
+
+            <div class='ichtus-update-progress' data-up-target='progress'>
+                <div class='ichtus-update-progress-bg'>
+                    <div class='ichtus-update-progress-fill' data-up-target='progress-bar'></div>
+                </div>
+                <div class='ichtus-update-progress-status'>
+                    <span data-up-target='progress-status'>Pullen van repository…</span>
+                    <span data-up-target='progress-percent'>0%</span>
+                </div>
+                <div class='ichtus-update-progress-detail' data-up-target='detail'></div>
+            </div>
+        </div>
+
+        <div class='ichtus-update-footer'>
+            <button type='button' class='ichtus-update-btn-secondary' data-up-target='btn-later' onclick='window.updatePopup &amp;&amp; window.updatePopup.close(true)'>Later</button>
+            <button type='button' class='ichtus-update-btn-primary' data-up-target='btn-update' onclick='window.updatePopup &amp;&amp; window.updatePopup.startUpdate()'>
+                <span>Nu Pullen &amp; Updaten</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Transient toast broadcast before companion clients reload */
+.ichtus-update-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%) translateY(-20px);
+    z-index: 10002;
+    background: linear-gradient(135deg, rgba(255,255,255,0.07), rgba(255,255,255,0.02)), rgba(30,30,30,0.92);
+    -webkit-backdrop-filter: blur(16px) saturate(135%);
+    backdrop-filter: blur(16px) saturate(135%);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-top: 1px solid rgba(255,255,255,0.28);
+    border-left: 1px solid rgba(255,255,255,0.28);
+    border-radius: 12px;
+    padding: 10px 16px;
+    font-size: 0.85rem;
+    color: var(--text-main, #f9f9f7);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    box-shadow: 0 12px 28px rgba(0,0,0,0.5);
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+}
+.ichtus-update-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+.ichtus-update-toast.hidden { display: none; }
+
+/* Server-side update popup — liquid-glass theme matching SPA */
+.ichtus-update-modal {
+    position: fixed; inset: 0; z-index: 10001;
+    background: rgba(0, 0, 0, 0.72);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+    animation: ichtus-update-fade 0.18s ease-out;
+}
+.ichtus-update-modal.hidden { display: none; }
+@keyframes ichtus-update-fade { from { opacity: 0; } to { opacity: 1; } }
+
+.ichtus-update-card {
+    width: 100%; max-width: 460px;
+    background: linear-gradient(135deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.02) 100%), rgba(30, 30, 30, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-top: 1px solid rgba(255, 255, 255, 0.28);
+    border-left: 1px solid rgba(255, 255, 255, 0.28);
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    backdrop-filter: blur(20px) saturate(135%);
+    border-radius: 16px;
+    box-shadow: 0 24px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    color: var(--text-main, #f9f9f7);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+    animation: ichtus-update-pop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes ichtus-update-pop {
+    from { opacity: 0; transform: scale(0.95) translateY(8px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.ichtus-update-header { padding: 22px 22px 14px; display: flex; align-items: center; gap: 14px; }
+.ichtus-update-icon {
+    width: 44px; height: 44px;
+    background: rgba(244, 121, 32, 0.16);
+    border: 1px solid rgba(244, 121, 32, 0.36);
+    border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: #f47920; flex-shrink: 0;
+}
+.ichtus-update-titlegroup { min-width: 0; }
+.ichtus-update-titlegroup h2 {
+    font-size: 1.08rem; font-weight: 700; margin: 0;
+    display: flex; align-items: center; gap: 8px;
+    color: var(--text-main, #f9f9f7);
+}
+.ichtus-update-badge {
+    background: rgba(244, 121, 32, 0.22); color: #ffb37a;
+    font-size: 0.72rem; padding: 2px 8px;
+    border-radius: 999px; font-weight: 600;
+    border: 1px solid rgba(244, 121, 32, 0.35);
+}
+.ichtus-update-subtitle-row {
+    margin-top: 4px; font-size: 0.84rem;
+    color: var(--text-muted, #9ca3af);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+}
+.ichtus-update-dot { opacity: 0.5; }
+.ichtus-update-content { padding: 0 22px 18px; }
+
+.ichtus-update-changelog {
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-top: 1px solid rgba(255, 255, 255, 0.10);
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 0.82rem;
+    color: var(--text-muted, #9ca3af);
+    max-height: 180px; overflow-y: auto;
+    scrollbar-width: thin;
+}
+.ichtus-update-changelog::-webkit-scrollbar { width: 6px; }
+.ichtus-update-changelog::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 999px; }
+.ichtus-update-changelog-title {
+    color: var(--text-main, #f9f9f7); font-weight: 700; margin-bottom: 8px;
+    text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.7px; opacity: 0.75;
+}
+.ichtus-update-changelog-list { list-style: none; padding: 0; margin: 0; }
+.ichtus-update-changelog-list li {
+    padding: 7px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    line-height: 1.4; display: flex; flex-direction: column; gap: 3px;
+}
+.ichtus-update-changelog-list li:last-child { border-bottom: none; }
+.ichtus-update-changelog-list .up-commit-subject { color: var(--text-main, #f9f9f7); }
+.ichtus-update-changelog-list .up-commit-meta { font-size: 0.72rem; display: flex; gap: 10px; opacity: 0.7; }
+.up-commit-hash { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; color: #ffb37a; }
+.up-changelog-empty { color: var(--text-muted, #9ca3af); }
+
+.ichtus-update-progress { margin-top: 14px; display: none; }
+.ichtus-update-progress-bg { width: 100%; height: 6px; background: rgba(255,255,255,0.08); border-radius: 999px; overflow: hidden; }
+.ichtus-update-progress-fill { width: 0%; height: 100%; background: linear-gradient(90deg, #f47920, #ffa659); transition: width 0.22s ease; }
+.ichtus-update-progress-status { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted, #9ca3af); margin-top: 7px; }
+.ichtus-update-progress-status .up-status-success { color: #00a651; }
+.ichtus-update-progress-status .up-status-fail { color: #ed1c24; }
+.ichtus-update-progress-detail { font-size: 0.72rem; color: var(--text-muted, #9ca3af); margin-top: 4px; opacity: 0.75; }
+
+.ichtus-update-footer {
+    padding: 14px 22px;
+    background: rgba(0, 0, 0, 0.28);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    display: flex; justify-content: flex-end; gap: 10px;
+}
+.ichtus-update-modal button {
+    font-family: inherit; padding: 9px 16px; border-radius: 8px;
+    font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none;
+    transition: background 0.15s ease, transform 0.05s ease;
+}
+.ichtus-update-btn-secondary { background: transparent; color: var(--text-muted, #9ca3af); }
+.ichtus-update-btn-secondary:hover { background: rgba(255,255,255,0.06); color: var(--text-main, #f9f9f7); }
+.ichtus-update-btn-primary {
+    background: linear-gradient(135deg, #f47920 0%, #d65f10 100%);
+    color: #fff; display: flex; align-items: center; gap: 6px;
+    box-shadow: 0 4px 14px rgba(244, 121, 32, 0.32);
+}
+.ichtus-update-btn-primary:hover { filter: brightness(1.08); }
+.ichtus-update-btn-primary:active { transform: translateY(1px); }
+.ichtus-update-btn-primary:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
+</style>
 
 <style>
 /* PWA Update Banner — styled inline to avoid extra CSS dependency */

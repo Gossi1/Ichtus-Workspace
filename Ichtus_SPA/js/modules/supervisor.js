@@ -31,6 +31,13 @@ const updateChecker = {
             if (!resp.ok) return;
             const data = await resp.json();
             this._updateBadges(data.update_available, data.behind_count);
+
+            // Surface the modal popup locally — also triggered by the
+            // server's WS broadcast on every connected device. This is
+            // the fallback path when the WS hub doesn't reach us.
+            if (data.update_available && window.updatePopup && window.updatePopup.show) {
+                window.updatePopup.show(data);
+            }
         } catch (err) {
             // Supervisor not available — hide badges
             this._updateBadges(false);

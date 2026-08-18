@@ -12,10 +12,11 @@ import { Router } from 'express';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs';
-import { resolve, basename } from 'path';
+import path, { resolve, basename } from 'path';
 import { fileURLToPath } from 'url';
 import { hostname } from 'os';
 import { discoverNdISources } from '../lib/ndi.js';
+import { broadcast as wsBroadcast } from '../ws.js';
 
 const execFileAsync = promisify(execFile);
 const PORT = parseInt(process.env.PORT, 10) || 8080;
@@ -205,8 +206,12 @@ router.get('/tockify/ics', async (req, res) => {
 
 router.post('/update', async (req, res) => {
     try {
+        // execFile resolves with {stdout, stderr} on success OR throws
+        // an Error with `.code` for exit code on failure. Assume success
+        // (status = 0) and let the catch block mutate it.
+        let status = 0;
         const { stdout: fetchOut } = await execFileAsync('git', ['fetch', 'origin'], { cwd: ROOT_DIR, timeout: 30_000 });
-        const { stdout: pullOut, stderr: pullErr, status } = await execFileAsync('git', ['pull'], { cwd: ROOT_DIR, timeout: 30_000 });
+        const { stdout: pullOut, stderr: pullErr } = await execFileAsync('git', ['pull'], { cwd: ROOT_DIR, timeout: 30_000 });
 
         const lines = [];
         if (fetchOut.trim()) lines.push('$ git fetch origin', ...fetchOut.trim().split('\n').map((l) => '  ' + l));
@@ -215,14 +220,29 @@ router.post('/update', async (req, res) => {
 
         const success = status === 0;
         log(`git pull ${success ? 'geslaagd' : 'mislukt'}`);
+
+        // Broadcast the result on the WS hub so any connected SPA
+        // (desktop, tablet, phone) will reload to pick up the freshly
+        // pulled code. The originating tab reloads on its own via
+        // updatePopup.startUpdate().
+        if (success) {
+            try { wsBroadcast('app:update', { state: 'pulled', success: true }); } catch { /* hub gone */ }
+        } else {
+            try { wsBroadcast('app:update', { state: 'failed', success: false, message: 'git pull had fouten.' }); } catch { /* hub gone */ }
+        }
+
         res.json({ success, exit_code: status, output: lines.join('\n'), message: success ? 'git pull voltooid.' : 'git pull had fouten.' });
     } catch (err) {
         if (err.killed) {
+            try { wsBroadcast('app:update', { state: 'failed', success: false, message: 'Git pull timeout' }); } catch { /* */ }
             res.status(504).json({ success: false, output: 'Timeout: git pull duurde langer dan 30 seconden.', message: 'Git pull timeout.' });
         } else if (err.code === 'ENOENT') {
+            try { wsBroadcast('app:update', { state: 'failed', success: false, message: 'Git niet gevonden' }); } catch { /* */ }
             res.json({ success: false, output: 'Git is niet geïnstalleerd.', message: 'Git niet gevonden.' });
         } else {
-            res.status(500).json({ success: false, output: err.message, message: 'Onverwachte fout.' });
+            try { wsBroadcast('app:update', { state: 'failed', success: false, message: err.message }); } catch { /* */ }
+            const code = err.code || 1;
+            res.status(500).json({ success: false, exit_code: code, output: err.message, message: 'Onverwachte fout.' });
         }
     }
 });
@@ -231,24 +251,141 @@ router.post('/update', async (req, res) => {
 
 router.get('/check-update', async (req, res) => {
     try {
-        const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT_DIR, timeout: 10_000 });
-        const branch = branchOut.trim();
-
-        await execFileAsync('git', ['fetch', 'origin'], { cwd: ROOT_DIR, timeout: 30_000 });
-
-        const { stdout: countOut } = await execFileAsync('git', ['rev-list', '--count', `HEAD..origin/${branch}`], { cwd: ROOT_DIR, timeout: 10_000 });
-        const count = parseInt(countOut.trim(), 10) || 0;
-
-        res.json({
-            update_available: count > 0,
-            behind_count: count,
-            branch,
-            checked_at: new Date().toISOString(),
-        });
+        const payload = await checkGitUpdates();
+        res.json(payload);
     } catch (err) {
         res.json({ update_available: false, behind_count: 0, error: err.message?.slice(0, 200) });
     }
 });
+
+// Reusable: probe git + collect changelog. Used by both the REST endpoint
+// and the WebSocket broadcaster (startUpdatePolling below).
+export async function checkGitUpdates() {
+    const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT_DIR, timeout: 10_000 });
+    const branch = branchOut.trim();
+
+    await execFileAsync('git', ['fetch', 'origin'], { cwd: ROOT_DIR, timeout: 30_000 });
+
+    const { stdout: countOut } = await execFileAsync('git', ['rev-list', '--count', `HEAD..origin/${branch}`], { cwd: ROOT_DIR, timeout: 10_000 });
+    const count = parseInt(countOut.trim(), 10) || 0;
+
+    let commits = [];
+    let latest_tag = null;
+    let head_remote = null;
+    if (count > 0) {
+        try {
+            const { stdout: logOut } = await execFileAsync(
+                'git',
+                ['log', '--pretty=format:%H%n%h%n%s%n%an%n%aI%n---', `HEAD..origin/${branch}`, '-n', '15'],
+                { cwd: ROOT_DIR, timeout: 10_000 }
+            );
+            commits = parseCommitLog(logOut);
+            head_remote = commits[0]?.hash || null;
+        } catch { /* non-fatal */ }
+
+        try {
+            const { stdout: tagOut } = await execFileAsync(
+                'git',
+                ['describe', '--tags', '--abbrev=0', `origin/${branch}`],
+                { cwd: ROOT_DIR, timeout: 5_000 }
+            );
+            latest_tag = tagOut.trim() || null;
+        } catch { /* no tags on this branch yet */ }
+    }
+
+    let current_version = UPDATE_CONFIG.current_version;
+    let version_name = 'Ichtus Workspace';
+    try {
+        const verPath = path.join(ROOT_DIR, 'Ichtus_SPA', 'version.json');
+        if (existsSync(verPath)) {
+            const v = JSON.parse(readFileSync(verPath, 'utf-8'));
+            if (v.version) current_version = v.version;
+            if (v.name) version_name = v.name;
+        }
+    } catch { /* fall back to hardcoded */ }
+
+    return {
+        update_available: count > 0,
+        behind_count: count,
+        branch,
+        current_version,
+        version_name,
+        latest_tag,
+        head_remote,
+        commits,
+        checked_at: new Date().toISOString(),
+    };
+}
+
+// Parse the block-delimited output of: %H\n%h\n%s\n%an\n%aI\n---
+function parseCommitLog(raw) {
+    if (!raw || !raw.trim()) return [];
+    return raw.split('\n---\n').filter(Boolean).map((block) => {
+        const [hash, short, subject, author, iso] = block.split('\n');
+        return {
+            hash: (hash || '').trim(),
+            short: (short || '').trim(),
+            subject: (subject || '').trim(),
+            author: (author || '').trim(),
+            date: (iso || '').trim(),
+        };
+    });
+}
+
+// ── Update Polling + WS Broadcast ─────────────────────────────────────
+//
+// Polls the remote every `intervalMs` and broadcasts an `app:update`
+// event on the WebSocket hub if commits have appeared since the last
+// broadcast. The SPA listens for that event in ws-client.js and shows
+// the modal in js/modules/update-popup.js — no separate REST poll needed
+// on every connected device.
+let _pollingTimer = null;
+let _lastBroadcastSha = null;
+let _pollingInFlight = false;
+
+export function startUpdatePolling(broadcast, intervalMs = 5 * 60 * 1000) {
+    if (typeof broadcast !== 'function') {
+        log('[update-polling] startUpdatePolling: broadcast is not a function, skipping');
+        return;
+    }
+    if (_pollingTimer) {
+        log('[update-polling] already running');
+        return;
+    }
+
+    const tick = async () => {
+        if (_pollingInFlight) return;
+        _pollingInFlight = true;
+        try {
+            const payload = await checkGitUpdates();
+            if (payload.update_available && payload.head_remote) {
+                if (payload.head_remote !== _lastBroadcastSha) {
+                    _lastBroadcastSha = payload.head_remote;
+                    log(`[update-polling] broadcasting app:update @ ${payload.head_remote.slice(0, 7)} (${payload.behind_count} commits)`);
+                    try { broadcast('app:update', payload); } catch { /* hub gone */ }
+                }
+            } else {
+                _lastBroadcastSha = null;
+            }
+        } catch (err) {
+            log(`[update-polling] check failed: ${err.message?.slice(0, 120)}`);
+        } finally {
+            _pollingInFlight = false;
+        }
+    };
+
+    setTimeout(tick, 30_000);
+    _pollingTimer = setInterval(tick, intervalMs);
+    log(`[update-polling] gestart — interval ${intervalMs / 1000}s`);
+}
+
+export function stopUpdatePolling() {
+    if (_pollingTimer) {
+        clearInterval(_pollingTimer);
+        _pollingTimer = null;
+        _lastBroadcastSha = null;
+    }
+}
 
 // ── Service Restart (minimalistic — signals NSSM or self) ──────────────
 

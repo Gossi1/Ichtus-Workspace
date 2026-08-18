@@ -25,8 +25,9 @@ import { networkInterfaces } from 'os';
 
 // ── Internal modules ───────────────────────────────────────────────────
 import { initFirebaseAdmin } from './lib/firebase.js';
-import { initWebSocket } from './ws.js';
-import systemRoutes, { getFirebaseConfig } from './routes/system.js';
+// (consolidated elsewhere)
+import { initWebSocket, broadcast } from './ws.js';
+import systemRoutes, { getFirebaseConfig, startUpdatePolling } from './routes/system.js';
 import x32Routes from './routes/x32.js';
 import iemRoutes, { seedInitialConfig } from './routes/iem.js';
 import worshiptoolsRoutes from './routes/worshiptools.js';
@@ -160,6 +161,11 @@ app.get('*', (req, res) => {
 // ── HTTP Server + WebSocket ────────────────────────────────────────────
 const server = createServer(app);
 initWebSocket(server);
+
+// Watch the remote repo for new commits and broadcast a single
+// `app:update` event on the WS hub the first time a new HEAD appears.
+// Connected SPA clients then surface the popup without polling themselves.
+startUpdatePolling(broadcast, 5 * 60 * 1000);
 
 // ── Start ──────────────────────────────────────────────────────────────
 async function start() {

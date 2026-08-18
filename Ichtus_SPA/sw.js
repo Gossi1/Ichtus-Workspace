@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v6';
+const CACHE_NAME = 'ichtus-spa-v7';
 
 // Static assets to pre-cache on install.
 // NOTE: Firebase SDK CDN URLs (https://www.gstatic.com/…) are intentionally
@@ -22,6 +22,7 @@ const PRECACHE_URLS = [
   '/Ichtus_SPA/js/ws-client.js',
   '/Ichtus_SPA/js/app.js',
   '/Ichtus_SPA/js/firebase-init.js',
+  '/Ichtus_SPA/js/modules/update-popup.js',
   '/Ichtus_SPA/js/modules/dashboard.js',
   '/Ichtus_SPA/js/modules/agenda.js',
   '/Ichtus_SPA/js/modules/checklist.js',
