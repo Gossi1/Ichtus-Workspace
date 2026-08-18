@@ -1088,6 +1088,15 @@ const songidassignerModule = (() => {
         document.addEventListener('worshiptools-library', onLibraryEvent);
         document.addEventListener('worshiptools-pending-songs', onPendingSongsEvent);
 
+        // WebSocket broadcasts from server hub
+        document.addEventListener('ws:wt:library', (e) => {
+            const d = e.detail || {};
+            if (d.songs || d.data) {
+                console.log('[SongID] ws:wt:library received, songs:', d.songs?.length || 0);
+                onLibraryEvent({ detail: { data: d.data, songs: d.songs } });
+            }
+        });
+
         // Load config first, then library
         loadLibraryConfig().then(() => {
             return loadLibrary(state.currentFile);

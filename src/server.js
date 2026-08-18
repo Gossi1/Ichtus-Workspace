@@ -137,6 +137,10 @@ app.use(express.static(ROOT_DIR, {
 
 // ── Fallback naar SPA ──────────────────────────────────────────────────
 app.get('*', (req, res) => {
+    // API-padres niet vangen — die worden al afgehandeld door hun eigen routers
+    if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: 'Not found' });
+    }
     // Probeer SPA index.html
     const indexPath = join(SPA_DIR, 'index.html');
     if (existsSync(indexPath)) {

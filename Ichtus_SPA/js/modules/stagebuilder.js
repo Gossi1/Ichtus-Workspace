@@ -294,6 +294,14 @@ const stagebuilderModule = {
             this._onRosterReceived(data);
         };
         document.addEventListener('worshiptools-roster', this.__rosterHandler);
+
+        // WebSocket broadcast from server hub
+        this.__wsRosterHandler = (e) => {
+            const d = (e && e.detail) || {};
+            const data = Array.isArray(d.roster) ? d.roster : [];
+            if (data.length) this._onRosterReceived(data);
+        };
+        document.addEventListener('ws:wt:roster', this.__wsRosterHandler);
     },
 
     _tearDownRosterListener() {
@@ -301,8 +309,12 @@ const stagebuilderModule = {
         if (this.__rosterHandler) {
             document.removeEventListener('worshiptools-roster', this.__rosterHandler);
         }
+        if (this.__wsRosterHandler) {
+            document.removeEventListener('ws:wt:roster', this.__wsRosterHandler);
+        }
         this.__sbRosterBound = false;
         this.__rosterHandler = null;
+        this.__wsRosterHandler = null;
     },
 
     _onRosterReceived(data) {

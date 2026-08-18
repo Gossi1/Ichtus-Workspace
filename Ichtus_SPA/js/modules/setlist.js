@@ -220,6 +220,19 @@ const setlistModule = {
                 this.receiveSetlist(e.detail.setlist, e.detail.date);
             }
         });
+
+        // Listen for WebSocket broadcasts from the server hub.
+        // WsClient dispatches ws:wt:setlist when the server pushes new data.
+        document.addEventListener('ws:wt:setlist', (e) => {
+            const d = e.detail || {};
+            console.log('[SPA] Received ws:wt:setlist, items:', d.structured?.length || d.items?.length || 0, 'date:', d.date);
+            if (d.items || d.structured) {
+                const rawText = Array.isArray(d.items) ? d.items.join('\n') : (typeof d.items === 'string' ? d.items : null);
+                if (rawText) {
+                    this.receiveSetlist(rawText, d.date, d.structured);
+                }
+            }
+        });
     },
 
     /**
