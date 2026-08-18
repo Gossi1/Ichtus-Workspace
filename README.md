@@ -236,10 +236,16 @@ own git config – idempotent, no admin needed:
 scripts\windows-setup.bat
 ```
 
-You can inspect or remove the entries any time with:
+You can inspect or remove all entries this workspace owns at once:
 
 ```cmd
 git config --global --get-all safe.directory
+scripts\windows-cleanup.bat
+```
+
+To remove a single entry manually:
+
+```cmd
 git config --global --unset safe.directory C:/Ichtus_apps
 ```
 
