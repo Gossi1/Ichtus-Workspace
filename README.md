@@ -216,6 +216,35 @@ Removes the Windows service cleanly. Your project files stay intact — delete t
 
 ---
 
+## 🩹 Troubleshooting (Windows)
+
+### "fatal: detected dubious ownership in repository"
+
+Modern Git for Windows refuses to operate in a repo owned by a different
+Windows user (often after restoring a backup from another PC, switching
+accounts, or copying the workspace as admin). Every git command then
+fails with:
+
+```text
+fatal: detected dubious ownership in repository at 'C:/Ichtus_apps'
+```
+
+Run **once** to whitelist this workspace (and any nested repos) in your
+own git config – idempotent, no admin needed:
+
+```cmd
+scripts\windows-setup.bat
+```
+
+You can inspect or remove the entries any time with:
+
+```cmd
+git config --global --get-all safe.directory
+git config --global --unset safe.directory C:/Ichtus_apps
+```
+
+---
+
 ## 💻 Manual Start
 
 ```bash
