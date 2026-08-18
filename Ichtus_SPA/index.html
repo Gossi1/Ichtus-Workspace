@@ -1319,12 +1319,8 @@
                         </div>
 
                         <!-- Live Notification Feeds -->
-                        <div id="setlist-status-box" class="toggle-item status-alert-box green-alert" style="display: block;">
-                            ✅ ProPresenter API is bereikbaar op 100.113.22.22:51253
-                        </div>
-                        <div id="setlist-date-display" class="toggle-item status-alert-box orange-alert" style="display: block;">
-                            Dienst datum: 31-05-2026
-                        </div>
+                        <div id="setlist-status-box" class="toggle-item status-alert-box green-alert" style="display: none;"></div>
+                        <div id="setlist-date-display" class="toggle-item status-alert-box orange-alert" style="display: none;"></div>
 
                         <!-- Live Content Target Preview Container (Separated Capsule) -->
                         <div class="canvas-wrapper preview-wrapper">
@@ -1332,31 +1328,9 @@
                                 <strong class="section-title">Setlist Voorvertoning</strong>
 
                                 <div id="setlist-preview" class="bucket-container">
-                                    <div class="song-bucket">
-                                        <h4 class="bucket-title bucket-opening">Openingsliederen (1)</h4>
-                                        <ul class="song-link-list">
-                                            <li>Joy (What The World Calls Foolish)</li>
-                                        </ul>
-                                    </div>
-                                    <div class="song-bucket">
-                                        <h4 class="bucket-title bucket-praise">Praise &amp; Worship (6)</h4>
-                                        <ul class="song-link-list">
-                                            <li>O586 Hij is Heer</li>
-                                            <li>O813 Uw liefde wint elke strijd</li>
-                                            <li>O773 De enige die redt</li>
-                                            <li>D013 Majesty</li>
-                                            <li>D131 Holy Forever</li>
-                                            <li>D143 Gratitude</li>
-                                        </ul>
-                                    </div>
-                                    <div class="song-bucket">
-                                        <h4 class="bucket-title bucket-closing">Eindliederen (3)</h4>
-                                        <ul class="song-link-list">
-                                            <li>D014 How Great Is Our God</li>
-                                            <li>Washed</li>
-                                            <li>River</li>
-                                        </ul>
-                                    </div>
+                                    <!-- Setlist wordt dynamisch gerenderd door setlist.js
+                                         vanuit de Chrome extension bridge of server API.
+                                         Geen hardcoded placeholder hier. -->
                                 </div>
                             </div>
                         </div>
