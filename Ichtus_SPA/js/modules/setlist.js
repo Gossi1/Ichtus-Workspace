@@ -186,6 +186,9 @@ const setlistModule = {
             });
         }
 
+        // Try to fetch from server API (fallback when extension isn't available)
+        this.fetchFromServer();
+
         // Restore any previously received setlist from localStorage
         const saved = localStorage.getItem('ichtus_received_setlist');
         if (saved) {
@@ -217,6 +220,31 @@ const setlistModule = {
                 this.receiveSetlist(e.detail.setlist, e.detail.date);
             }
         });
+    },
+
+    /**
+     * Fetch setlist data from the server API.
+     * Fallback for when the Chrome extension isn't available.
+     * Server caches the latest data from the extension.
+     */
+    async fetchFromServer() {
+        try {
+            const response = await fetch('/api/worshiptools/setlist');
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                const { items, structured, date } = result.data;
+                
+                // Only use server data if we don't already have extension data
+                if (!this.receivedSetlist && items) {
+                    console.log('[SPA] Fetching setlist from server API, items:', items.length, 'date:', date);
+                    this.receiveSetlist(items, date);
+                }
+            }
+        } catch (err) {
+            // Server might not be running — that's OK, extension will provide data
+            console.log('[SPA] Server API niet bereikbaar voor setlist:', err?.message);
+        }
     },
 
     receiveSetlist(rawText, date, structured) {

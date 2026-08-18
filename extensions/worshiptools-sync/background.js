@@ -23,6 +23,32 @@ let inMemRoster = null;
 let inMemStructured = null;
 let inMemLibrary = null;
 
+// Server sync configuration
+const SERVER_URL = 'http://localhost:8080';
+const WT_API_BASE = `${SERVER_URL}/api/worshiptools`;
+
+/**
+ * POST data to the Ichtus server API.
+ * Fire-and-forget: errors are logged but don't block the extension flow.
+ */
+async function postToServer(endpoint, data) {
+    try {
+        const response = await fetch(`${WT_API_BASE}${endpoint}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            console.warn('[BG] Server POST', endpoint, 'failed:', response.status);
+        }
+        return response;
+    } catch (err) {
+        // Server might not be running — that's OK
+        console.log('[BG] Server niet bereikbaar voor', endpoint, ':', err?.message);
+        throw err;
+    }
+}
+
 // Storage keys for chrome.storage.session
 const STORAGE_KEYS = {
   SETLIST: 'lastExtractedSetlist',
@@ -542,6 +568,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     persistToSession(STORAGE_KEYS.SETLIST, message.data);
     persistToSession(STORAGE_KEYS.DATE, message.date || null);
 
+    // Forward to server API (fire-and-forget)
+    postToServer('/setlist', {
+        items: message.data,
+        structured: message.structured,
+        date: message.date,
+        songCount: message.structured?.length || 0,
+    }).catch(err => console.warn('[BG] Server sync setlist mislukt:', err?.message));
+
     // Forward to SPA tabs (fire-and-forget, no await needed for response)
     const senderTabId = sender.tab?.id;
     forwardToSpaTabs(senderTabId, 'SETLIST_RECEIVED', message.data, message.date, message.structured);
@@ -558,6 +592,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // Persist in chrome.storage.session for retrieval after SW restart
     persistToSession(STORAGE_KEYS.ROSTER, message.data);
+
+    // Forward to server API (fire-and-forget)
+    postToServer('/roster', {
+        roster: message.data,
+        teams_scanned: message.teams_scanned || 0,
+    }).catch(err => console.warn('[BG] Server sync roster mislukt:', err?.message));
 
     // Forward to SPA tabs
     const senderTabId = sender.tab?.id;
@@ -597,13 +637,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // ── Song library extracted (Song ID Assigner) ──
   if (message.type === 'LIBRARY_EXTRACTED') {
-    console.log('[BG] Received LIBRARY_EXTRACTED, songs:', message.songs?.length, 'count:', message.count);
-
-    inMemLibrary = {
-      data: message.data || null,
-      songs: message.songs || null
+    console.log('[BG] Received LIBRARY_EXTRACTED, songs:', message.songs?.length, 'count:', message.count);    inMemLibrary = {
+        data: message.data || null,
+        songs: message.songs || null
     };
     persistToSession(STORAGE_KEYS.LIBRARY, inMemLibrary);
+
+    // Forward to server API (fire-and-forget)
+    postToServer('/library', {
+        songs: message.songs,
+        count: message.count || message.songs?.length || 0,
+    }).catch(err => console.warn('[BG] Server sync library mislukt:', err?.message));
 
     const senderTabId = sender.tab?.id;
     forwardToSpaTabs(senderTabId, 'LIBRARY_RECEIVED', message.data, null, message.songs);

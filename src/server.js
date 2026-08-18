@@ -29,6 +29,7 @@ import { initWebSocket } from './ws.js';
 import systemRoutes, { getFirebaseConfig } from './routes/system.js';
 import x32Routes from './routes/x32.js';
 import iemRoutes, { seedInitialConfig } from './routes/iem.js';
+import worshiptoolsRoutes from './routes/worshiptools.js';
 
 // ── Paths ──────────────────────────────────────────────────────────────
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -74,6 +75,9 @@ app.use('/api/x32', x32Routes);
 
 // Mic/IEM monitor op /api/iem/*
 app.use('/api/iem', iemRoutes);
+
+// WorshipTools data sync op /api/worshiptools/*
+app.use('/api/worshiptools', worshiptoolsRoutes);
 
 // ── Firebase config injection middleware ────────────────────────────────
 // Serveert HTML bestanden met Firebase config injected voor </head>
