@@ -60,9 +60,20 @@ const updatePopup = {
             `${payload.behind_count} nieuwe commit${payload.behind_count === 1 ? '' : 's'} ${branchLabel}`.trim();
 
         if (detailEl) {
-            detailEl.textContent = payload.commits && payload.commits.length
-                ? `${payload.commits.length} commit${payload.commits.length === 1 ? '' : 's'} klaargezet om te pullen.`
-                : 'Server heeft wijzigingen die nog niet lokaal zijn.';
+            if (payload.commits && payload.commits.length) {
+                detailEl.textContent =
+                    `${payload.commits.length} commit${payload.commits.length === 1 ? '' : 's'} klaargezet om te pullen.`;
+            } else if (payload.behind_count && payload.behind_count > 0) {
+                // Server reports updates are waiting but the changelog
+                // could not be enumerated (parse failure, shallow clone,
+                // network blip). Surfacing "behind_count" still gives
+                // the user something useful to act on instead of the
+                // misleading "Server heeft wijzigingen..." fallback.
+                detailEl.textContent =
+                    `${payload.behind_count} commit${payload.behind_count === 1 ? '' : 's'} op ${payload.branch || 'master'} klaargezet om te pullen (changelog niet beschikbaar).`;
+            } else {
+                detailEl.textContent = 'Geen update beschikbaar.';
+            }
         }
 
         // Reset progress UI to a hidden state every time we re-open

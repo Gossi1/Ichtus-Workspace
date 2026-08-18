@@ -19,6 +19,25 @@ import { discoverNdISources } from '../lib/ndi.js';
 import { broadcast as wsBroadcast } from '../ws.js';
 
 const execFileAsync = promisify(execFile);
+
+// execFileAsync throws on non-zero git exit codes, but pre-/post-checks in
+// /api/update need to know the actual exit code rather than treat any
+// failure as a thrown exception. `runGit` resolves with the full result
+// regardless of exit status so callers can compute their own success flag
+// from real git behaviour.
+function runGit(args, options = {}) {
+    return new Promise((resolve) => {
+        execFile('git', args, { cwd: ROOT_DIR, ...options }, (err, stdout, stderr) => {
+            resolve({
+                stdout: stdout || '',
+                stderr: stderr || '',
+                exitCode: err ? (err.code ?? 1) : 0,
+                error: err || null,
+            });
+        });
+    });
+}
+
 const PORT = parseInt(process.env.PORT, 10) || 8080;
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..', '..');
@@ -206,10 +225,12 @@ router.get('/tockify/ics', async (req, res) => {
 
 router.post('/update', async (req, res) => {
     try {
-        // execFile resolves with {stdout, stderr} on success OR throws
-        // an Error with `.code` for exit code on failure. Assume success
-        // (status = 0) and let the catch block mutate it.
-        let status = 0;
+        // Failure status starts at 1 (failure) and is overwritten by the
+        // exit code of each git invocation; the variable previously lived
+        // here as `let status = 0` but was never mutated, so `success`
+        // degenerated to `!pullError` and the popup flagged fast-forwards
+        // as "git pull had fouten." when `pullError` was set elsewhere.
+        let status = 1;
         let pullError = null;
 
         // Pre-flight: bail out early if there are local uncommitted
@@ -226,18 +247,25 @@ router.post('/update', async (req, res) => {
             }
         } catch { /* non-fatal — fall through to actual pull attempt */ }
 
-        const { stdout: fetchOut } = await execFileAsync('git', ['fetch', 'origin'], { cwd: ROOT_DIR, timeout: 30_000 });
-        const { stdout: pullOut, stderr: pullErr } = await execFileAsync('git', ['pull'], { cwd: ROOT_DIR, timeout: 30_000 });
+        const fetchRes = await runGit(['fetch', 'origin'], { timeout: 30_000 });
+        const pullRes  = await runGit(['pull'],            { timeout: 30_000 });
+
+        // status reflects the actual git outcomes: 0 only when both
+        // fetch and pull exited cleanly.
+        if (fetchRes.exitCode === 0 && pullRes.exitCode === 0) status = 0;
+
+        const { stdout: pullOut, stderr: pullErr } = pullRes;
 
         // Detect the "would overwrite local changes" error which shows
         // up on stderr — surface it to the popup with a hint.
         const overwriteHint = /Your local changes to the following files would be overwritten/i;
-        if (pullErr && overwriteHint.test(pullErr)) {
-            pullError = pullErr.split('\n')[0]; // first line is usually enough
+        if (pullRes.exitCode !== 0 || (pullErr && overwriteHint.test(pullErr))) {
+            const firstErrorLine = (pullErr || pullRes.error?.message || '').split('\n').find((l) => l.trim()) || 'git pull faalde';
+            if (!pullError) pullError = firstErrorLine;
         }
 
         const lines = [];
-        if (fetchOut.trim()) lines.push('$ git fetch origin', ...fetchOut.trim().split('\n').map((l) => '  ' + l));
+        if (fetchRes.stdout.trim()) lines.push('$ git fetch origin', ...fetchRes.stdout.trim().split('\n').map((l) => '  ' + l));
         lines.push('', '$ git pull', ...pullOut.trim().split('\n').map((l) => '  ' + l));
         if (pullErr.trim()) lines.push(...pullErr.trim().split('\n').map((l) => '  ⚠ ' + l));
         if (pullError) lines.push('', '⚠ ' + pullError);
