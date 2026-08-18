@@ -1,1 +1,0 @@
-Pipeline test marker — committed to verify that commit + push still work correctly after the recent update-flow fixes. Safe to delete in a follow-up `git rm scripts/_pipeline_test.txt` once you've confirmed the workflow on the other PC.
