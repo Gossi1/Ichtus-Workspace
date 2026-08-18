@@ -5,28 +5,48 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>WorshipTools Sync</title>
 <style>
+  /* ─────────────────────────────────────────────────────────
+     Liquid glass theme — matched to Ichtus Workspace SPA
+     (shared-assets/css/branding.css + base.css)
+     ───────────────────────────────────────────────────────── */
   :root {
-    --bg: #1a1a2e;
-    --surface: #242440;
-    --surface-hover: #2d2d50;
-    --text: #e8e8f0;
-    --text-dim: #9898b0;
+    --bg: #4d4d4f;
+    --bg-main: #1e1e1e;
+    --bg-card: #242424;
     --accent: #f47920;
     --accent-glow: rgba(244, 121, 32, 0.25);
-    --green: #34d399;
-    --red: #f87171;
-    --border: rgba(255,255,255,0.08);
+    --text: #f9f9f7;
+    --text-dim: #9ca3af;
+    --text-muted: #666;
+    --border-light: #4d4d4f;
+    --border-soft: rgba(255, 255, 255, 0.10);
+    --border-strong: rgba(255, 255, 255, 0.25);
+    --green: #00a651;
+    --red: #ed1c24;
+  }
+
+  /* Glass surface mixin — same gradient/blur pattern as SPA */
+  .glass {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
+    border: 1px solid var(--border-soft);
+    border-top: 1px solid var(--border-strong);
+    border-left: 1px solid var(--border-strong);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
 
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-    background: var(--bg);
+    background:
+      radial-gradient(ellipse at top, rgba(244, 121, 32, 0.04), transparent 60%),
+      linear-gradient(180deg, var(--bg-main) 0%, #141414 100%);
     color: var(--text);
     width: 400px;
     min-height: 340px;
-    padding: 16px;
+    padding: 14px;
     font-size: 13px;
     line-height: 1.5;
   }
@@ -35,49 +55,50 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    margin-bottom: 14px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border);
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-radius: 10px;
   }
+  .header.glass { /* glass applied via class */ }
 
   .header .logo {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 7px;
-    box-shadow: 0 0 12px var(--accent-glow);
+    box-shadow: 0 0 10px var(--accent-glow);
     object-fit: cover;
     display: block;
   }
 
   .header h1 {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 700;
     flex: 1;
+    letter-spacing: -0.01em;
   }
 
   .header .version-badge {
-    font-size: 11px;
+    font-size: 10px;
     padding: 2px 8px;
     border-radius: 10px;
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: var(--text-dim);
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-soft);
   }
 
   .section {
-    background: var(--surface);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 12px 14px;
     margin-bottom: 10px;
-    border: 1px solid var(--border);
   }
+  .section.glass { /* glass applied via class */ }
 
   .section-label {
-    font-size: 11px;
-    font-weight: 600;
+    font-size: 10px;
+    font-weight: 700;
     color: var(--text-dim);
     text-transform: uppercase;
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
     margin-bottom: 8px;
   }
 
@@ -105,57 +126,56 @@
     justify-content: center;
     gap: 6px;
     padding: 8px 16px;
-    border-radius: 8px;
-    border: none;
+    border-radius: 9px;
+    border: 1px solid var(--border-soft);
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
-    background: var(--surface-hover);
+    transition: all 0.18s ease;
+    background: rgba(255, 255, 255, 0.05);
     color: var(--text);
-    border: 1px solid var(--border);
     white-space: nowrap;
   }
   .btn:hover:not(:disabled) {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.10);
+    border-color: var(--border-strong);
     transform: translateY(-1px);
   }
   .btn:disabled {
-    opacity: 0.5;
+    opacity: 0.45;
     cursor: not-allowed;
     transform: none;
   }
 
   .btn-primary {
     background: linear-gradient(135deg, var(--accent) 0%, #e06610 100%);
-    border-color: rgba(244, 121, 32, 0.5);
+    border-color: rgba(244, 121, 32, 0.55);
     color: #fff;
     width: 100%;
     padding: 10px;
     font-size: 14px;
   }
   .btn-primary:hover:not(:disabled) {
-    box-shadow: 0 4px 14px var(--accent-glow);
+    box-shadow: 0 4px 16px var(--accent-glow);
     border-color: var(--accent);
   }
 
   .output-area {
-    background: rgba(0,0,0,0.35);
-    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.45);
+    border-radius: 8px;
     padding: 10px;
     font-family: 'SF Mono', 'Cascadia Code', 'Consolas', monospace;
     font-size: 11px;
     line-height: 1.6;
-    color: #b0b0c8;
+    color: #c0c0d0;
     max-height: 180px;
     overflow-y: auto;
     white-space: pre-wrap;
     word-break: break-word;
     margin-top: 8px;
+    border: 1px solid var(--border-soft);
   }
-  .output-area:empty {
-    display: none;
-  }
+  .output-area:empty { display: none; }
   .output-area .success { color: var(--green); }
   .output-area .error { color: var(--red); }
 
@@ -163,39 +183,37 @@
     text-align: center;
     font-size: 10px;
     color: var(--text-dim);
-    padding-top: 6px;
+    padding-top: 8px;
   }
-  .footer a {
-    color: var(--accent);
-    text-decoration: none;
-  }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
 
   .spacer { flex: 1; }
+
   /* ── WorshipTools detection panel ───────────────────────── */
   .wt-empty {
     color: var(--text-dim);
     font-size: 12px;
     line-height: 1.5;
   }
-  .wt-empty strong {
-    color: var(--text);
-  }
+  .wt-empty strong { color: var(--text); }
+
   /* ────── Result card (rendered after sync) ────── */
   .result-card {
     margin-top: 6px;
     padding: 10px 12px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: rgba(255,255,255,0.03);
+    border-radius: 9px;
+    border: 1px solid var(--border-soft);
+    background: rgba(255, 255, 255, 0.04);
     font-size: 12px;
   }
   .result-card.success {
-    border-color: rgba(52, 211, 153, 0.45);
-    background: rgba(52, 211, 153, 0.06);
+    border-color: rgba(0, 166, 81, 0.45);
+    background: rgba(0, 166, 81, 0.07);
   }
   .result-card.error {
-    border-color: rgba(248, 113, 113, 0.45);
-    background: rgba(248, 113, 113, 0.06);
+    border-color: rgba(237, 28, 36, 0.45);
+    background: rgba(237, 28, 36, 0.07);
   }
   .result-headline {
     display: flex;
@@ -203,15 +221,8 @@
     gap: 8px;
     margin-bottom: 8px;
   }
-  .result-glyph {
-    font-size: 16px;
-    line-height: 1;
-  }
-  .result-title {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--text);
-  }
+  .result-glyph { font-size: 16px; line-height: 1; }
+  .result-title { font-size: 13px; font-weight: 700; color: var(--text); }
   .result-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -220,9 +231,10 @@
   }
   .result-stat {
     text-align: center;
-    background: rgba(255,255,255,0.04);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 7px;
     padding: 8px 4px;
+    border: 1px solid var(--border-soft);
   }
   .result-stat-num {
     font-size: 18px;
@@ -241,23 +253,22 @@
     display: flex;
     justify-content: space-between;
     padding: 4px 0;
-    border-top: 1px solid rgba(255,255,255,0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
     font-size: 11px;
   }
   .result-key { color: var(--text-dim); }
   .result-val { color: var(--text); font-weight: 600; font-family: 'SF Mono','Cascadia Code','Consolas',monospace; }
-  .result-detail {
-    color: var(--text-dim);
-    line-height: 1.45;
-  }
+  .result-detail { color: var(--text-dim); line-height: 1.45; }
 
   /* ────── Pending ID queue (id assigner) ────── */
   .pending-section {
     margin-top: 10px;
     padding: 10px 12px;
-    border-radius: 8px;
+    border-radius: 10px;
     border: 1px solid rgba(244, 121, 32, 0.35);
-    background: rgba(244, 121, 32, 0.06);
+    background: linear-gradient(135deg, rgba(244, 121, 32, 0.10) 0%, rgba(244, 121, 32, 0.03) 100%);
+    backdrop-filter: blur(14px) saturate(135%);
+    -webkit-backdrop-filter: blur(14px) saturate(135%);
   }
   .pending-section.hidden { display: none; }
   .pending-headline {
@@ -271,24 +282,20 @@
   }
   .pending-headline .pending-count {
     margin-left: auto;
-    background: rgba(244, 121, 32, 0.18);
+    background: rgba(244, 121, 32, 0.20);
     color: var(--accent);
     font-size: 11px;
     padding: 2px 8px;
     border-radius: 10px;
   }
-  .pending-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
+  .pending-list { display: flex; flex-direction: column; gap: 6px; }
   .pending-chip {
     display: flex;
     align-items: center;
     gap: 8px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border-soft);
+    border-radius: 7px;
     padding: 6px 10px;
     cursor: pointer;
     transition: all 0.15s ease;
@@ -299,28 +306,20 @@
     width: 100%;
   }
   .pending-chip:hover {
-    background: rgba(244, 121, 32, 0.10);
+    background: rgba(244, 121, 32, 0.12);
     border-color: var(--accent);
   }
-  .pending-chip:active {
-    transform: translateY(1px);
-  }
-  /* Orphan variant: code-less items surfaced by the extension's own sweep */
+  .pending-chip:active { transform: translateY(1px); }
   .pending-chip-orphan {
     border-style: dashed;
-    border-color: rgba(244, 121, 32, 0.35);
+    border-color: rgba(244, 121, 32, 0.40);
     background: rgba(244, 121, 32, 0.04);
   }
   .pending-chip-orphan .pending-chip-code {
     color: var(--text-dim);
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
   }
-  .pending-chip-hint {
-    color: var(--text-dim);
-    font-size: 10px;
-    margin-left: 6px;
-    opacity: 0.7;
-  }
+  .pending-chip-hint { color: var(--text-dim); font-size: 10px; margin-left: 6px; opacity: 0.7; }
   .pending-chip-code {
     font-family: 'SF Mono','Cascadia Code','Consolas',monospace;
     font-weight: 700;
@@ -328,7 +327,7 @@
     font-size: 11px;
     padding: 2px 6px;
     border-radius: 4px;
-    background: rgba(244, 121, 32, 0.14);
+    background: rgba(244, 121, 32, 0.18);
     flex-shrink: 0;
   }
   .pending-chip-title {
@@ -342,34 +341,25 @@
     color: var(--text-dim);
     padding: 1px 5px;
     border-radius: 3px;
-    background: rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.06);
     flex-shrink: 0;
   }
-  .pending-empty {
-    color: var(--text-dim);
-    font-size: 12px;
-    padding: 4px 0;
-  }
+  .pending-empty { color: var(--text-dim); font-size: 12px; padding: 4px 0; }
 
   /* ────── Retry button (rendered after sync errors) ────── */
-  .wt-retry-row {
-    margin-top: 8px;
-  }
+  .wt-retry-row { margin-top: 8px; }
   .wt-retry-btn {
     width: 100%;
-    background: rgba(244, 121, 32, 0.14);
-    border-color: rgba(244, 121, 32, 0.4);
+    background: rgba(244, 121, 32, 0.15);
+    border-color: rgba(244, 121, 32, 0.45);
     color: var(--accent);
     font-size: 12px;
     padding: 6px 12px;
   }
   .wt-retry-btn:hover:not(:disabled) {
-    background: rgba(244, 121, 32, 0.24);
+    background: rgba(244, 121, 32, 0.25);
     box-shadow: 0 0 0 1px var(--accent);
   }
-
-  /* ────── Test / debug buttons ────── */
-  /* (removed: handled outside the extension now) */
 
   /* ────── Pending chip delete (per-item ×) ────── */
   .pending-chip-delete {
@@ -386,7 +376,7 @@
     transition: all 0.15s ease;
   }
   .pending-chip-delete:hover {
-    background: rgba(248, 113, 113, 0.20);
+    background: rgba(237, 28, 36, 0.20);
     color: var(--red);
     opacity: 1;
   }
@@ -396,18 +386,18 @@
     width: 100%;
     margin-top: 8px;
     background: transparent;
-    border: 1px solid var(--border);
+    border: 1px solid var(--border-soft);
     color: var(--text-dim);
     font-size: 11px;
     font-weight: 500;
     padding: 6px 10px;
-    border-radius: 6px;
+    border-radius: 7px;
     cursor: pointer;
     transition: all 0.15s ease;
   }
   .pending-clear-all-btn:hover:not(:disabled) {
-    background: rgba(248, 113, 113, 0.10);
-    border-color: rgba(248, 113, 113, 0.35);
+    background: rgba(237, 28, 36, 0.10);
+    border-color: rgba(237, 28, 36, 0.40);
     color: var(--red);
   }
   .pending-clear-all-btn.hidden { display: none; }
@@ -420,13 +410,13 @@
 </head>
 <body>
 
-<div class="header">
+<div class="header glass">
   <img class="logo" src="icons/icon-32.png" alt="Ichtus" width="32" height="32">
   <h1>WorshipTools Sync</h1>
   <span class="version-badge" id="ext-version">v1.2</span>
 </div>
 
-<div class="section" id="wt-section">
+<div class="section glass" id="wt-section">
   <div class="section-label">WorshipTools sync</div>
   <div id="wt-content">
     <div class="wt-empty"><span class="status-dot warning"></span> Scannen…</div>
