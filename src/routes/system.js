@@ -210,28 +210,58 @@ router.post('/update', async (req, res) => {
         // an Error with `.code` for exit code on failure. Assume success
         // (status = 0) and let the catch block mutate it.
         let status = 0;
+        let pullError = null;
+
+        // Pre-flight: bail out early if there are local uncommitted
+        // changes that would make `git pull` refuse to merge. The popup
+        // surfaces the reason instead of getting a cryptic git error.
+        try {
+            const { stdout: statusOut } = await execFileAsync(
+                'git', ['status', '--porcelain'],
+                { cwd: ROOT_DIR, timeout: 10_000 }
+            );
+            if (statusOut && statusOut.trim()) {
+                const dirty = statusOut.trim().split('\n').slice(0, 8).join('\n');
+                pullError = `Lokale wijzigingen blokkeren de pull:\n${dirty}${statusOut.trim().split('\n').length > 8 ? '\n  …' : ''}`;
+            }
+        } catch { /* non-fatal — fall through to actual pull attempt */ }
+
         const { stdout: fetchOut } = await execFileAsync('git', ['fetch', 'origin'], { cwd: ROOT_DIR, timeout: 30_000 });
         const { stdout: pullOut, stderr: pullErr } = await execFileAsync('git', ['pull'], { cwd: ROOT_DIR, timeout: 30_000 });
+
+        // Detect the "would overwrite local changes" error which shows
+        // up on stderr — surface it to the popup with a hint.
+        const overwriteHint = /Your local changes to the following files would be overwritten/i;
+        if (pullErr && overwriteHint.test(pullErr)) {
+            pullError = pullErr.split('\n')[0]; // first line is usually enough
+        }
 
         const lines = [];
         if (fetchOut.trim()) lines.push('$ git fetch origin', ...fetchOut.trim().split('\n').map((l) => '  ' + l));
         lines.push('', '$ git pull', ...pullOut.trim().split('\n').map((l) => '  ' + l));
         if (pullErr.trim()) lines.push(...pullErr.trim().split('\n').map((l) => '  ⚠ ' + l));
+        if (pullError) lines.push('', '⚠ ' + pullError);
 
-        const success = status === 0;
+        const success = status === 0 && !pullError;
         log(`git pull ${success ? 'geslaagd' : 'mislukt'}`);
 
         // Broadcast the result on the WS hub so any connected SPA
         // (desktop, tablet, phone) will reload to pick up the freshly
         // pulled code. The originating tab reloads on its own via
         // updatePopup.startUpdate().
+        const broadcastMsg = pullError || (success ? 'git pull voltooid.' : 'git pull had fouten.');
         if (success) {
             try { wsBroadcast('app:update', { state: 'pulled', success: true }); } catch { /* hub gone */ }
         } else {
-            try { wsBroadcast('app:update', { state: 'failed', success: false, message: 'git pull had fouten.' }); } catch { /* hub gone */ }
+            try { wsBroadcast('app:update', { state: 'failed', success: false, message: broadcastMsg }); } catch { /* hub gone */ }
         }
 
-        res.json({ success, exit_code: status, output: lines.join('\n'), message: success ? 'git pull voltooid.' : 'git pull had fouten.' });
+        res.json({
+            success,
+            exit_code: status,
+            output: lines.join('\n'),
+            message: broadcastMsg,
+        });
     } catch (err) {
         if (err.killed) {
             try { wsBroadcast('app:update', { state: 'failed', success: false, message: 'Git pull timeout' }); } catch { /* */ }

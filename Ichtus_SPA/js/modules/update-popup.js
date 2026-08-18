@@ -160,8 +160,16 @@ const updatePopup = {
             const data = await resp.json().catch(() => ({}));
 
             if (!resp.ok || data.success === false) {
-                this._fail(statusText, percentText, progressBar,
-                    data.message || data.output || `HTTP ${resp.status}`);
+                // Prefer the actual git output for debugging — the generic
+                // `message` field gets overridden by the server with
+                // "git pull had fouten." which hides the real reason.
+                // Strip leading `$` markers so the message stays short.
+                const detail = (data.output || '').replace(/\n/g, ' ').trim();
+                const fallback = data.message || `HTTP ${resp.status}`;
+                const shown = (detail && detail !== 'git pull had fouten.')
+                    ? `${fallback} — ${detail.slice(0, 220)}`
+                    : fallback;
+                this._fail(statusText, percentText, progressBar, shown);
                 this._pulling = false;
                 if (updateBtn) updateBtn.disabled = false;
                 if (laterBtn)  laterBtn.disabled  = false;
