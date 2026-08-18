@@ -47,6 +47,10 @@ Desktop.ini
 # Error artifacts
 nul
 
+# Setup script state (created by setup.ps1 to short-circuit
+# npm install when package.json is unchanged)
+.setup-pkg-hash
+
 # Browser extension builds
 # (extensions are source-only, no build output)
 

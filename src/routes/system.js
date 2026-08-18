@@ -234,16 +234,23 @@ router.post('/update', async (req, res) => {
         let pullError = null;
 
         // Pre-flight: bail out early if there are local uncommitted
-        // changes that would make `git pull` refuse to merge. The popup
-        // surfaces the reason instead of getting a cryptic git error.
+        // changes that would actually make `git pull` refuse to merge —
+        // i.e. modifications/deletes on TRACKED files. Untracked entries
+        // (`??`) and ignored entries (`!!`) are harmless for a fast-forward
+        // pull, so we intentionally filter them out; otherwise scratch files
+        // like `.setup-pkg-hash` would falsely flag every update.
         try {
             const { stdout: statusOut } = await execFileAsync(
                 'git', ['status', '--porcelain'],
                 { cwd: ROOT_DIR, timeout: 10_000 }
             );
             if (statusOut && statusOut.trim()) {
-                const dirty = statusOut.trim().split('\n').slice(0, 8).join('\n');
-                pullError = `Lokale wijzigingen blokkeren de pull:\n${dirty}${statusOut.trim().split('\n').length > 8 ? '\n  …' : ''}`;
+                const blocking = statusOut.trim().split('\n')
+                    .filter((l) => l.length > 2 && !l.startsWith('??') && !l.startsWith('!!'));
+                if (blocking.length > 0) {
+                    const dirty = blocking.slice(0, 8).join('\n');
+                    pullError = `Lokale wijzigingen blokkeren de pull:\n${dirty}${blocking.length > 8 ? '\n  …' : ''}`;
+                }
             }
         } catch { /* non-fatal — fall through to actual pull attempt */ }
 
