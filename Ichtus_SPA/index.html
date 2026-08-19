@@ -250,6 +250,7 @@
                         <div class='sidebar-icon'>
                             <svg class='sidebar-nav-icon sidebar-nav-icon--filled' viewBox='0 0 512 540' fill='currentColor'>
                                 <path d='M165,85.3v325.3c-9.7-3.3-20.5-5.3-32-5.3c-41.2,0-74.7,23.9-74.7,53.3c0,29.5,33.4,53.3,74.7,53.3c41.2,0,74.7-23.9,74.7-53.3c0-3.6-0.5-7.2-1.5-10.7h1.5V179.8L421,118.9v227.8c-9.7-3.3-20.5-5.3-32-5.3c-41.2,0-74.7,23.9-74.7,53.3c0,29.5,33.4,53.3,74.7,53.3c41.2,0,74.7-23.9,74.7-53.3c0-3.4-0.5-6.7-1.4-10l1.4-0.7V0L165,85.3z'/>
+                            </svg>
                         </div>
                         <span class='sidebar-text' data-i18n='nav_songids'>Song IDs</span>
                     </a>
@@ -1230,7 +1231,6 @@
                     </form>
                 </div>
             </div>
-        </div>
 
         <!-- SETLIST VIEW -->
         <div id='view-setlist' class='app-view hidden'>
@@ -1830,10 +1830,15 @@
             #setlist-template-modal .tpl-item-row select:focus {
                 border-color: #ff9f43;
                 background: rgba(0, 0, 0, 0.35);
-            }
-            #setlist-template-modal .tpl-item-row input[type="color"] {
-                -webkit-appearance: none;
-                border: none;
+            }              #setlist-template-modal .tpl-item-row input[type="color"] {
+                  /* Strip native color-picker chrome. The vendor-prefixed form runs
+                     first so Safari < 15.4 still strips the chrome; the unprefixed
+                     `appearance: none` follows so modern lint rules (Stylelint
+                     `property-no-vendor-prefix` etc.) see the standard property
+                     and stop flagging this line. */
+                  -webkit-appearance: none;
+                  appearance: none;
+                  border: none;
                 width: 30px;
                 height: 30px;
                 border-radius: 6px;
@@ -2189,7 +2194,6 @@
                 <svg width='16' height='16' viewBox='0 0 24 24'><polyline points='20 6 9 17 4 12'></polyline></svg>
                 <span id='sb-hud-message'>Ready</span>
             </div>
-        </div>
 
         </div>
         <!-- /#view-stagebuilder -->
@@ -2476,9 +2480,9 @@
         </div>
 
         <div class='ichtus-update-footer'>
-            <button type='button' class='ichtus-update-btn-secondary' data-up-target='btn-later' onclick='window.updatePopup &amp;&amp; window.updatePopup.close(true)'>Later</button>
-            <button type='button' class='ichtus-update-btn-primary' data-up-target='btn-update' onclick='window.updatePopup &amp;&amp; window.updatePopup.startUpdate()'>
-                <span>Nu Pullen &amp; Updaten</span>
+            <button type='button' class='ichtus-update-btn-secondary' data-up-target='btn-later' onclick="if (window.updatePopup) window.updatePopup.close(true)">Later</button>
+            <button type='button' class='ichtus-update-btn-primary' data-up-target='btn-update' onclick="if (window.updatePopup) window.updatePopup.startUpdate()">
+                <span>Nu Pullen en Updaten</span>
             </button>
         </div>
     </div>
@@ -2618,7 +2622,17 @@
 .ichtus-update-modal button {
     font-family: inherit; padding: 9px 16px; border-radius: 8px;
     font-size: 0.85rem; font-weight: 600; cursor: pointer; border: none;
-    transition: background 0.15s ease, transform 0.05s ease;
+    /* Note: do NOT set background or color here. The parent selector has higher
+       specificity (.ichtus-update-modal button = 0,1,1) than the per-button classes
+       (.ichtus-update-btn-primary/.ichtus-update-btn-secondary = 0,1,0), so setting
+       background/color at this level would clobber the gradient/text-colour that the
+       per-button rules supply. Use background-color (the longhand) in the transition
+       so browsers animate the colour, not the whole background shorthand. */
+    transition: background-color 0.15s ease, transform 0.05s ease, box-shadow 0.15s ease;
+}
+.ichtus-update-modal button:focus-visible {
+    outline: 2px solid #f47920;
+    outline-offset: 2px;
 }
 .ichtus-update-btn-secondary { background: transparent; color: var(--text-muted, #9ca3af); }
 .ichtus-update-btn-secondary:hover { background: rgba(255,255,255,0.06); color: var(--text-main, #f9f9f7); }

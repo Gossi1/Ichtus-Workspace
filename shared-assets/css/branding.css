@@ -258,24 +258,26 @@ h1, h2, h3, .heading-font {
 }
 
 /* Section labels */
+/* Sidebar section labels (Navigatie, Systeem, Admin). The label itself
+   must never be clipped: it sits in a flex column, so we lock its size
+   with flex-shrink:0 and use overflow:visible. Hidden state uses display
+   none so there is no height/padding interpolation to catch a sibling
+   reflow off guard. */
 .sidebar-section-label {
     padding: 14px 12px 4px;
     font-size: 10px;
     font-weight: 600;
-    color: #666;
+    color: #888;
     text-transform: uppercase;
     letter-spacing: 0.1em;
     white-space: nowrap;
-    overflow: hidden;
-    transition: opacity 0.2s ease, height 0.2s ease, padding 0.2s ease;
+    overflow: visible;
+    flex-shrink: 0;
     font-family: 'Blockprint', sans-serif;
 }
 
 .ichtus-sidebar.collapsed .sidebar-section-label {
-    opacity: 0;
-    height: 0;
-    padding: 0;
-    overflow: hidden;
+    display: none;
 }
 
 /* Menu */
@@ -422,14 +424,23 @@ h1, h2, h3, .heading-font {
 }
 
 /* Admin expandable section */
+/* Admin expandable section. Uses grid-template-rows 0fr → 1fr instead of
+   max-height so the dropdown auto-sizes to any number of items and never
+   clips content. The inner <ul> clips its own overflow during animation. */
 .sidebar-admin-group {
     position: relative;
-    overflow: hidden;
-    max-height: 0;
-    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
-    opacity: 0;
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.sidebar-admin-group > ul {
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* Vertical indicator line — stretches top-to-bottom of the group; grows
+   naturally as the grid row expands. */
 .sidebar-admin-group::before {
     content: '';
     position: absolute;
@@ -441,8 +452,7 @@ h1, h2, h3, .heading-font {
 }
 
 .sidebar-admin-group.expanded {
-    max-height: 200px;
-    opacity: 1;
+    grid-template-rows: 1fr;
 }
 
 .sidebar-admin-group .sidebar-menu li {
@@ -485,20 +495,12 @@ body.sidebar-collapsed {
     min-height: 100vh;
 }
 
-/* Tablet: collapsed by default on smaller screens */
+/* Tablet (769–1024px): sidebar stays at full width so the section
+   labels (Navigatie, Systeem, Admin) remain readable. Users can still
+   collapse the sidebar manually via the toggle button if they want
+   more screen space. */
 @media (min-width: 769px) and (max-width: 1024px) {
-    .ichtus-sidebar {
-        width: 70px;
-    }
-    .ichtus-sidebar .sidebar-brand-text,
-    .ichtus-sidebar .sidebar-text,
-    .ichtus-sidebar .sidebar-toggle-text,
-    .ichtus-sidebar .sidebar-section-label {
-        opacity: 0;
-        width: 0;
-        overflow: hidden;
-    }
     body {
-        margin-left: 70px;
+        margin-left: 260px;
     }
 }
