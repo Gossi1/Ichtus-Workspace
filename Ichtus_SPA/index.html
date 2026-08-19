@@ -2096,30 +2096,13 @@
                         <h1>Roster → X32 Recaller</h1>
                         <p class='sb-subtitle'>Elke WorshipTools-toewijzing wordt automatisch gematcht aan een X32 library-preset. Kies een kanaal en druk op Recall (Companion-stijl libchan-recall).</p>
                     </div>
-                    <div class='sb-header-actions'>
-                        <button class='sb-icon-btn' title='Open WorshipTools Planning om roster te extraheren' onclick='stagebuilderModule.openWorshipTools()'>
-                            <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
-                                <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/>
-                                <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>
-                            </svg>
-                        </button>
-                        <button id='sb-btn-open-x32-library' class='sb-icon-btn' title='X32 Library Map bewerken' onclick='stagebuilderModule.openX32LibraryMap()'>
-                            <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
-                                <path d='M8 6h13'/>
-                                <path d='M8 12h13'/>
-                                <path d='M8 18h13'/>
-                                <path d='M3 6h.01'/>
-                                <path d='M3 12h.01'/>
-                                <path d='M3 18h.01'/>
-                            </svg>
-                        </button>
-                        <button id='sb-btn-refresh-status' class='sb-icon-btn' title='Ververs X32 session-status' onclick='stagebuilderModule.refreshSessionStatus()'>
-                            <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
-                                <path d='M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8'/>
-                                <path d='M21 3v5h-5'/>
-                            </svg>
-                        </button>
-                    </div>
+                    <div class='sb-header-actions'>                          <button class='sb-icon-btn' title='Open WorshipTools Planning om roster te extraheren' onclick='stagebuilderModule.openWorshipTools()'>
+                              <svg width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                                  <path d='M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71'/>
+                                  <path d='M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'/>
+                              </svg>
+                          </button>
+                      </div>
                 </div>
 
                 <!-- Status bar: X32 IP (left) + connection telemetry pill (center) + grouped controls (right) -->
@@ -2145,9 +2128,6 @@
                             </button>
                             <button id='sb-x32-poll' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.pollX32Presets()' title='Vernieuw alle 100 library-slots (hasdata + naam)'>
                                 Poll
-                            </button>
-                            <button id='sb-x32-disconnect' class='sb-btn sb-btn-secondary sb-btn-danger' onclick='stagebuilderModule.disconnectFromX32()' title='Sluit OSC-verbinding'>
-                                Disconnect
                             </button>
                         </div>
                         <button id='sb-x32-auto-assign' class='sb-btn sb-btn-action sb-btn-auto-assign' onclick='stagebuilderModule.autoAssignAll()' title='Wis alle handmatige slot/kanaal-overschrijvingen en alle opgeslagen sb.assign.* mappings, draai vervolgens slot auto-suggest + rol-gebaseerde kanaal-regels opnieuw'>
