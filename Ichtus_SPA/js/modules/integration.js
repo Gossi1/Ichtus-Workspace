@@ -21,30 +21,6 @@ const integrationModule = {
             managedByModal: true
         },
         {
-            id: 'smaart',
-            name: 'Smaart',
-            icon: '~',
-            iconTheme: 'purple',
-            tagline: '',
-            description: 'Display real-time Smaart SPL data in service dashboards.',
-            connected: false,
-            accountName: '',
-            primaryAction: true,
-            actionLabel: 'Connect'
-        },
-        {
-            id: 'audio-input',
-            name: 'Audio Input',
-            icon: '🎙',
-            iconTheme: 'slate',
-            tagline: '',
-            description: 'Capture audio input levels for service dashboards.',
-            connected: true,
-            accountName: 'Macbook Mic',
-            primaryAction: false,
-            actionLabel: 'Manage'
-        },
-        {
             id: 'worshiptools-ext',
             name: 'WorshipTools Extensie',
             icon: 'WT',

@@ -455,6 +455,17 @@ h1, h2, h3, .heading-font {
     grid-template-rows: 1fr;
 }
 
+/* When the sidebar is collapsed the admin dropdown isn't reachable (the
+   items have width: 0 / opacity: 0 from .sidebar-text). Hide the whole
+   group so its grid layout doesn't reserve empty space and the
+   ::before vertical indicator line doesn't paint a stray 1px line at
+   left: 26px inside the 70px column. The .expanded class is left on
+   the element so when the user expands the sidebar again, the
+   dropdown reappears in its previous state. */
+.ichtus-sidebar.collapsed .sidebar-admin-group {
+    display: none;
+}
+
 .sidebar-admin-group .sidebar-menu li {
     padding-left: 46px;
 }

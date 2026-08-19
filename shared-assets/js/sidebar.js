@@ -68,8 +68,26 @@ function initSidebar() {
     }
 }
 
-// Admin expandable section
+// Admin expandable section. When the sidebar is collapsed, clicking the
+// Beheer icon can't surface its dropdown (the items would be off-screen
+// with `width: 0` on .sidebar-text). So in that case we redirect to the
+// Integraties sub-view directly — same place a user would land by
+// expanding and clicking through. When the sidebar is expanded, the
+// original toggle behaviour is preserved so the user can still keep
+// the dropdown open as a workspace-style menu.
 function toggleAdminSection() {
+    const sidebar = document.getElementById('ichtus-sidebar');
+    const isCollapsed = sidebar && sidebar.classList.contains('collapsed');
+
+    if (isCollapsed) {
+        // Sidebar is collapsed: skip the dropdown (it would be invisible) and
+        // route straight to Integraties.
+        if (typeof router !== 'undefined' && router && typeof router.navigate === 'function') {
+            router.navigate('integration');
+        }
+        return;
+    }
+
     const adminGroup = document.querySelector('.sidebar-admin-group');
     const adminArrow = document.querySelector('.admin-arrow');
     if (adminGroup) {
