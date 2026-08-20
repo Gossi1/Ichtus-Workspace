@@ -7,34 +7,66 @@
    Overrides shared branding values at runtime so this app stays self-contained.
    ========================================================================== */
 :root {
+  /* ═══ Brand ═══ */
   --ichtus-orange: #f47920;
   --text-primary: #ffffff;
   --text-main: #f9f9f7;
   --text-muted: rgba(255, 255, 255, 0.55);
   --bg-main: #141416;
 
-  /* Matte surface tokens (flat glass, low-noise) */
+  /* ═══ Matte Glass Surfaces ═══ */
   --glass-bg: rgba(255, 255, 255, 0.03);
   --glass-bg-hover: rgba(255, 255, 255, 0.06);
-  --glass-edge: rgba(255, 255, 255, 0.08);
-  --glass-edge-bright: rgba(255, 255, 255, 0.16);
+  --glass-bg-button: rgba(255, 255, 255, 0.05);
+  --glass-bg-button-hover: rgba(255, 255, 255, 0.09);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.1);
+  --glass-bg-subtle: rgba(255, 255, 255, 0.02);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  --glass-border-hover: rgba(255, 255, 255, 0.16);
+  --glass-border-subtle: rgba(255, 255, 255, 0.05);
+  --glass-border-moderate: rgba(255, 255, 255, 0.1);
+  --glass-border-input: rgba(255, 255, 255, 0.12);
+  --glass-border-light: rgba(255, 255, 255, 0.3);
   --fluid-blur: blur(16px);
+
+  /* ═══ Overlays & Modals ═══ */
+  --scrim-bg: rgba(0, 0, 0, 0.65);
+  --modal-bg: rgba(24, 24, 26, 0.92);
+  --modal-bg-solid: rgba(24, 24, 26, 0.96);
+  --context-menu-bg: rgba(24, 24, 26, 0.97);
+
+  /* ═══ Form Controls ═══ */
+  --input-bg: rgba(0, 0, 0, 0.25);
+  --input-border: rgba(255, 255, 255, 0.12);
+
+  /* ═══ Focus & Accent ═══ */
+  --focus-ring: 0 0 0 2px rgba(244, 121, 32, 0.25);
+  --focus-border: var(--ichtus-orange);
+  --glow-soft: 0 0 8px rgba(244, 121, 32, 0.4);
+
+  /* ═══ Radii ═══ */
+  --radius-card: 16px;
+  --radius-button: 12px;
+  --radius-input: 10px;
+  --radius-pill: 20px;
+  --radius-dropdown: 12px;
+  --radius-small: 8px;
 }
 
 /* Core Matte Glass Surface — replaces the previous heavy glass treatment */
 .glass-matte {
-  background: rgba(255, 255, 255, 0.03);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background: var(--glass-bg);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   box-shadow: none;
   transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
 }
 
 .glass-matte:hover {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
   transform: translateY(-2px);
 }
 
@@ -78,11 +110,11 @@ button:hover, .btn-label:hover {
    GLOBAL GLASS COMPONENT STYLES (cross-view: agenda, analytics, etc.)
    ========================================================================== */
 .action-bar, .toolbar {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    background: var(--glass-bg);
+    backdrop-filter: var(--fluid-blur);
+    -webkit-backdrop-filter: var(--fluid-blur);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-card);
     padding: 24px;
     display: flex;
     flex-wrap: wrap;
@@ -139,8 +171,8 @@ button:hover, .btn-label:hover {
     transition: background 0.2s ease, border-color 0.2s ease;
 }
 .toggle-item:hover {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.16);
+    background: var(--glass-bg-hover);
+    border-color: var(--glass-border-hover);
 }
 
 .canvas-wrapper {
@@ -155,10 +187,10 @@ button:hover, .btn-label:hover {
    GLOBAL GLASS BUTTON COLOR STYLES (cross-view: agenda, analytics, etc.)
    ========================================================================== */
 .btn-load, .btn-dl, .btn-nav, .btn-upload {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: var(--glass-bg-button);
+    border: 1px solid var(--glass-border-moderate);
     padding: 10px 18px;
-    border-radius: 10px;
+    border-radius: var(--radius-input);
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
@@ -211,8 +243,8 @@ button:hover, .btn-label:hover {
     color: #f9f9f7;
 }
 .btn-nav:hover {
-    background: rgba(255, 255, 255, 0.09);
-    border-color: rgba(255, 255, 255, 0.2);
+    background: var(--glass-bg-button-hover);
+    border-color: var(--glass-border-moderate);
     transform: translateY(-1px);
 }
 
@@ -494,7 +526,7 @@ button:hover, .btn-label:hover {
 .overlay-screen {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(0, 0, 0, 0.65);
+    background: var(--scrim-bg);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -504,11 +536,11 @@ button:hover, .btn-label:hover {
 }
 
 .task-modal-dialog {
-    background: rgba(24, 24, 26, 0.92);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 16px;
+    background: var(--modal-bg);
+    backdrop-filter: var(--fluid-blur);
+    -webkit-backdrop-filter: var(--fluid-blur);
+    border: 1px solid var(--glass-border-moderate);
+    border-radius: var(--radius-card);
     width: 100%;
     max-width: 650px;
     padding: 24px;

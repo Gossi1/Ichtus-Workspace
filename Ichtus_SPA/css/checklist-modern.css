@@ -1,21 +1,7 @@
 /* ==========================================================================
    1. GLOBAL SYSTEM SETTINGS & MODULE WRAPPER
    ========================================================================== */
-:root {
-  /* Matte Minimal Glass (Dark Mode) tokens */
-  --glass-bg: rgba(255, 255, 255, 0.03);
-  --glass-bg-hover: rgba(255, 255, 255, 0.06);
-  --glass-edge: rgba(255, 255, 255, 0.08);
-  --glass-edge-bright: rgba(255, 255, 255, 0.16);
-  --fluid-blur: blur(16px);
-
-  /* Ichtus Brand Accents */
-  --ichtus-orange: #f47920;
-  --text-primary: #ffffff;
-  --text-main: #f9f9f7;
-  --text-muted: rgba(255, 255, 255, 0.55);
-  --bg-main: #141416;
-}
+/* Tokens inherited from base.css :root — single source of truth */
 
 #view-checklist.app-view.active {
   display: block;
@@ -96,13 +82,13 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 
 /* Matte Minimal buttons (flat capsules, no glow) */
 .cl-btn, .btn-switch-role, .cl-action-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-button);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
   color: var(--text-primary);
   padding: 10px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-button);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
@@ -115,8 +101,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 }
 
 .cl-btn:hover, .btn-switch-role:hover, .cl-action-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-button-hover);
+  border-color: var(--glass-border-hover);
   transform: translateY(-1px);
 }
 
@@ -146,11 +132,11 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 
 /* Matte Minimal Checklist Cards */
 .cl-checklist-card {
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--glass-bg);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   padding: 22px;
   box-shadow: none;
   transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
@@ -163,8 +149,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 
 .cl-checklist-card:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-hover);
+  border-color: var(--glass-border-hover);
 }
 
 .cl-checklist-header {
@@ -232,7 +218,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 .cl-checklist-progress-bar {
   flex-grow: 1;
   height: 6px;
-  background: rgba(0, 0, 0, 0.35);
+  background: var(--input-bg);
   border-radius: 100px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -285,19 +271,19 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 /* Matte Minimal Tag Pills */
 .cl-tag-pill {
   padding: 6px 14px;
-  border-radius: 20px;
+  border-radius: var(--radius-pill);
   font-size: 0.85rem;
   font-weight: 600;
   color: #ffffff;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--glass-bg-hover);
+  border: 1px solid var(--glass-border);
   box-shadow: inset 0 0 0 1px var(--tag-color);
   transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
 }
 .cl-tag-pill:hover {
   transform: translateY(-1px);
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-hover);
 }
 .cl-clear-filter {
   background: none;
@@ -313,9 +299,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
    5. EXPANDED CHECKLIST DRILLDOWN VIEW (CL-DETAIL)
    ========================================================================== */
 .cl-detail {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   padding: 24px;
   box-shadow: none;
 }
@@ -428,7 +414,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--scrim-bg);
   z-index: 1000;
   display: flex;
   justify-content: center;
@@ -439,11 +425,11 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 
 /* Matte Minimal Modal Sheets */
 .task-modal-dialog, .modal-dialog {
-  background: rgba(24, 24, 26, 0.92);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 16px;
+  background: var(--modal-bg);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid var(--glass-border-moderate);
+  border-radius: var(--radius-card);
   width: 100%;
   max-width: 480px;
   padding: 28px;
@@ -478,9 +464,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   text-transform: uppercase;
 }
 .form-input, .modal-input, .manage-input {
-  background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
+  background: var(--input-bg);
+  border: 1px solid var(--input-border);
+  border-radius: var(--radius-input);
   padding: 10px 14px;
   color: #ffffff;
   font-size: 0.95rem;
@@ -488,8 +474,8 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
 }
 .form-input:focus, .modal-input:focus, .manage-input:focus {
-  border-color: var(--ichtus-orange);
-  box-shadow: 0 0 0 1px var(--ichtus-orange);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
   background: rgba(0, 0, 0, 0.4);
 }
 
@@ -548,9 +534,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   width: 340px;
   flex-shrink: 0;
   background: rgba(20, 20, 22, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border-right: 1px solid var(--glass-border);
   box-shadow: none;
   display: flex;
   flex-direction: column;
@@ -610,12 +596,12 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 .form-input {
   width: 100%;
   box-sizing: border-box;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--input-bg);
 
   /* Eenvoudige, effen matte rand — geen glasdikte reflectie */
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid var(--input-border);
 
-  border-radius: 10px;
+  border-radius: var(--radius-input);
   padding: 11px 14px;
   color: #ffffff;
   font-family: inherit;
@@ -628,13 +614,13 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 /* Interactieve Hover & Focus states */
 .form-input:hover {
   background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.2);
+  border-color: var(--glass-border-moderate);
 }
 
 .form-input:focus {
   background: rgba(0, 0, 0, 0.45);
-  border-color: var(--ichtus-orange);
-  box-shadow: 0 0 0 1px var(--ichtus-orange);
+  border-color: var(--focus-border);
+  box-shadow: var(--focus-ring);
 }
 
 /* 4. Specifieke overschrijvingen voor Native WebKit elementen (Chrome, Edge, Safari) */
@@ -678,11 +664,11 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
 
 .btn-dropdown-trigger {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
+  background: var(--glass-bg-button);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-button);
   padding: 12px 20px;
   color: #ffffff;
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -697,8 +683,8 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
 }
 
 .btn-dropdown-trigger:hover {
-  background: rgba(255, 255, 255, 0.09);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-button-hover);
+  border-color: var(--glass-border-hover);
   transform: translateY(-1px);
 }
 
@@ -724,11 +710,11 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   left: 0;
   width: 100%;
   min-width: 200px;
-  background: rgba(24, 24, 26, 0.96);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  background: var(--modal-bg-solid);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid var(--glass-border-moderate);
+  border-radius: var(--radius-dropdown);
   padding: 6px;
   box-shadow: none;
   z-index: 950;
@@ -900,11 +886,11 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
 
 .btn-role {
   width: 100%;
-  background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 16px;
+  background: var(--glass-bg-button);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-card);
   padding: 16px 24px;
   color: #ffffff;
   font-size: 1.1rem;
@@ -918,8 +904,8 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
 
 .btn-role:hover {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(255, 255, 255, 0.16);
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-hover);
 }
 
 .btn-role:active {
@@ -933,7 +919,7 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
 .stg-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
+  background: var(--scrim-bg);
   z-index: 1000;
   display: grid;
   place-items: center;
@@ -942,11 +928,11 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
 }
 
 .stg-modal {
-  background: rgba(24, 24, 26, 0.92);
+  background: var(--modal-bg);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 16px;
+  border: 1px solid var(--glass-border-moderate);
+  border-radius: var(--radius-card);
   width: 100%;
   max-width: 440px;
   padding: 24px;
@@ -1206,20 +1192,20 @@ button.stg-input-trigger {
 }
 
 .stg-btn {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--glass-bg-button);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--glass-border);
   color: #fff;
   padding: 10px 16px;
-  border-radius: 12px;
+  border-radius: var(--radius-button);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .stg-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
+  background: var(--glass-bg-button-hover);
   transform: translateY(-1px);
 }
 
