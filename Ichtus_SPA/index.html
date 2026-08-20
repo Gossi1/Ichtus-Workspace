@@ -20,7 +20,7 @@
     <link rel='stylesheet' href='css/layout.css?v=1'>
     
     <!-- Layer 3: Page-specific styles -->
-    <link rel='stylesheet' href='css/auth.css?v=1'>
+
     <link rel='stylesheet' href='css/settings.css?v=1'>
     <link rel='stylesheet' href='css/dashboard.css?v=1'>
     <link rel='stylesheet' href='css/agenda.css?v=1'>
@@ -964,61 +964,9 @@
                     </div>
                 </div>
 
-                <!-- ==========================================
-                     SECTION 2: FIREBASE METRICS & CONTROL
-                     ========================================== -->
-                <div id="settings-firebase-section" class="action-bar settings-panel-block">
-                    <strong class="section-title">Firebase Configuration</strong>
-                    <div id="settings-firebase-grid" class="settings-info-grid">
-                        <div class="settings-info-item">
-                            <label>API Key</label>
-                            <div class="settings-info-value">
-                                <code id="fb-apiKey">---</code>
-                                <button id="btn-copy-apikey" class="btn-nav icon-pad-small" title="Copy">📋</button>
-                            </div>
-                        </div>
-                        <div class="settings-info-item">
-                            <label>Auth Domain</label>
-                            <div class="settings-info-value">
-                                <code id="fb-authDomain">---</code>
-                            </div>
-                        </div>
-                        <div class="settings-info-item">
-                            <label>Project ID</label>
-                            <div class="settings-info-value">
-                                <code id="fb-projectId">---</code>
-                            </div>
-                        </div>
-                        <div class="settings-info-item">
-                            <label>Storage Bucket</label>
-                            <div class="settings-info-value">
-                                <code id="fb-storageBucket">---</code>
-                            </div>
-                        </div>
-                        <div class="settings-info-item">
-                            <label>Messaging Sender ID</label>
-                            <div class="settings-info-value">
-                                <code id="fb-messagingSenderId">---</code>
-                            </div>
-                        </div>
-                        <div class="settings-info-item">
-                            <label>App ID</label>
-                            <div class="settings-info-value">
-                                <code id="fb-appId">---</code>
-                            </div>
-                        </div>
-                    </div>
-                    <div id="settings-firebase-empty" class="settings-empty" style="display:none;">
-                        <p>Firebase is nog niet geconfigureerd</p>
-                    </div>
-                    <div class="settings-actions-row">
-                        <button class="btn-load" onclick="settingsModule.editFirebaseConfig()">✏️ Bewerk Firebase Config</button>
-                        <button class="btn-nav danger-outline" onclick="settingsModule.resetFirebaseConfig()">🗑️ Reset Firebase Config</button>
-                    </div>
-                </div>
 
                 <!-- ==========================================
-                     SECTION 3: NETWORK & SYNCHRONIZATION
+                     SECTION 2: NETWORK & SYNCHRONIZATION
                      ========================================== -->
                 <div class="action-bar settings-panel-block blue-edge">
                     <strong class="section-title blue-text">🌐 Netwerk &amp; Sync</strong>
@@ -1051,7 +999,7 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 4: NDI STREAM OVERLAYS
+                     SECTION 3: NDI STREAM OVERLAYS
                      ========================================== -->
                 <div class="action-bar settings-panel-block">
                     <strong class="section-title">📡 NDI Video</strong>
@@ -1081,7 +1029,7 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 5: DISPLAY ARCHITECTURE
+                     SECTION 4: DISPLAY ARCHITECTURE
                      ========================================== -->
                 <div class="action-bar settings-panel-block">
                     <strong class="section-title">🕐 Weergave</strong>
@@ -1110,18 +1058,11 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 6: LOCAL STORAGE MANAGEMENT
+                     SECTION 5: LOCAL STORAGE MANAGEMENT
                      ========================================== -->
                 <div class="action-bar settings-panel-block orange-edge">
                     <strong class="section-title orange-text">💾 Data Beheer</strong>
                     <div class="settings-control-grid">
-                        <div class="settings-control-item">
-                            <div class="settings-control-info">
-                                <label>Firebase Cache Legen</label>
-                                <span class="control-desc">Verwijder lokaal gecachte Firebase data</span>
-                            </div>
-                            <button class="btn-dl" onclick="settingsModule.clearFirebaseCache()">🧹 Cache Legen</button>
-                        </div>
                         <div class="settings-control-item">
                             <div class="settings-control-info">
                                 <label>Alle Lokale Data Wissen</label>
@@ -1133,7 +1074,7 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 7: SIDEBAR CUSTOMIZATION
+                     SECTION 6: SIDEBAR CUSTOMIZATION
                      ========================================== -->
                 <div class="action-bar settings-panel-block">
                     <strong class="section-title">🎨 Sidebar Aanpassen</strong>
@@ -1144,7 +1085,7 @@
                 </div>
 
                 <!-- ==========================================
-                     SECTION 8: METRIC SYSTEM APPLICATION INFO
+                     SECTION 7: METRIC SYSTEM APPLICATION INFO
                      ========================================== -->
                 <div id="settings-app-info-wrapper" class="canvas-wrapper settings-wrapper-info">
                     <div class="table-card-inner">
@@ -1158,14 +1099,6 @@
                                         <span id="settings-update-text"></span>
                                     </div>
                                 </div>
-                            </div>
-                            <div class="info-matrix-row">
-                                <span class="matrix-label">Firebase Status</span>
-                                <span id="settings-fb-status-badge" class="status-badge status-off">✗ Niet geconfigureerd</span>
-                            </div>
-                            <div class="info-matrix-row">
-                                <span class="matrix-label">Firebase Config Bron</span>
-                                <code id="settings-config-source">---</code>
                             </div>
                             <div class="info-matrix-row">
                                 <span class="matrix-label">Offline Modus</span>
@@ -1190,47 +1123,6 @@
                  inside #view-stagebuilder opens the editor modal. -->
         </div>
 
-        <!-- Firebase Edit Modal Dialog -->
-        <div id="settings-firebase-modal" class="overlay-screen overlay-task-modal hidden">
-                <div class="task-modal-dialog">
-                    <div class="modal-header-row">
-                        <h3 class="modal-dialog-title">Firebase Config Bewerken</h3>
-                        <button type="button" onclick="settingsModule.closeEditModal()" class="btn-close-modal" title="Sluiten">✖</button>
-                    </div>
-                    <form id="firebase-edit-form" onsubmit="settingsModule.saveFirebaseConfig(event)">
-                        <div class="modal-content-scroll form-flex-container">
-                            <div class="form-input-group">
-                                <label for="edit-apiKey">API Key *</label>
-                                <input type="text" id="edit-apiKey" class="form-input style-fullwidth" required="">
-                            </div>
-                            <div class="form-input-group">
-                                <label for="edit-authDomain">Auth Domain</label>
-                                <input type="text" id="edit-authDomain" class="form-input style-fullwidth">
-                            </div>
-                            <div class="form-input-group">
-                                <label for="edit-projectId">Project ID *</label>
-                                <input type="text" id="edit-projectId" class="form-input style-fullwidth" required="">
-                            </div>
-                            <div class="form-input-group">
-                                <label for="edit-storageBucket">Storage Bucket</label>
-                                <input type="text" id="edit-storageBucket" class="form-input style-fullwidth">
-                            </div>
-                            <div class="form-input-group">
-                                <label for="edit-messagingSenderId">Messaging Sender ID</label>
-                                <input type="text" id="edit-messagingSenderId" class="form-input style-fullwidth">
-                            </div>
-                            <div class="form-input-group">
-                                <label for="edit-appId">App ID *</label>
-                                <input type="text" id="edit-appId" class="form-input style-fullwidth" required="">
-                            </div>
-                        </div>
-                        <div class="modal-footer-row layout-right">
-                            <button type="button" onclick="settingsModule.closeEditModal()" class="btn-nav">Annuleren</button>
-                            <button type="submit" class="btn-upload btn-label">Opslaan</button>
-                        </div>
-                    </form>
-                </div>
-            </div>
 
         <!-- SETLIST VIEW -->
         <div id='view-setlist' class='app-view hidden'>
@@ -2198,12 +2090,10 @@
                 </div>
 
                 <div class="sb-x32-actions-row">
-                    <span id="sb-x32-library-status" class="control-desc">Status: standalone (geen Firebase-sync tot je erom vraagt)</span>
+                    <span id="sb-x32-library-status" class="control-desc">Status: lokaal opgeslagen</span>
 
                     <button id="sb-add-x32-library-row" class="sb-btn-mini" type="button">Naam toevoegen</button>
                     <button id="sb-save-x32-library" class="sb-btn-mini" type="button">Save (lokaal)</button>
-                    <button id="sb-load-x32-library" class="sb-btn-mini" type="button">Load van Firebase</button>
-                    <button id="sb-save-x32-library-firebase" class="sb-btn-mini" type="button">Save naar Firebase</button>
                 </div>
 
                 <div class="sb-config-footer">
@@ -2336,22 +2226,12 @@
     <!-- ICAL Parser (loaded early for agenda parsing) - local copy, no CDN needed -->
     <script src='js/vendor/ical.min.js'></script>
 
-    <!-- Firebase SDK - MUST load before firebase-init.js -->
-    <!-- Local backup: falls back gracefully if CDN unreachable -->
-    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js'></script>
-    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js'></script>
-    <script src='https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js'></script>
-
-    <!-- Firebase Configuration - load BEFORE firebase-init.js -->
-    <script src='js/firebase-config.js'></script>
-
     <!-- i18n - must load before other modules -->
     <script src='js/i18n.js'></script>
 
     <!-- SPA Core -->
     <script src='../shared-assets/js/sidebar.js'></script>
     <script src='js/router.js'></script>
-    <script src='js/firebase-init.js'></script>
     <script src='js/state.js'></script>
     <script src='js/modules/dashboard.js?v=3'></script>
     <!-- Dashboard sub-modules (widgets) -->

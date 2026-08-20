@@ -34,54 +34,9 @@ const checklistModule = {
             this.updateTimersAndColors();
         }, 1000);
 
-        // Firebase sync
-        if (useFirebase && db) {
-            db.collection('commandCenter').doc('activeState').onSnapshot((snap) => {
-                if (snap.exists) {
-                    const data = snap.data();
-                    // Check if Firebase data has old-format presets (flat tasks) and migrate
-                    if (data.presets) {
-                        const samplePreset = Object.values(data.presets).find(p => p !== null && Array.isArray(p));
-                        if (samplePreset && samplePreset.length > 0 && !samplePreset[0].items) {
-                            // Old format detected — migrate flat tasks to checklist format
-                            const migratedPresets = {};
-                            const tasksState = data.tasksState || {};
-                            Object.keys(data.presets).forEach(presetName => {
-                                const oldTasks = data.presets[presetName];
-                                if (!oldTasks || !Array.isArray(oldTasks)) {
-                                    migratedPresets[presetName] = [];
-                                    return;
-                                }
-                                const newItems = oldTasks.map(t => ({
-                                    id: t.id,
-                                    name: t.name,
-                                    completed: !!tasksState[t.id],
-                                    assignedTo: t.team || 'Algemeen',
-                                    dueBefore: t.minsBefore || 0,
-                                    tagIds: []
-                                }));
-                                migratedPresets[presetName] = [{
-                                    id: 'cl_default_' + presetName.toLowerCase().replace(/\s+/g, '_'),
-                                    name: 'Taken',
-                                    icon: '\u2705',
-                                    collapsed: false,
-                                    items: newItems
-                                }];
-                            });
-                            data.presets = migratedPresets;
-                            delete data.tasksState;
-                        }
-                    }
-                    appState.checklist = { ...appState.checklist, ...data };
-                    if (!appState.checklist.presets || Object.keys(appState.checklist.presets).length === 0) {
-                        appState.checklist.presets = JSON.parse(JSON.stringify(defaultNewPresets));
-                    }
-                    this.renderChecklistOverview();
-                    this.processStateChange();
-                    this.updateTimersAndColors();
-                }
-            });
-        }
+        // Local-first sync: haal state op bij de server (REST) en luister
+        // live naar de WebSocket hub. Firestore is enkel backup op de server.
+        this._initCommandCenterSync();
 
         this.processStateChange();
         this.renderTaskManageList();
@@ -187,15 +142,20 @@ const checklistModule = {
         // Reset
         document.getElementById('btn-reset')?.addEventListener('click', async () => {
             if (!confirm(__('cl_confirm_archive'))) return;
-            if (useFirebase && db) {
-                const activeTasks = this.getActiveTasks();
-                const done = activeTasks.filter(t => appState.checklist.tasksState[t.id]).length;
-                await db.collection('commandCenterHistory').add({
-                    date: new Date().toISOString(),
-                    preset: appState.checklist.preset,
-                    completed: done,
-                    total: activeTasks.length
+            const activeTasks = this.getActiveTasks();
+            const done = activeTasks.filter(t => appState.checklist.tasksState[t.id]).length;
+            try {
+                await fetch('/api/commandcenter/archive', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        preset: appState.checklist.preset,
+                        completed: done,
+                        total: activeTasks.length
+                    })
                 });
+            } catch (e) {
+                console.warn('[CC] Archive push mislukt:', e.message);
             }
             this.syncState({ tasksState: {}, quickNote: { text: '', isPopup: false, timestamp: Date.now() } });
         });
@@ -315,13 +275,93 @@ const checklistModule = {
         this.processStateChange();
         this.updateTimersAndColors();
 
-        if (useFirebase && db) {
-            try {
-                db.collection('commandCenter').doc('activeState').set(updates, { merge: true });
-            } catch (e) {
-                console.error('Firebase update failed', e);
+        // Push naar de server (local-first): die merged, broadcast via
+        // WebSocket en backed up gedebounced naar Firestore.
+        this._pushState(updates);
+    },
+
+    // ── Local-first server sync (geen direct Firestore gebruik meer) ──
+
+    _initCommandCenterSync() {
+        if (this._ccListenerAdded) return;
+        this._ccListenerAdded = true;
+
+        document.addEventListener('ws:commandCenter:state', (e) => {
+            const data = e.detail;
+            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                this._applyRemoteState(data);
+            }
+        });
+
+        this._fetchCommandCenterState();
+    },
+
+    async _fetchCommandCenterState() {
+        try {
+            const resp = await fetch('/api/commandcenter/state', { cache: 'no-store' });
+            if (!resp.ok) return;
+            const data = await resp.json();
+            if (data && typeof data === 'object' && Object.keys(data).length > 0) {
+                this._applyRemoteState(data);
+            }
+        } catch (e) {
+            console.warn('[CC] Server state ophalen mislukt:', e.message);
+        }
+    },
+
+    _pushState(patch) {
+        fetch('/api/commandcenter/state', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(patch),
+        }).catch((e) => {
+            console.warn('[CC] State push mislukt:', e.message);
+        });
+    },
+
+    // Merge remote (server) state in appState.checklist, met migratie
+    // van het oude 'flat tasks' formaat.
+    _applyRemoteState(data) {
+        const merged = { ...data };
+        if (merged.presets) {
+            const samplePreset = Object.values(merged.presets).find(p => p !== null && Array.isArray(p));
+            if (samplePreset && samplePreset.length > 0 && !samplePreset[0].items) {
+                // Old format detected — migrate flat tasks to checklist format
+                const migratedPresets = {};
+                const tasksState = merged.tasksState || {};
+                Object.keys(merged.presets).forEach(presetName => {
+                    const oldTasks = merged.presets[presetName];
+                    if (!oldTasks || !Array.isArray(oldTasks)) {
+                        migratedPresets[presetName] = [];
+                        return;
+                    }
+                    const newItems = oldTasks.map(t => ({
+                        id: t.id,
+                        name: t.name,
+                        completed: !!tasksState[t.id],
+                        assignedTo: t.team || 'Algemeen',
+                        dueBefore: t.minsBefore || 0,
+                        tagIds: []
+                    }));
+                    migratedPresets[presetName] = [{
+                        id: 'cl_default_' + presetName.toLowerCase().replace(/\s+/g, '_'),
+                        name: 'Taken',
+                        icon: '\u2705',
+                        collapsed: false,
+                        items: newItems
+                    }];
+                });
+                merged.presets = migratedPresets;
+                delete merged.tasksState;
             }
         }
+        appState.checklist = { ...appState.checklist, ...merged };
+        if (!appState.checklist.presets || Object.keys(appState.checklist.presets).length === 0) {
+            appState.checklist.presets = JSON.parse(JSON.stringify(defaultNewPresets));
+        }
+        this.renderChecklistOverview();
+        this.processStateChange();
+        this.updateTimersAndColors();
     },
 
     processStateChange() {
@@ -559,14 +599,7 @@ const checklistModule = {
 
     _syncChecklistState() {
         saveChecklist();
-        if (useFirebase && db) {
-            try {
-                db.collection('commandCenter').doc('activeState')
-                    .set({ presets: appState.checklist.presets }, { merge: true });
-            } catch (e) {
-                console.error('Firebase update failed', e);
-            }
-        }
+        this._pushState({ presets: appState.checklist.presets });
         this.processStateChange();
     },
 

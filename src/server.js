@@ -3,10 +3,9 @@
  *
  * Eén Express server op poort 8080 die alles bedient:
  * - SPA static files (Ichtus_SPA/)
- * - Firebase config injectie in HTML
  * - System API (NDI, Tockify, git, library)
  * - X32 OSC bridge
- * - Mic/IEM monitor (Firestore)
+ * - Mic/IEM monitor (server state + WebSocket)
  * - WebSocket realtime hub
  *
  * Vervangt: server.py + x32/server.js + mic-iem-server/server.js + supervisor.py
@@ -24,13 +23,16 @@ import { fileURLToPath } from 'url';
 import { networkInterfaces } from 'os';
 
 // ── Internal modules ───────────────────────────────────────────────────
-import { initFirebaseAdmin } from './lib/firebase.js';
+import { initFirebaseAdmin, getFirestore } from './lib/firebase.js';
 // (consolidated elsewhere)
 import { initWebSocket, broadcast } from './ws.js';
-import systemRoutes, { getFirebaseConfig, startUpdatePolling } from './routes/system.js';
+import systemRoutes, { startUpdatePolling } from './routes/system.js';
 import x32Routes from './routes/x32.js';
-import iemRoutes, { seedInitialConfig } from './routes/iem.js';
+import iemRoutes, { initIemState, iemStateFileExists } from './routes/iem.js';
 import worshiptoolsRoutes from './routes/worshiptools.js';
+import commandCenterRoutes, { initCommandCenterTopic } from './routes/commandcenter.js';
+import patchbayRoutes, { initPatchbayTopic } from './routes/patchbay-state.js';
+import dashboardRoutes, { initDashboardTopic } from './routes/dashboard-state.js';
 
 // ── Paths ──────────────────────────────────────────────────────────────
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -80,6 +82,13 @@ app.use('/api/iem', iemRoutes);
 // WorshipTools data sync op /api/worshiptools/*
 app.use('/api/worshiptools', worshiptoolsRoutes);
 
+// Command Center (local-first + cloud backup) op /api/commandcenter/*
+app.use('/api/commandcenter', commandCenterRoutes);
+
+// Patchbay / dashboard cloud sync (local-first + cloud backup)
+app.use('/api/patchbay', patchbayRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+
 // ── Firebase config injection middleware ────────────────────────────────
 // Serveert HTML bestanden met Firebase config injected voor </head>
 app.use((req, res, next) => {
@@ -111,14 +120,7 @@ app.use((req, res, next) => {
     if (!existsSync(filePath)) return next();
 
     try {
-        let content = readFileSync(filePath, 'utf-8');
-        const config = getFirebaseConfig();
-
-        if (config) {
-            const configScript = `<script>window.FIREBASE_CONFIG = ${JSON.stringify(config)};</script>`;
-            content = content.replace('</head>', configScript + '\n</head>');
-        }
-
+        const content = readFileSync(filePath, 'utf-8');
         res.set('Content-Type', 'text/html; charset=utf-8');
         res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
         res.send(content);
@@ -145,12 +147,7 @@ app.get('*', (req, res) => {
     // Probeer SPA index.html
     const indexPath = join(SPA_DIR, 'index.html');
     if (existsSync(indexPath)) {
-        let content = readFileSync(indexPath, 'utf-8');
-        const config = getFirebaseConfig();
-        if (config) {
-            const configScript = `<script>window.FIREBASE_CONFIG = ${JSON.stringify(config)};</script>`;
-            content = content.replace('</head>', configScript + '\n</head>');
-        }
+        const content = readFileSync(indexPath, 'utf-8');
         res.set('Content-Type', 'text/html; charset=utf-8');
         res.send(content);
     } else {
@@ -167,13 +164,61 @@ initWebSocket(server);
 // Connected SPA clients then surface the popup without polling themselves.
 startUpdatePolling(broadcast, 5 * 60 * 1000);
 
+// ── Opt-in migratie: oude mic_monitor Firestore docs → iem-state.json ──
+// De mic/IEM monitor praat al niet meer met Firestore; iem-state.json is de
+// enige bron. Deze migratie is daardoor opt-in (env IEM_MIGRATE_FROM_FIRESTORE=1)
+// en draait alleen als er nog geen lokaal state-bestand bestaat — bedoeld voor
+// oude installaties die hun Firestore-data eenmalig willen overnemen.
+//
+// Let op: de migratie is read-only. De oude mic_monitor/{config, live_status,
+// x32_library} docs blijven daarna onaangeroerd in Firestore staan (niets
+// schrijft er meer naar); verwijder ze handmatig via de Firebase Console.
+async function migrateIemStateFromFirestore() {
+    if (process.env.IEM_MIGRATE_FROM_FIRESTORE !== '1') return null;
+    if (iemStateFileExists()) return null; // nieuwere lokale state heeft voorrang
+    const firestore = getFirestore();
+    if (!firestore) return null;
+
+    const seed = {};
+    try {
+        const cfg = await firestore.collection('mic_monitor').doc('config').get();
+        if (cfg.exists && Array.isArray(cfg.data().hardware)) seed.hardware = cfg.data().hardware;
+
+        const status = await firestore.collection('mic_monitor').doc('live_status').get();
+        if (status.exists && Array.isArray(status.data().channels)) seed.channels = status.data().channels;
+
+        const lib = await firestore.collection('mic_monitor').doc('x32_library').get();
+        if (lib.exists) {
+            const d = lib.data();
+            if (d && d.map) seed.x32Library = d.map;
+            if (d && d.lastUpdated) seed.x32LastUpdated = d.lastUpdated;
+        }
+
+        if (seed.hardware || seed.channels || seed.x32Library) {
+            console.log('  [IEM] Firestore → iem-state.json migratie voorbereid');
+            return seed;
+        }
+    } catch (err) {
+        console.warn('  [IEM] Migratie uit Firestore mislukt (defaults worden gebruikt):', err.message);
+    }
+    return null;
+}
+
 // ── Start ──────────────────────────────────────────────────────────────
 async function start() {
     // Firebase Admin initialisatie
     const firebaseOk = initFirebaseAdmin();
-    if (firebaseOk) {
-        await seedInitialConfig();
-    }
+
+    // Mic/IEM state: lokaal bestand, opt-in Firestore-migratie (env flag), of defaults
+    const iemSeed = await migrateIemStateFromFirestore();
+    initIemState(iemSeed);
+
+    // Local-first topics: state laden uit Firestore-backup (of leeg als er geen is)
+    await Promise.all([
+        initCommandCenterTopic(),
+        initPatchbayTopic(),
+        initDashboardTopic(),
+    ]);
 
     // Server starten
     server.listen(PORT, HOST, () => {

@@ -59,18 +59,19 @@ nul
 .local.*
 
 # ===========================
-# Firebase (if used)
+# Firebase (server-side backup only)
 # ===========================
-firebase-debug.log*
 ui-debug.log*
 
 # API Keys (do not commit!)
-firebase-api-key.txt
 api-key.txt
 API Key.txt
 
 # Local server config (do not commit!)
 server-config.json
+
+# Mic/IEM monitor runtime state (server-owned, replaces Firestore)
+iem-state.json
 
 # ===========================
 # Logs
@@ -103,19 +104,10 @@ supervisor.pid
 tmp_*
 Ichtus_SPA/.tmp-*.html
 
-# Firebase Config (contains API keys)
-firebase-config.js
-
 # Song ID Assigner — local generated data file (per-laptop, not in git)
 song-id-assigner/library-ids.json
 song-id-assigner/library-ids.json.bak*
 song-id-assigner/_test_preview.html
-firebase-config.js.backup
-
-# User-dropped Firebase config file (NEVER commit — secrets leak otherwise)
-# Copy firebase-config.example.txt to firebase-config.txt, paste real values,
-# leave the result off git. firebase-init.js auto-loads it on page boot.
-Ichtus_SPA/firebase-config.txt
 
 # Service Account Keys (sensitive credentials!)
 serviceAccountKey.json

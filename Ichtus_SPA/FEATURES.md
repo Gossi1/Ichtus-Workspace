@@ -118,14 +118,14 @@ A role-based task management system for coordinating church service preparation 
 - **Duplicate Preset** - Copy existing preset to modify
 - **Rename Preset** - Customize preset names
 - **Delete Preset** - Remove presets (keeps at least one)
-- **Persistence** - All presets saved to Firebase/localStorage
+- **Persistence** - All presets saved to localStorage
 
 ### Admin Features
 
 #### Start Date/Time
 - Date picker for service date
 - Time picker for service start time
-- Both sync to Firebase for team visibility
+- Both sync in real time via the local server (WebSocket) for team visibility
 
 #### Broadcast System
 - **Quick Notes** - Send text messages to all teams
@@ -137,10 +137,10 @@ A role-based task management system for coordinating church service preparation 
 - Percentage completion calculated from task count
 - Master sidebar shows overall progress
 
-### Firebase Integration
-- Real-time sync across multiple devices
-- Active state stored in Firestore collection 'commandCenter'
-- History archived to 'commandCenterHistory' on reset
+### Real-time Sync
+- Real-time sync across multiple devices via the local WebSocket hub
+- Active state kept in the server's memory (topic-store) and backed up to Firestore 'commandCenter' by the server
+- History archived via `POST /api/commandcenter/archive` (and backed up to 'commandCenterHistory')
 
 ---
 
@@ -358,33 +358,25 @@ Pre-configured templates for different service types:
 - Module initialization on view activation
 - State persistence between view switches
 
-### Firebase Integration
+### Firebase Integration (Local-First + Cloud Backup)
 
-#### Cloud Sync
-- Firestore integration for real-time data sync
-- Offline capability with localStorage fallback
-- History archiving for analytics data
+#### Architecture
+- **Local-first:** browsers praten alleen met de lokale Node-server via REST + WebSocket; de server houdt de actuele state in het geheugen (`src/lib/topic-store.js`).
+- **Cloud-backup:** Firestore wordt alleen door de server (Admin SDK) geschreven — gedebounced (3s) en volledig optioneel.
+- **Offline:** zonder internet of Firebase draait alles lokaal door (localStorage + servergeheugen).
+- History archiving via `POST /api/commandcenter/archive`.
 
-#### Per-Module Collections
-| Module | Collection/Doc | Writes | Reads |
-|--------|----------------|--------|-------|
-| Checklist / Command Center | `commandCenter/activeState` | `.set(updates, {merge:true})` on every `syncState()` | `onSnapshot` live listen on init |
-| Checklist / Command Center | `commandCenterHistory` (collection) | `.add()` on **Reset & Archiveer** | none |
-| Dashboard | `dashboard/state` | `.set()` for cloud-synced layout | `.get()` on init |
-| Patchbay | `patchbay/projects` | `.set()` for canvas sync | `.get()` on init |
-| Dashboard (mic monitor) | `mic_monitor/live_status` | `.set()` on each IEM/mic assignment | `onSnapshot` OR Realtime-DB fallback |
+#### Per-Module Sync
+| Module | Server endpoint | Client transport | Firestore backup (server) |
+|--------|-----------------|------------------|---------------------------|
+| Checklist / Command Center | `GET/POST /api/commandcenter/state` · `POST /archive` | WebSocket `commandCenter:state` (snapshot bij connect + broadcast) + REST | `commandCenter/activeState` (merge, 3s debounce) · `commandCenterHistory` (add) |
+| Dashboard | `GET/POST /api/dashboard/state` | REST (☁️ opt-in) | `dashboard/state` (3s debounce) |
+| Patchbay | `GET/POST /api/patchbay/state` | REST (☁️ opt-in) | `patchbay/projects` (3s debounce) |
+| Mic/IEM monitor | `GET /api/iem/status` · `POST /api/iem/assign` | WebSocket `iem:status` + REST | geen — server-local (`iem-state.json`) |
+| WorshipTools sync | `POST /api/worshiptools/*` | WebSocket `wt:*` | `worshiptools_sync/latest_*` (per sync) |
 
-#### Configuration (auto-load chain)
-The browser resolves the Firebase config from any of these 4 sources, in priority order. The first one with a real `apiKey` (starting with `AIza`) wins; if none does, the in-page setup modal asks the user to paste one.
-
-| # | Source | Where it lives | When to use |
-|---|--------|---------------|-------------|
-| 1 | `localStorage.firebaseConfig` | Browser storage of this OS-user, this browser | Pasted through the in-browser setup modal |
-| 2 | `window.FIREBASE_CONFIG` | Injected by `server.py` if `firebase-api-key.txt` exists at the project root | Server-admin / multi-tenant deployments |
-| 3 | `Ichtus_SPA/firebase-config.txt` | Fetched at runtime from the served directory | Single-machine manual setup — drop the file, refresh, done |
-| 4 | `FIREBASE_CONFIG` | Bundled placeholder in `Ichtus_SPA/js/firebase-config.js` | Last-resort template; usually overwritten above |
-
-Supported formats inside the drop-in files: JSON object (`{ "apiKey": "...", ... }`) **or** key:value lines (`apiKey: "…"`), matching the parser in `server.py`. Both file paths are gitignored so real secrets never land in the repo.
+#### Configuration (server-side only)
+The browser never talks to Firebase — only the server does, via the Admin SDK using `serviceAccountKey.json` (project root, gitignored). No file → the app runs fully local; drop the file in → the server starts the debounced cloud backup automatically.
 
 ### Fullscreen Mode
 - Global fullscreen toggle button
@@ -397,7 +389,6 @@ Supported formats inside the drop-in files: JSON object (`{ "apiKey": "...", ...
 - Patchbay projects and current canvas
 - Service sequence configuration
 - Setlist templates and received data
-- `firebaseConfig` — active Firebase web-app config pasted through the in-browser setup modal (auto-detected by `firebase-init.js` as the highest-priority source)
 
 ### Responsive Design
 - Mobile-friendly sidebar with hamburger menu
@@ -419,7 +410,7 @@ Each module follows a consistent pattern:
 - Central `appState` object in state.js
 - Module-specific state extensions
 - localStorage sync on changes
-- Optional Firebase real-time sync
+- Optional server-side Firestore backup (debounced)
 
 ### File Structure
 ```
@@ -431,7 +422,7 @@ Ichtus_SPA/
 │   ├── app.js                # Application entry point
 │   ├── router.js             # View routing system
 │   ├── state.js              # Global state management
-│   ├── firebase-init.js      # Firebase initialization
+│   ├── ws-client.js          # WebSocket realtime client
 │   ├── vendor/
 │   │   └── ical.min.js       # ICAL parser for agenda module
 │   └── modules/

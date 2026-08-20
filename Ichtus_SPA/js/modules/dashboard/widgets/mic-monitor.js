@@ -2,11 +2,11 @@
  * Mic & IEM Monitor Widget Module
  * 
  * Handles:
- * - Real-time mic data from Firebase (Realtime DB or Firestore)
+ * - Real-time mic data from the Ichtus server (WebSocket hub + REST)
  * - 3D flip cards for mic info (front) and editing (back)
  * - Roster auto-assignment from WorshipTools extension
  * - AV Stage Business Rules for mic allocation
- * - Hardware write-back to Firestore
+ * - Hardware write-back via the server (no Firebase)
  * 
  * Namespace: window.dashboardWidgets.micMonitor
  */
@@ -14,48 +14,46 @@ window.dashboardWidgets = window.dashboardWidgets || {};
 window.dashboardWidgets.micMonitor = {
 
     _micLocalCache: [],
-    _micUnsubscribe: null,
+    _iemListenerAdded: false,
+    _onIemStatus: null,
     _rosterListenerAdded: false,
 
     _initMicMonitor() {
-        if (typeof firebase === 'undefined' || !firebase.database) {
-            this._initMicMonitorFirestore();
-            return;
-        }
-        try {
-            const ref = firebase.database().ref('/mic_monitor/live_status');
-            this._micUnsubscribe = ref.on('value', (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    this._micLocalCache = data;
-                    this._renderMicCardsDOM(data);
-                }
-            });
-        } catch (e) {
-            console.warn('[MIC] Realtime Database failed, trying Firestore:', e.message);
-            this._initMicMonitorFirestore();
-        }
+        this._initIemListener();
+        this._fetchIemStatus();
     },
 
-    _initMicMonitorFirestore() {
-        if (typeof firebase === 'undefined' || !firebase.firestore) {
-            console.warn('[MIC] No Firebase available');
-            return;
-        }
+    // Server pushes iem:status over the WebSocket hub (ws-client.js
+    // dispatches it as a ws:iem:status CustomEvent) whenever the
+    // assignment changes — on any device.
+    _initIemListener() {
+        if (this._iemListenerAdded) return;
+        this._iemListenerAdded = true;
+        this._onIemStatus = (e) => {
+            const channels = e.detail?.channels;
+            if (!channels || !Array.isArray(channels)) return;
+            this._micLocalCache = channels;
+            this._renderMicCardsDOM(channels);
+        };
+        document.addEventListener('ws:iem:status', this._onIemStatus);
+    },
+
+    // Hydratatie: haal de huidige status op bij het laden van de widget
+    // (dekt ook de periode vóór de eerste WebSocket broadcast).
+    async _fetchIemStatus() {
         try {
-            this._micUnsubscribe = firebase.firestore().collection('mic_monitor').doc('live_status')
-                .onSnapshot((doc) => {
-                    if (doc.exists) {
-                        const data = doc.data();
-                        const channels = data.channels || [];
-                        this._micLocalCache = channels;
-                        this._renderMicCardsDOM(channels);
-                    }
-                }, (err) => {
-                    console.warn('[MIC] Firestore listener error:', err.message);
-                });
-        } catch (e) {
-            console.warn('[MIC] Firestore init failed:', e.message);
+            const resp = await fetch('/api/iem/status', { cache: 'no-store' });
+            if (!resp.ok) {
+                console.warn('[MIC] Status endpoint niet bereikbaar:', resp.status);
+                return;
+            }
+            const data = await resp.json();
+            if (data.channels && Array.isArray(data.channels)) {
+                this._micLocalCache = data.channels;
+                this._renderMicCardsDOM(data.channels);
+            }
+        } catch (err) {
+            console.warn('[MIC] Status ophalen mislukt:', err.message);
         }
     },
 
@@ -124,7 +122,7 @@ window.dashboardWidgets.micMonitor = {
             channel.frequency = frequency;
             
             if (changed) {
-                this._writeMicAssignmentsToFirestore(this._micLocalCache, 'hardware');
+                this._postIemAssign(this._micLocalCache);
             }
             
             const frontIem = flipCard.querySelector('.mic-flip-front .mic-iem');
@@ -217,42 +215,25 @@ window.dashboardWidgets.micMonitor = {
             });
         }
 
-        this._writeMicAssignmentsToFirestore(channels);
+        this._postIemAssign(channels);
     },
 
-    _writeMicAssignmentsToFirestore(channels, context) {
-        if (typeof firebase === 'undefined') {
-            console.warn('[MIC] No Firebase available — cannot write assignments');
-            return;
-        }
-
-        const isHardwareSave = context === 'hardware';
-        const label = isHardwareSave ? 'Mic configuratie' : 'Mic toewijzing';
-        const activeCount = channels.filter(c => c.active).length;
-
-        if (firebase.firestore) {
-            try {
-                firebase.firestore().collection('mic_monitor').doc('live_status').set({
-                    channels: channels,
-                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                }, { merge: true }).then(() => {
-                    console.log('[MIC]', label, 'written to Firestore');
-                }).catch(err => {
-                    console.error('[MIC] Firestore write failed:', err);
-                });
-            } catch (e) {
-                console.error('[MIC] Firestore write error:', e);
+    // Push toewijzing naar de server; die persisteert en broadcast de
+    // nieuwe status over de WebSocket hub naar alle clients.
+    async _postIemAssign(channels) {
+        try {
+            const resp = await fetch('/api/iem/assign', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channels }),
+            });
+            if (!resp.ok) {
+                console.error('[MIC] Assign POST mislukt:', resp.status);
+                return;
             }
-        } else if (firebase.database) {
-            try {
-                firebase.database().ref('/mic_monitor/live_status').set(channels).then(() => {
-                    console.log('[MIC]', label, 'written to RTDB');
-                }).catch(err => {
-                    console.error('[MIC] RTDB write failed:', err);
-                });
-            } catch (e) {
-                console.error('[MIC] RTDB write error:', e);
-            }
+            console.log('[MIC] Mic toewijzing verstuurd naar server');
+        } catch (err) {
+            console.error('[MIC] Assign POST error:', err);
         }
     }
 };

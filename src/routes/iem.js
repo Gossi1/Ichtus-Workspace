@@ -2,13 +2,22 @@
  * Mic & IEM Monitor Routes
  *
  * Verplaatst uit mic-iem-server/server.js.
- * Firestore-backed real-time mic/IEM toewijzing en X32 library map.
+ * Server-owned real-time mic/IEM toewijzing en X32 library map.
  *
- * Nieuw: WebSocket broadcast voor realtime roster updates.
+ * State wordt in het geheugen bewaard, gepersisteerd naar iem-state.json
+ * (project root, gitignored) en gepusht naar alle clients via de
+ * WebSocket hub (`iem:status`). Geen Firebase/Firestore meer voor dit
+ * onderdeel.
  */
 
 import { Router } from 'express';
-import { getFirestore, admin } from '../lib/firebase.js';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
+import { resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const ROOT_DIR = resolve(__dirname, '..', '..');
+const STATE_FILE = resolve(ROOT_DIR, 'iem-state.json');
 
 const router = Router();
 
@@ -20,8 +29,75 @@ const DEFAULT_HARDWARE = [
     { mic_id: 4, iem_pack: 'IEM Pack 4', frequency: '505.100 MHz' },
 ];
 
-const DEFAULT_X32_LIBRARY = {};
 const MAX_X32_NAME_LENGTH = 64;
+
+// ── In-memory state (single source of truth) ──────────────────────────
+const state = {
+    hardware: null,       // [{ mic_id, iem_pack, frequency }]
+    channels: null,       // [{ mic_id, iem_pack, frequency, name, avatar_url, active }]
+    x32Library: null,     // { naam: libSlot }
+    x32LastUpdated: null, // ISO string
+    lastUpdated: null,    // ISO string — laatste wijziging van live_status
+};
+
+function buildDefaultChannels(hardware) {
+    return hardware.map((hw) => ({
+        mic_id: hw.mic_id, iem_pack: hw.iem_pack, frequency: hw.frequency,
+        name: 'Unassigned / Standby', avatar_url: null, active: false,
+    }));
+}
+
+/**
+ * Laad state van schijf, of gebruik een seed (opt-in Firestore-migratie uit
+ * server.js, alleen met env IEM_MIGRATE_FROM_FIRESTORE=1), of defaults.
+ * Een bestaand state-bestand heeft altijd voorrang op de seed.
+ */
+export function initIemState(seed = null) {
+    let loaded = null;
+    try {
+        if (existsSync(STATE_FILE)) {
+            loaded = JSON.parse(readFileSync(STATE_FILE, 'utf-8'));
+        }
+    } catch (err) {
+        console.warn('  [IEM] State laden mislukt, gebruik defaults:', err.message);
+    }
+
+    const src = loaded || seed || {};
+    state.hardware = Array.isArray(src.hardware) ? src.hardware : DEFAULT_HARDWARE;
+    state.channels = Array.isArray(src.channels) ? src.channels : buildDefaultChannels(state.hardware);
+    state.x32Library = (src.x32Library && typeof src.x32Library === 'object' && !Array.isArray(src.x32Library))
+        ? src.x32Library : {};
+    state.x32LastUpdated = src.x32LastUpdated || null;
+    state.lastUpdated = src.lastUpdated || null;
+
+    if (loaded) {
+        console.log('  [IEM] Status geladen van iem-state.json');
+    } else if (seed) {
+        console.log('  [IEM] Status gemigreerd vanuit Firestore → iem-state.json');
+    } else {
+        console.log('  [IEM] Initiële status aangemaakt (defaults)');
+    }
+    persistState();
+    return state;
+}
+
+export function iemStateFileExists() {
+    return existsSync(STATE_FILE);
+}
+
+function persistState() {
+    try {
+        writeFileSync(STATE_FILE, JSON.stringify({
+            hardware: state.hardware,
+            channels: state.channels,
+            x32Library: state.x32Library,
+            x32LastUpdated: state.x32LastUpdated,
+            lastUpdated: state.lastUpdated,
+        }, null, 2), 'utf-8');
+    } catch (err) {
+        console.warn('  [IEM] State opslaan mislukt:', err.message);
+    }
+}
 
 // ── Helpers ────────────────────────────────────────────────────────────
 
@@ -37,42 +113,21 @@ function bcast(event, data) {
     }
 }
 
-async function getHardwareConfig() {
-    const firestore = getFirestore();
-    if (!firestore) return DEFAULT_HARDWARE;
-    try {
-        const doc = await firestore.collection('mic_monitor').doc('config').get();
-        if (doc.exists && doc.data().hardware && Array.isArray(doc.data().hardware)) {
-            return doc.data().hardware;
-        }
-    } catch (err) {
-        console.warn('  [FIREBASE] Kon config niet ophalen:', err.message);
-    }
-    return DEFAULT_HARDWARE;
+function getHardwareConfig() {
+    return state.hardware || DEFAULT_HARDWARE;
 }
 
-async function loadX32LibraryFromFirestore() {
-    const firestore = getFirestore();
-    if (!firestore) return null;
-    try {
-        const doc = await firestore.collection('mic_monitor').doc('x32_library').get();
-        if (!doc.exists) return null;
-        const data = doc.data();
-        if (data && data.map && typeof data.map === 'object' && !Array.isArray(data.map) && Object.keys(data.map).length > 0) {
-            return { lastUpdated: data.lastUpdated || null, map: data.map };
-        }
-    } catch (err) {
-        console.warn('  [X32_LIB] Firestore read mislukt:', err.message);
+function loadX32Library() {
+    if (state.x32Library && Object.keys(state.x32Library).length > 0) {
+        return { lastUpdated: state.x32LastUpdated || null, map: state.x32Library };
     }
     return null;
 }
 
-async function saveX32LibraryToFirestore(map, lastUpdated) {
-    const firestore = getFirestore();
-    if (!firestore) {
-        throw new Error('Firestore niet geïnitialiseerd. Voeg serviceAccountKey.json toe en herstart de server.');
-    }
-    await firestore.collection('mic_monitor').doc('x32_library').set({ map, lastUpdated });
+function saveX32Library(map, lastUpdated) {
+    state.x32Library = map;
+    state.x32LastUpdated = lastUpdated;
+    persistState();
 }
 
 function validateX32LibraryMap(raw) {
@@ -97,41 +152,46 @@ function validateX32LibraryMap(raw) {
     return { ok: true, map: cleaned };
 }
 
-export async function seedInitialConfig() {
-    const firestore = getFirestore();
-    if (!firestore) return;
-    try {
-        const docRef = firestore.collection('mic_monitor').doc('config');
-        const doc = await docRef.get();
-        if (!doc.exists) {
-            await docRef.set({ hardware: DEFAULT_HARDWARE, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-            console.log('  [FIREBASE] Initiële hardware config aangemaakt');
-        }
-        const statusRef = firestore.collection('mic_monitor').doc('live_status');
-        const statusDoc = await statusRef.get();
-        if (!statusDoc.exists) {
-            const initialState = DEFAULT_HARDWARE.map((hw) => ({
-                mic_id: hw.mic_id, iem_pack: hw.iem_pack, frequency: hw.frequency,
-                name: 'Unassigned / Standby', avatar_url: null, active: false,
-            }));
-            await statusRef.set({ channels: initialState, updatedAt: admin.firestore.FieldValue.serverTimestamp() });
-            console.log('  [FIREBASE] Initiële live_status aangemaakt');
-        }
-    } catch (err) {
-        console.warn('  [FIREBASE] Seed mislukt:', err.message);
-    }
-}
-
 // ── Routes ─────────────────────────────────────────────────────────────
 
-router.post('/update-roster', async (req, res) => {
+// Huidige status (hydratatie voor clients bij het laden van de widget)
+router.get('/status', (req, res) => {
+    res.json({
+        hardware: getHardwareConfig(),
+        channels: state.channels || buildDefaultChannels(getHardwareConfig()),
+        x32Library: state.x32Library || {},
+        lastUpdated: state.lastUpdated || null,
+    });
+});
+
+// Directe toewijzing van kanalen (vervangt de oude browser-side Firestore write)
+router.post('/assign', (req, res) => {
+    const { channels } = req.body;
+    if (!channels || !Array.isArray(channels)) {
+        return res.status(400).json({ error: 'Ongeldig payload. Verwacht channels array.' });
+    }
+    for (const ch of channels) {
+        if (!ch || typeof ch.mic_id !== 'number') {
+            return res.status(400).json({ error: 'Ongeldig kanaal: mic_id (number) is verplicht.' });
+        }
+    }
+
+    state.channels = channels;
+    state.lastUpdated = new Date().toISOString();
+    persistState();
+    bcast('iem:status', { channels: state.channels, lastUpdated: state.lastUpdated });
+    console.log('  [IEM] Toewijzing opgeslagen:', state.channels.map((c) => `mic ${c.mic_id} → ${c.name || 'standby'}`).join(', '));
+    res.json({ success: true, channels: state.channels });
+});
+
+router.post('/update-roster', (req, res) => {
     const { roster } = req.body;
     if (!roster || !Array.isArray(roster)) {
         return res.status(400).json({ error: 'Ongeldig roster payload. Verwacht array.' });
     }
 
     try {
-        const hardwareConfig = await getHardwareConfig();
+        const hardwareConfig = getHardwareConfig();
         const worshipLeader = roster.find((p) => p.role_name && p.role_name.toLowerCase() === 'worship leader');
         const pianoPlayer = roster.find((p) => p.role_name && p.role_name.toLowerCase() === 'piano');
         const leaderIsOnPiano = worshipLeader && pianoPlayer && worshipLeader.display_name === pianoPlayer.display_name;
@@ -154,16 +214,12 @@ router.post('/update-roster', async (req, res) => {
             };
         });
 
-        const firestore = getFirestore();
-        if (firestore) {
-            await firestore.collection('mic_monitor').doc('live_status').set({
-                channels: finalState,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
-        }
+        state.channels = finalState;
+        state.lastUpdated = new Date().toISOString();
+        persistState();
 
         console.log('  [ROSTER] Toewijzing berekend:', finalState.map((c) => `${c.name} (mic ${c.mic_id})`).join(', '));
-        bcast('iem:roster', { channels: finalState });
+        bcast('iem:status', { channels: finalState, lastUpdated: state.lastUpdated });
         res.json({ success: true, live_status: finalState });
     } catch (error) {
         console.error('  [ROSTER] Fout:', error.message);
@@ -171,7 +227,7 @@ router.post('/update-roster', async (req, res) => {
     }
 });
 
-router.post('/save-hardware-config', async (req, res) => {
+router.post('/save-hardware-config', (req, res) => {
     const newConfig = req.body;
     if (!newConfig || !Array.isArray(newConfig)) {
         return res.status(400).json({ error: 'Ongeldige data. Verwacht array van mic configuraties.' });
@@ -183,37 +239,21 @@ router.post('/save-hardware-config', async (req, res) => {
     }
 
     try {
-        const firestore = getFirestore();
-        if (firestore) {
-            await firestore.collection('mic_monitor').doc('config').set({
-                hardware: newConfig,
-                updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-            });
+        state.hardware = newConfig;
+        state.lastUpdated = new Date().toISOString();
 
-            const statusDoc = await firestore.collection('mic_monitor').doc('live_status').get();
-            if (statusDoc.exists) {
-                const current = statusDoc.data().channels || [];
-                const updated = current.map((ch) => {
-                    const hw = newConfig.find((h) => h.mic_id === ch.mic_id);
-                    return hw ? { ...ch, iem_pack: hw.iem_pack, frequency: hw.frequency } : ch;
-                });
-                await firestore.collection('mic_monitor').doc('live_status').update({
-                    channels: updated,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            } else {
-                const initial = newConfig.map((hw) => ({
-                    mic_id: hw.mic_id, iem_pack: hw.iem_pack, frequency: hw.frequency,
-                    name: 'Unassigned / Standby', avatar_url: null, active: false,
-                }));
-                await firestore.collection('mic_monitor').doc('live_status').set({
-                    channels: initial,
-                    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-                });
-            }
+        if (Array.isArray(state.channels) && state.channels.length) {
+            state.channels = state.channels.map((ch) => {
+                const hw = newConfig.find((h) => h.mic_id === ch.mic_id);
+                return hw ? { ...ch, iem_pack: hw.iem_pack, frequency: hw.frequency } : ch;
+            });
+        } else {
+            state.channels = buildDefaultChannels(newConfig);
         }
+        persistState();
 
         console.log('  [CONFIG] Hardware opgeslagen:', newConfig.map((c) => `Mic ${c.mic_id}: ${c.iem_pack} @ ${c.frequency}`).join(', '));
+        bcast('iem:status', { channels: state.channels, lastUpdated: state.lastUpdated });
         res.json({ success: true });
     } catch (error) {
         console.error('  [CONFIG] Fout:', error.message);
@@ -221,21 +261,21 @@ router.post('/save-hardware-config', async (req, res) => {
     }
 });
 
-router.get('/x32-library', async (req, res) => {
-    const fromFs = await loadX32LibraryFromFirestore();
-    if (fromFs) return res.json(fromFs);
-    res.json({ map: { ...DEFAULT_X32_LIBRARY }, lastUpdated: null });
+router.get('/x32-library', (req, res) => {
+    const fromState = loadX32Library();
+    if (fromState) return res.json(fromState);
+    res.json({ map: {}, lastUpdated: null });
 });
 
-router.post('/x32-library', async (req, res) => {
+router.post('/x32-library', (req, res) => {
     const validation = validateX32LibraryMap(req.body?.map);
     if (!validation.ok) return res.status(400).json({ error: validation.reason });
 
     const payload = { map: validation.map, lastUpdated: new Date().toISOString() };
     try {
-        await saveX32LibraryToFirestore(payload.map, payload.lastUpdated);
+        saveX32Library(payload.map, payload.lastUpdated);
     } catch (err) {
-        console.error('  [X32_LIB] Firestore write failed:', err.message);
+        console.error('  [X32_LIB] State write failed:', err.message);
         return res.status(500).json({ error: err.message });
     }
     console.log('  [X32_LIB] Map saved:', Object.entries(validation.map).map(([k, v]) => `${k}→lib ${v}`).join(', '));

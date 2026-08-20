@@ -8,7 +8,7 @@
  *
  * Protocol (JSON):
  *   → { event: "x32:status",      data: {...} }
- *   → { event: "iem:roster",      data: {...} }
+ *   → { event: "iem:status",      data: { channels } }
  *   → { event: "system:log",      data: { line } }
  *   → { event: "system:update",   data: {...} }
  *   → { event: "pong" }
@@ -21,6 +21,14 @@ import { WebSocketServer } from 'ws';
 
 let wss = null;
 
+// Connect-handlers: modules registreren hier een functie die wordt
+// aangeroepen zodra een nieuwe client verbindt, zodat ze die client
+// direct een state-snapshot kunnen pushen (local-first hydratatie).
+const connectHandlers = [];
+export function onClientConnect(handler) {
+    connectHandlers.push(handler);
+}
+
 export function initWebSocket(server) {
     wss = new WebSocketServer({ server, path: '/ws' });
 
@@ -30,6 +38,13 @@ export function initWebSocket(server) {
 
         ws.isAlive = true;
         ws.on('pong', () => { ws.isAlive = true; });
+
+        // Push de huidige state naar de nieuw verbonden client
+        connectHandlers.forEach((handler) => {
+            try {
+                handler({ send: (event, data) => ws.send(JSON.stringify({ event, data })) });
+            } catch (_) { /* handler errors mogen de connectie niet breken */ }
+        });
 
         ws.on('message', (raw) => {
             try {

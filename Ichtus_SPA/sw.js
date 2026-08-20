@@ -7,9 +7,6 @@
 const CACHE_NAME = 'ichtus-spa-v7';
 
 // Static assets to pre-cache on install.
-// NOTE: Firebase SDK CDN URLs (https://www.gstatic.com/…) are intentionally
-// omitted — cross-origin requests may fail if the CDN doesn't return CORS
-// headers. Firebase is loaded via network-first at runtime.
 const PRECACHE_URLS = [
   '/Ichtus_SPA/',
   '/Ichtus_SPA/index.html',
@@ -21,7 +18,6 @@ const PRECACHE_URLS = [
   '/Ichtus_SPA/js/i18n.js',
   '/Ichtus_SPA/js/ws-client.js',
   '/Ichtus_SPA/js/app.js',
-  '/Ichtus_SPA/js/firebase-init.js',
   '/Ichtus_SPA/js/modules/update-popup.js',
   '/Ichtus_SPA/js/modules/dashboard.js',
   '/Ichtus_SPA/js/modules/agenda.js',
@@ -46,9 +42,7 @@ const PRECACHE_URLS = [
 
 // API patterns that should always go network-first
 const API_PATTERNS = [
-  '/api/',
-  'firestore.googleapis.com',
-  'firebase.googleapis.com'
+  '/api/'
 ];
 
 // ——— INSTALL ———

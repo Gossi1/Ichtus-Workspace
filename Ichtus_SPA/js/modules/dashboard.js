@@ -1163,10 +1163,9 @@ const dashboardModule = {
             if (!document.querySelector('.widget-card[data-widget-id="playlist-overview"]')) {
                 this._stopPlaylistOverviewPolling();
             }
-            if (card.dataset.widgetId === 'mic-iem-monitor' && this._micUnsubscribe) {
-                this._micUnsubscribe();
-                this._micUnsubscribe = null;
-            }
+            // Mic/IEM monitor widget needs no teardown: it hydrates from
+            // /api/iem/status and listens to the shared WebSocket hub, so
+            // re-adding the widget simply re-fetches + re-renders.
         });
     },
 
@@ -1605,10 +1604,6 @@ const dashboardModule = {
     },
 
     async saveToCloud() {
-        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
-            this.showStatus('☁️ Geen Firebase verbinding', 'error');
-            return false;
-        }
         try {
             // First save locally to ensure consistency
             this._saveWidgetPositions();
@@ -1633,19 +1628,22 @@ const dashboardModule = {
             // Get countdown target
             const countdownTarget = localStorage.getItem('ichtus_countdown_target');
 
-            // Save to Firestore
-            await db.collection('dashboard').doc('state').set({
-                layouts: layouts,
-                activeLayout: activeLayout,
-                defaultLayout: {
-                    order: defaultOrder,
-                    positions: defaultPositions
-                },
-                sizes: sizes,
-                countdownTarget: countdownTarget || '',
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'anonymous'
-            }, { merge: true });
+            // Save to the local server; die backed up gedebounced naar Firestore
+            const resp = await fetch('/api/dashboard/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    layouts: layouts,
+                    activeLayout: activeLayout,
+                    defaultLayout: {
+                        order: defaultOrder,
+                        positions: defaultPositions
+                    },
+                    sizes: sizes,
+                    countdownTarget: countdownTarget || ''
+                })
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
             this.showStatus('☁️ Dashboard opgeslagen in Cloud ✓', 'success');
             return true;
@@ -1657,14 +1655,11 @@ const dashboardModule = {
     },
 
     async loadFromCloud() {
-        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
-            this.showStatus('☁️ Geen Firebase verbinding', 'error');
-            return false;
-        }
         try {
-            const doc = await db.collection('dashboard').doc('state').get();
-            if (doc.exists) {
-                const data = doc.data();
+            const resp = await fetch('/api/dashboard/state', { cache: 'no-store' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            if (data && Object.keys(data).length > 0) {
                 
                 // Confirm before overwriting local data
                 const confirmed = confirm('Dit vervangt al je lokale dashboard instellingen en layouts door de cloud versie. Doorgaan?');

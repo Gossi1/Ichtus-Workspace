@@ -141,34 +141,6 @@ const settingsModule = {
         this.applySidebarVisibility();
     },
 
-    getFirebaseConfig() {
-        let config = null;
-        const savedConfig = localStorage.getItem('firebaseConfig');
-        if (savedConfig) {
-            try {
-                config = JSON.parse(savedConfig);
-                if (config && config.apiKey && config.apiKey !== 'YOUR_API_KEY_HERE') {
-                    return config;
-                }
-            } catch (e) {
-                localStorage.removeItem('firebaseConfig');
-            }
-        }
-        if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
-            config = window.FIREBASE_CONFIG;
-            if (config.apiKey && config.apiKey !== 'YOUR_API_KEY_HERE') {
-                return config;
-            }
-        }
-        if (typeof FIREBASE_CONFIG !== 'undefined') {
-            config = FIREBASE_CONFIG;
-            if (config.apiKey && config.apiKey !== 'YOUR_API_KEY_HERE') {
-                return config;
-            }
-        }
-        return null;
-    },
-
     loadAppVersion() {
         fetch('../Ichtus_SPA/version.json')
             .then(response => response.json())
@@ -260,8 +232,6 @@ const settingsModule = {
     },
 
     render() {
-        const config = this.getFirebaseConfig();
-        
         // Format preview based on settings
         const sampleDate = new Date(2024, 11, 25, 14, 30); // Dec 25, 2024, 14:30
         
@@ -274,38 +244,7 @@ const settingsModule = {
         }
 
         // ==========================================
-        // 2. Firebase config grid
-        // ==========================================
-        const fbGrid = document.getElementById('settings-firebase-grid');
-        const fbEmpty = document.getElementById('settings-firebase-empty');
-        const copyBtn = document.getElementById('btn-copy-apikey');
-
-        if (config && config.apiKey) {
-            if (fbGrid) fbGrid.style.display = '';
-            if (fbEmpty) fbEmpty.style.display = 'none';
-            
-            const setCode = (id, val) => {
-                const el = document.getElementById(id);
-                if (el) el.textContent = val || '---';
-            };
-            setCode('fb-apiKey', this.maskValue(config.apiKey));
-            setCode('fb-authDomain', config.authDomain || '---');
-            setCode('fb-projectId', config.projectId || '---');
-            setCode('fb-storageBucket', config.storageBucket || '---');
-            setCode('fb-messagingSenderId', config.messagingSenderId || '---');
-            setCode('fb-appId', config.appId || '---');
-            
-            if (copyBtn) {
-                copyBtn.onclick = () => this.copyValue(config.apiKey);
-            }
-        } else {
-            if (fbGrid) fbGrid.style.display = 'none';
-            if (fbEmpty) fbEmpty.style.display = '';
-            if (copyBtn) copyBtn.onclick = null;
-        }
-
-        // ==========================================
-        // 3. Network & Sync
+        // 2. Network & Sync
         // ==========================================
         const ipInput = document.getElementById('settings-pro-ip');
         const portInput = document.getElementById('settings-pro-port');
@@ -319,7 +258,7 @@ const settingsModule = {
         if (debugToggle) debugToggle.checked = this.getSetting('showDebugPanel');
 
         // ==========================================
-        // 4. NDI Video
+        // 3. NDI Video
         // ==========================================
         const ndiToggle = document.getElementById('settings-ndi-auto-discovery');
         if (ndiToggle) ndiToggle.checked = this.getSetting('ndiAutoDiscovery');
@@ -328,7 +267,7 @@ const settingsModule = {
         if (ndiQuality) ndiQuality.value = this.getSetting('ndiPreviewQuality');
 
         // ==========================================
-        // 5. Display
+        // 4. Display
         // ==========================================
         const clockSelect = document.getElementById('settings-clock-format');
         if (clockSelect) clockSelect.value = this.getSetting('clockFormat');
@@ -343,7 +282,7 @@ const settingsModule = {
         if (dateDesc) dateDesc.textContent = __('settings_date_desc') + ': ' + this.formatDateSample(sampleDate);
 
         // ==========================================
-        // 6. App Info
+        // 5. App Info
         // ==========================================
         const versionEl = document.getElementById('settings-app-version');
         if (versionEl) versionEl.textContent = this.appVersion || '1.0.0';
@@ -362,20 +301,6 @@ const settingsModule = {
             }
         }
 
-        const fbStatusBadge = document.getElementById('settings-fb-status-badge');
-        if (fbStatusBadge) {
-            if (config && config.apiKey) {
-                fbStatusBadge.className = 'status-badge status-ok';
-                fbStatusBadge.textContent = '✓ ' + __('settings_configured');
-            } else {
-                fbStatusBadge.className = 'status-badge status-off';
-                fbStatusBadge.textContent = '✗ ' + __('settings_not_configured_status');
-            }
-        }
-
-        const configSource = document.getElementById('settings-config-source');
-        if (configSource) configSource.textContent = this.getConfigSource();
-
         const offlineBadge = document.getElementById('settings-offline-badge');
         if (offlineBadge) {
             if (this.getSetting('offlineMode')) {
@@ -388,12 +313,12 @@ const settingsModule = {
         }
 
         // ==========================================
-        // 7. Sidebar Customization
+        // 6. Sidebar Customization
         // ==========================================
         this.renderSidebarCustomization();
 
         // ==========================================
-        // 8. Debug panel
+        // 7. Debug panel
         // ==========================================
         this.renderDebugPanel();
 
@@ -505,7 +430,6 @@ const settingsModule = {
         
         const panel = document.getElementById('debug-panel');
         if (this.getSetting('showDebugPanel')) {
-            const config = this.getFirebaseConfig();
             const online = navigator.onLine ? '🟢 Online' : '🔴 Offline';
             const syncStatus = window.OfflineMode ? 'Offline Mode' : 'Online';
             
@@ -514,8 +438,6 @@ const settingsModule = {
                 <button onclick='settingsModule.toggleDebugLog()' style='float:right;background:none;border:none;color:#00ff88;cursor:pointer;'>Clear</button>
                 <hr style='border-color:#333;margin:5px 0;'>
                 <div><strong>Status:</strong> ${online} | ${syncStatus}</div>
-                <div><strong>Firebase:</strong> ${config ? '✓ Configured (' + config.projectId + ')' : '✗ Not configured'}</div>
-                <div><strong>Config Source:</strong> ${this.getConfigSource()}</div>
                 <div><strong>Clock:</strong> ${window.ClockFormat} | <strong>Date:</strong> ${window.DateFormat}</div>
                 <div><strong>NDI Auto:</strong> ${this.getSetting('ndiAutoDiscovery') ? 'On' : 'Off'} | <strong>Quality:</strong> ${this.getSetting('ndiPreviewQuality')}</div>
                 <div><strong>Timestamp:</strong> ${new Date().toLocaleTimeString()}</div>
@@ -530,38 +452,6 @@ const settingsModule = {
         }
     },
 
-    getConfigSource() {
-        const savedConfig = localStorage.getItem('firebaseConfig');
-        if (savedConfig) {
-            try {
-                const config = JSON.parse(savedConfig);
-                if (config && config.apiKey && config.apiKey !== 'YOUR_API_KEY_HERE') {
-                    return 'Browser (localStorage)';
-                }
-            } catch (e) {}
-        }
-        if (typeof window.FIREBASE_CONFIG !== 'undefined' && window.FIREBASE_CONFIG) {
-            return 'Server Injected';
-        }
-        if (typeof FIREBASE_CONFIG !== 'undefined') {
-            return 'Global Variable';
-        }
-        return __('settings_config_source_none');
-    },
-
-    maskValue(value) {
-        if (!value || value.length < 8) return '****';
-        return value.substring(0, 6) + '...' + value.substring(value.length - 4);
-    },
-
-    copyValue(value) {
-        navigator.clipboard.writeText(value).then(() => {
-            this.showToast(__('toast_copied'));
-        }).catch(err => {
-            console.warn('Failed to copy:', err);
-        });
-    },
-
     showToast(message) {
         const toast = document.createElement('div');
         toast.className = 'settings-toast';
@@ -570,85 +460,6 @@ const settingsModule = {
         setTimeout(() => toast.remove(), 2000);
     },
 
-    editFirebaseConfig() {
-        // Populate modal with current config values
-        const config = this.getFirebaseConfig();
-        const setVal = (id, val) => {
-            const el = document.getElementById(id);
-            if (el) el.value = val || '';
-        };
-        setVal('edit-apiKey', config?.apiKey || '');
-        setVal('edit-authDomain', config?.authDomain || '');
-        setVal('edit-projectId', config?.projectId || '');
-        setVal('edit-storageBucket', config?.storageBucket || '');
-        setVal('edit-messagingSenderId', config?.messagingSenderId || '');
-        setVal('edit-appId', config?.appId || '');
-
-        const modal = document.getElementById('settings-firebase-modal');
-        if (modal) modal.classList.remove('hidden');
-    },
-
-    closeEditModal() {
-        const modal = document.getElementById('settings-firebase-modal');
-        if (modal) modal.classList.add('hidden');
-    },
-
-    saveFirebaseConfig(e) {
-        e.preventDefault();
-
-        const config = {
-            apiKey: document.getElementById('edit-apiKey').value.trim(),
-            authDomain: document.getElementById('edit-authDomain').value.trim(),
-            projectId: document.getElementById('edit-projectId').value.trim(),
-            storageBucket: document.getElementById('edit-storageBucket').value.trim(),
-            messagingSenderId: document.getElementById('edit-messagingSenderId').value.trim(),
-            appId: document.getElementById('edit-appId').value.trim()
-        };
-
-        if (!config.apiKey || !config.projectId || !config.appId) {
-            alert(__('settings_required_fields'));
-            return;
-        }
-
-        if (!config.apiKey.startsWith('AIza')) {
-            alert(__('settings_invalid_api'));
-            return;
-        }
-
-        localStorage.setItem('firebaseConfig', JSON.stringify(config));
-        window.FIREBASE_CONFIG = config;
-
-        this.closeEditModal();
-        this.render();
-        this.showToast(__('settings_saved_firebase'));
-
-        setTimeout(() => location.reload(), 1000);
-    },
-
-    resetFirebaseConfig() {
-        if (confirm(__('settings_confirm_reset_firebase'))) {
-            localStorage.removeItem('firebaseConfig');
-            this.showToast(__('settings_reset_firebase'));
-            setTimeout(() => location.reload(), 1000);
-        }
-    },
-
-    clearFirebaseCache() {
-        if (confirm(__('settings_confirm_clear_cache'))) {
-            const keysToRemove = [];
-            for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.startsWith('firebase') || key === 'firebaseConfig') {
-                    keysToRemove.push(key);
-                }
-            }
-            keysToRemove.forEach(key => localStorage.removeItem(key));
-            
-            this.showToast(__('settings_cleared_cache'));
-            this.render();
-        }
-    },
-    
     clearAllLocalData() {
         if (confirm(__('settings_confirm_clear_all'))) {
             if (confirm(__('settings_confirm_clear_all2'))) {
@@ -659,11 +470,6 @@ const settingsModule = {
         }
     },
 
-    // The X32 Library configuration was relocated from Settings to the
-    // Stage Builder view in this revision; the relevant editor methods
-    // now live on `stagebuilderModule` (see `openX32LibraryMap`,
-    // `_saveX32LibraryMapLocally`, `_saveX32LibraryMapToFirebase`,
-    // `_loadX32LibraryMapFromFirebase`).
 };
 
 // Global format helper functions that other modules can use

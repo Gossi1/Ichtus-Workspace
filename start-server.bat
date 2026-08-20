@@ -9,9 +9,9 @@ echo          ICHTUS WORKSPACE - NODE.JS SERVER
 echo   ==================================================
 echo.
 echo   Alle services in één proces op poort 8080:
-echo     - SPA HTTP server + Firebase config injectie
+echo     - SPA HTTP server
 echo     - X32 OSC bridge (UDP :10023)
-echo     - Mic/IEM monitor (Firestore)
+echo     - Mic/IEM monitor (server state + WebSocket)
 echo     - WebSocket realtime hub (/ws)
 echo     - Git update checking
 echo.

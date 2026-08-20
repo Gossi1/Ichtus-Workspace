@@ -104,16 +104,16 @@ This downloads Express, Firebase Admin, `ws`, etc. into `node_modules\`. Takes 1
 
 ---
 
-#### Step 5 — Add Firebase config *(optional, for cloud data sync)*
+#### Step 5 — Add Firebase service account *(optional, for cloud backup)*
 
-The app works fully offline if you skip this step — a setup modal will ask for your config on first launch and store it in browser `localStorage`.
+The app works fully offline if you skip this step. The browser never talks to Firebase — only the **server** does, for the debounced cloud backup (`commandCenter`, `patchbay`, `dashboard` state, `worshiptools_sync`).
 
-If you already have a Firebase project (or want to copy config from another installation), pick one of:
+If you want cloud backup:
 
-- Drop a `firebase-api-key.txt` into the project root — the server injects it into every served HTML page.
-- Drop `Ichtus_SPA\firebase-config.txt` — the browser fetches it at runtime.
+1. Go to the Firebase Console → Project Settings → Service accounts.
+2. Click **Generate new private key** and save the JSON as `serviceAccountKey.json` in the project root.
 
-Both files are gitignored, so secrets never accidentally leak.
+The file is gitignored, so the secret never accidentally leaks.
 
 ---
 
@@ -263,9 +263,9 @@ node src/server.js
 ```
 
 All services run in one process on port 8080:
-- SPA HTTP server + Firebase config injection
+- SPA HTTP server
 - X32 OSC bridge (UDP :10023)
-- Mic/IEM monitor (Firestore)
+- Mic/IEM monitor (server state + WebSocket)
 - WebSocket realtime hub
 - Git update checking
 
@@ -283,9 +283,13 @@ Single Node.js server (`src/server.js`) on port 8080 replaces the previous
 | NDI discovery | `GET /api/ndi/sources` | UDP broadcast + optional zeroconf |
 | X32 OSC bridge | `POST /api/x32/load-channel-preset` | HTTP → OSC/UDP to Behringer X32 |
 | X32 presets | `GET /api/x32/presets` | Library polling via persistent OSC session |
-| Mic/IEM roster | `POST /api/iem/update-roster` | WorshipTools → Firestore live sync |
+| Mic/IEM roster | `POST /api/iem/update-roster` | WorshipTools → server + WebSocket live sync |
+| Command Center | `GET/POST /api/commandcenter/state` | Local-first state; Firestore backup (debounced) |
+| Command Center archive | `POST /api/commandcenter/archive` | Archive to Firestore on reset |
+| Patchbay cloud | `GET/POST /api/patchbay/state` | Server + debounced Firestore backup |
+| Dashboard cloud | `GET/POST /api/dashboard/state` | Server + debounced Firestore backup |
 | Git update check | `GET /api/check-update` | Compares HEAD with origin |
-| WebSocket | `ws://localhost:8080/ws` | Realtime X32 + IEM status push |
+| WebSocket | `ws://localhost:8080/ws` | Realtime X32 + IEM + Command Center push |
 
 ### Frontend endpoints (all relative)
 
@@ -311,7 +315,7 @@ Access via the **Instellingen** (gear icon) in the sidebar.
 | NDI Preview Quality | Low / Medium / High |
 | Time Format | 12-hour or 24-hour |
 | Date Format | DD-MM-YYYY or MM-DD-YYYY |
-| Debug Panel | Show Firebase status & logs |
+| Debug Panel | Show debug logs & sync status |
 
 ---
 
@@ -325,7 +329,7 @@ Access via the **Instellingen** (gear icon) in the sidebar.
 | **Patchbay** | Digital signal routing canvas for A/V setup |
 | **Analytics** | Service sequencing and tracking |
 | **Setlist** | ProPresenter integration with WorshipTools sync |
-| **Settings** | App configuration and Firebase settings |
+| **Settings** | App configuration |
 | **NDI Sources** | Network device discovery and selection |
 
 ---
@@ -341,12 +345,11 @@ Ichtus_apps/
 ├── supervisor.py                # Local dev watchdog (auto-restarts on crash; stdlib only)
 ├── start-server.bat             # Windows launcher (now launches the supervisor)
 ├── logs/                        # Per-service rotating logs (NOT committed, 5 MB x 3)
-├── firebase-api-key.txt         # Firebase config (NOT committed to git!) used by server.py
+├── serviceAccountKey.json       # Firebase Admin credentials (NOT committed to git!) — server-side backup only
 ├── Ichtus_SPA/
-│   └── firebase-config.txt      # Firebase config (NOT committed to git!) auto-loaded by the browser
 ├── requirements.txt             # Python dependencies
 │
-├── .gitignore                   # Excludes: .venv/, firebase-api-key.txt
+├── .gitignore                   # Excludes: .venv/, serviceAccountKey.json
 │
 ├── shared-assets/               # Shared branding & components
 │   ├── css/branding.css
@@ -360,7 +363,7 @@ Ichtus_apps/
 │   │   ├── app.js               # Main app entry
 │   │   ├── router.js            # SPA routing
 │   │   ├── state.js             # App state management
-│   │   ├── firebase-init.js     # Firebase initialization
+│   │   ├── ws-client.js         # WebSocket realtime client
 │   │   └── modules/
 │   │       ├── settings.js      # Settings page (Instellingen)
 │   │       ├── ndi.js           # NDI source discovery
@@ -382,7 +385,7 @@ Ichtus_apps/
 
 - **Python 3.8+** (for local dev server)
 - **Chrome** browser (recommended)
-- **Firebase** (optional, for data persistence)
+- **Firebase Admin SDK** (optional, for server-side cloud backup)
 - **zeroconf** Python package (installed automatically by setup.py)
 
 ---
@@ -405,28 +408,28 @@ python server.py --open
 
 ---
 
-## 🔐 Firebase Configuration
+## 🔐 Firebase (server-side backup only)
 
-The browser (`Ichtus_SPA/js/firebase-init.js`) resolves your Firebase config from any of these 4 sources, in priority order. The first one with a real `apiKey` (starting with `AIza`) wins; if none does, the setup modal asks you to paste one.
+Firebase is **optioneel** (local-first + cloud-backup): de app draait volledig zonder config. De **browser** praat nooit direct met Firebase — alle state gaat via de lokale server (REST + WebSocket) en de server schrijft pas na een debounce een backup weg via de Firebase **Admin SDK**.
 
-| # | Source | Where it lives | When to use |
-|---|--------|---------------|-------------|
-| 1 | `localStorage.firebaseConfig` | Browser storage of this OS-user, this browser | Pasted through the in-browser setup modal |
-| 2 | `window.FIREBASE_CONFIG` | Injected by `server.py` if `firebase-api-key.txt` exists at the project root | Server-admin deployments / multi-tenant setups |
-| 3 | `Ichtus_SPA/firebase-config.txt` | Fetched at runtime from the served directory | Single-machine manual setup — just drop the file, refresh, done |
-| 4 | `FIREBASE_CONFIG` | Bundled placeholder in `Ichtus_SPA/js/firebase-config.js` | Last-resort template; usually overwritten above |
+> Zie [`FIREBASE_BACKUP.md`](FIREBASE_BACKUP.md) voor de volledige architectuur (topic-store, debounce, deny-all rules).
 
-**To set up Firebase:**
+**Setup:**
 
 1. Create a project at [console.firebase.google.com](https://console.firebase.google.com).
-2. Copy your web app config from **Project Settings → Your apps → Web app**.
-3. Drop it into one of the gitignored drop-in files:
-   - `Ichtus_SPA/firebase-config.txt` — preferred for browser-direct/local setups
-   - `firebase-api-key.txt` (project root) — used by `server.py` to inject into every served HTML page
-4. Or paste through the in-browser setup screen (stored in `localStorage`).
-5. Or enter values during `install.bat` setup.
+2. Firebase Console → Project Settings → Service accounts → **Generate new private key**.
+3. Save the downloaded JSON as `serviceAccountKey.json` in the project root (gitignored).
 
-The Instellingen page lets you view, edit, and reset the active config afterward.
+Zonder het bestand draait alles lokaal gewoon door; zodra de server het bestand vindt, start de cloud-backup automatisch.
+
+> **Oude mic-monitor data (Firestore → `iem-state.json`):** de mic/IEM monitor gebruikt Firestore niet meer; state staat in `iem-state.json` (project root). De oude `mic_monitor/{config, live_status, x32_library}` docs worden niet meer gelezen of geschreven. Wil je ze bij een *nieuwe* installatie eenmalig overnemen, run dan:
+>
+> ```bat
+> set IEM_MIGRATE_FROM_FIRESTORE=1
+> node src/server.js
+> ```
+>
+> De migratie draait alleen als er nog geen `iem-state.json` bestaat en is read-only: de oude docs blijven in Firestore staan. Verwijder ze eventueel handmatig via de Firebase Console.
 
 ---
 

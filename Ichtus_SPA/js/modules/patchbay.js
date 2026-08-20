@@ -127,24 +127,25 @@ const patchbayModule = (function() {
         localStorage.setItem('patchbay_current_project', state.currentProjectId);
     }
 
-    // ==================== CLOUD SYNC (FIREBASE) ====================
+    // ==================== CLOUD SYNC (LOCAL-FIRST + SERVER BACKUP) ====================
+    // De browser praat alleen met de lokale server; die backed up
+    // gedebounced naar Firestore. Geen direct Firestore gebruik meer.
 
     async function saveToCloud() {
-        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
-            showStatus('☁️ Geen Firebase verbinding', 'error');
-            return false;
-        }
         try {
             // First persist to localStorage so data is never lost on refresh
             saveData();
 
-            // Save entire projects object to Firestore (shared team collection)
-            await db.collection('patchbay').doc('projects').set({
-                projects: state.projects,
-                currentProjectId: state.currentProjectId,
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
-                updatedBy: (typeof currentUser !== 'undefined' && currentUser) ? currentUser.email : 'anonymous'
-            }, { merge: true });
+            // Save to the local server (shared team state)
+            const resp = await fetch('/api/patchbay/state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    projects: state.projects,
+                    currentProjectId: state.currentProjectId
+                })
+            });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
             showStatus('☁️ Opgeslagen naar Cloud ✓', 'success');
             return true;
         } catch (e) {
@@ -155,52 +156,47 @@ const patchbayModule = (function() {
     }
 
     async function loadFromCloud() {
-        if (typeof useFirebase === 'undefined' || !useFirebase || typeof db === 'undefined' || !db) {
-            showStatus('☁️ Geen Firebase verbinding', 'error');
-            return false;
-        }
         try {
-            const doc = await db.collection('patchbay').doc('projects').get();
-            if (doc.exists) {
-                const data = doc.data();
-                if (data.projects && Object.keys(data.projects).length > 0) {
-                    // If there is existing local data, ask for confirmation before overwriting
-                    const hasLocalData = Object.keys(state.projects).length > 0 && (
-                        state.projects[state.currentProjectId]?.data?.nodes?.length > 0 ||
-                        state.projects[state.currentProjectId]?.data?.connections?.length > 0 ||
-                        Object.keys(state.projects).length > 1
-                    );
-                    
-                    if (hasLocalData) {
-                        // Use a promise-based confirmation
-                        const confirmed = await new Promise((resolve) => {
-                            showConfirm(
-                                'Dit vervangt alle ' + Object.keys(state.projects).length + ' lokale patchbay projecten door de cloud versie. Alle niet-opgeslagen wijzigingen gaan verloren. Doorgaan?',
-                                () => resolve(true),
-                                () => resolve(false)
-                            );
-                        });
-                        if (!confirmed) {
-                            showStatus('☁️ Laden geannuleerd', 'info');
-                            return false;
-                        }
+            const resp = await fetch('/api/patchbay/state', { cache: 'no-store' });
+            if (!resp.ok) throw new Error('HTTP ' + resp.status);
+            const data = await resp.json();
+            if (data.projects && Object.keys(data.projects).length > 0) {
+                // If there is existing local data, ask for confirmation before overwriting
+                const hasLocalData = Object.keys(state.projects).length > 0 && (
+                    state.projects[state.currentProjectId]?.data?.nodes?.length > 0 ||
+                    state.projects[state.currentProjectId]?.data?.connections?.length > 0 ||
+                    Object.keys(state.projects).length > 1
+                );
+
+                if (hasLocalData) {
+                    // Use a promise-based confirmation
+                    const confirmed = await new Promise((resolve) => {
+                        showConfirm(
+                            'Dit vervangt alle ' + Object.keys(state.projects).length + ' lokale patchbay projecten door de cloud versie. Alle niet-opgeslagen wijzigingen gaan verloren. Doorgaan?',
+                            () => resolve(true),
+                            () => resolve(false)
+                        );
+                    });
+                    if (!confirmed) {
+                        showStatus('☁️ Laden geannuleerd', 'info');
+                        return false;
                     }
-
-                    state.projects = data.projects;
-                    state.currentProjectId = data.currentProjectId || Object.keys(state.projects)[0];
-                    state.data = state.projects[state.currentProjectId].data;
-
-                    // Persist to localStorage as well
-                    localStorage.setItem('patchbay_projects', JSON.stringify(state.projects));
-                    localStorage.setItem('patchbay_current_project', state.currentProjectId);
-
-                    state.canvasTransform = { x: 0, y: 0, scale: 1 };
-                    updateTransform();
-                    renderAll();
-                    renderSidebar();
-                    showStatus('☁️ Geladen uit Cloud ✓', 'success');
-                    return true;
                 }
+
+                state.projects = data.projects;
+                state.currentProjectId = data.currentProjectId || Object.keys(state.projects)[0];
+                state.data = state.projects[state.currentProjectId].data;
+
+                // Persist to localStorage as well
+                localStorage.setItem('patchbay_projects', JSON.stringify(state.projects));
+                localStorage.setItem('patchbay_current_project', state.currentProjectId);
+
+                state.canvasTransform = { x: 0, y: 0, scale: 1 };
+                updateTransform();
+                renderAll();
+                renderSidebar();
+                showStatus('☁️ Geladen uit Cloud ✓', 'success');
+                return true;
             }
             showStatus('☁️ Nog geen cloud data gevonden', 'info');
             return false;

@@ -61,33 +61,6 @@ function log(msg) {
     console.log(`  ${msg}`);
 }
 
-// ── Firebase config injection ──────────────────────────────────────────
-let firebaseConfig = null;
-
-function loadFirebaseConfig() {
-    const configFile = resolve(ROOT_DIR, 'firebase-api-key.txt');
-    if (!existsSync(configFile)) return null;
-
-    try {
-        const content = readFileSync(configFile, 'utf-8');
-        const config = {};
-        const keys = ['apiKey', 'authDomain', 'projectId', 'storageBucket', 'messagingSenderId', 'appId', 'measurementId'];
-        for (const key of keys) {
-            const match = content.match(new RegExp(`${key}:\\s*["']([^"']+)["']`));
-            if (match) config[key] = match[1];
-        }
-        if (config.apiKey && !config.apiKey.startsWith('YOUR_')) return config;
-    } catch (e) {
-        console.warn(`  [WARN] Could not load firebase config: ${e.message}`);
-    }
-    return null;
-}
-
-function getFirebaseConfig() {
-    if (firebaseConfig === null) firebaseConfig = loadFirebaseConfig();
-    return firebaseConfig;
-}
-
 // ── Library helpers ────────────────────────────────────────────────────
 
 function getLibraryConfigPath() {
@@ -121,16 +94,6 @@ router.use((req, res, next) => {
     next();
 });
 
-// ── Firebase Config (browser kan dit ophalen via fetch) ──────────────
-
-router.get('/firebase-config', (req, res) => {
-    const config = getFirebaseConfig();
-    if (!config) {
-        return res.status(404).json({ error: 'Firebase config niet gevonden. Maak firebase-api-key.txt aan in de project root.' });
-    }
-    res.set('Cache-Control', 'public, max-age=300');
-    res.json(config);
-});
 
 // ── Health & Status ────────────────────────────────────────────────────
 
@@ -655,5 +618,4 @@ router.get('/test', (req, res) => {
     res.json({ test: 'ok', server: 'IchtusNodeServer' });
 });
 
-export { getFirebaseConfig };
 export default router;
