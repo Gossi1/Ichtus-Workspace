@@ -2,6 +2,48 @@
    BASE STYLES — Global utilities & components
    ============================================ */
 
+/* ==========================================================================
+   MATTE MINIMAL GLASS (DARK MODE) — Design tokens
+   Overrides shared branding values at runtime so this app stays self-contained.
+   ========================================================================== */
+:root {
+  --ichtus-orange: #f47920;
+  --text-primary: #ffffff;
+  --text-main: #f9f9f7;
+  --text-muted: rgba(255, 255, 255, 0.55);
+  --bg-main: #141416;
+
+  /* Matte surface tokens (flat glass, low-noise) */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-edge-bright: rgba(255, 255, 255, 0.16);
+  --fluid-blur: blur(16px);
+}
+
+/* Core Matte Glass Surface — replaces the previous heavy glass treatment */
+.glass-matte {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  box-shadow: none;
+  transition: background 0.3s ease, border-color 0.3s ease, transform 0.3s ease;
+}
+
+.glass-matte:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-2px);
+}
+
+/* Tabular numerals on all countdowns / timestamps / KPI metrics */
+.value, .cl-countdown, .cl-checklist-progress-pct, .metric-card .value,
+.cl-item-card-time, .cl-due-time, .sv-status-label, .week-label, td time {
+  font-variant-numeric: tabular-nums;
+}
+
 /* ==================== GLOBAL PREVENT HORIZONTAL SCROLL ==================== */
 /* ==================== GLOBAL PREVENT HORIZONTAL SCROLL ==================== */
 
@@ -28,29 +70,26 @@ button, .btn-label {
 }
 
 button:hover, .btn-label:hover {
-    transform: translateY(-2px);
+    transform: translateY(-1px);
     filter: brightness(1.1);
-    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
 }
 
 /* ==========================================================================
    GLOBAL GLASS COMPONENT STYLES (cross-view: agenda, analytics, etc.)
    ========================================================================== */
 .action-bar, .toolbar {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-top: 1px solid rgba(255, 255, 255, 0.35);
-    border-left: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
     padding: 24px;
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 20px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: none;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.2s ease;
 }
 
 .toolbar {
@@ -118,7 +157,6 @@ button:hover, .btn-label:hover {
 .btn-load, .btn-dl, .btn-nav, .btn-upload {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.38);
     padding: 10px 18px;
     border-radius: 10px;
     font-size: 0.9rem;
@@ -141,9 +179,8 @@ button:hover, .btn-label:hover {
 }
 .btn-upload:hover,
 .btn-upload.btn-label:hover {
-    background: linear-gradient(135deg, rgba(244, 121, 32, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(244, 121, 32, 0.12) !important;
     border-color: #f47920 !important;
-    box-shadow: 0 4px 15px rgba(244, 121, 32, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -153,9 +190,8 @@ button:hover, .btn-label:hover {
     color: #3498db !important;
 }
 .btn-load:hover {
-    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(52, 152, 219, 0.12) !important;
     border-color: #3498db !important;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -165,9 +201,8 @@ button:hover, .btn-label:hover {
     color: #27ae60 !important;
 }
 .btn-dl:hover {
-    background: linear-gradient(135deg, rgba(39, 174, 96, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(39, 174, 96, 0.12) !important;
     border-color: #27ae60 !important;
-    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -176,8 +211,8 @@ button:hover, .btn-label:hover {
     color: #f9f9f7;
 }
 .btn-nav:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
-    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
 }
 
@@ -455,30 +490,31 @@ button:hover, .btn-label:hover {
 }
 
 /* Modal dialog system */
+/* Flat dimming scrim — no stacking backdrop-filter over existing cards */
 .overlay-screen {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(10, 10, 10, 0.6);
-    backdrop-filter: blur(4px);
-    -webkit-backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.65);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 9998;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .task-modal-dialog {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(20px) saturate(130%);
-    -webkit-backdrop-filter: blur(20px) saturate(130%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-top: 1px solid rgba(255, 255, 255, 0.35);
-    border-left: 1px solid rgba(255, 255, 255, 0.35);
+    background: rgba(24, 24, 26, 0.92);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     width: 100%;
     max-width: 650px;
     padding: 24px;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .task-modal-dialog.size-small { max-width: 420px; }

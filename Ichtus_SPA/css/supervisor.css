@@ -249,13 +249,14 @@
 
 /* ── Individual Service Card ── */
 .sv-card {
-    background: rgba(255, 255, 255, 0.025);
-    border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
     padding: 20px;
     display: flex;
     flex-direction: column;
     gap: 16px;
+    box-shadow: none;
 }
 
 /* Card Header */
@@ -355,7 +356,7 @@
     font-weight: 600;
     font-size: 13.5px;
     padding: 9px 0;
-    border-radius: 8px;
+    border-radius: 12px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -388,9 +389,10 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.65);
     animation: sv-fade-in 0.2s ease;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .sv-log-modal.hidden {
@@ -411,13 +413,15 @@
     width: 90%;
     max-width: 700px;
     max-height: 80vh;
-    background: #1e1e2e;
+    background: rgba(24, 24, 26, 0.92);
     border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 14px;
+    border-radius: 16px;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .sv-log-header {

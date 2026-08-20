@@ -127,7 +127,7 @@
 .toggle-item-switch input:checked + .toggle-slider-engine {
     background: rgba(244, 121, 32, 0.15);
     border-color: var(--ichtus-orange);
-    box-shadow: 0 0 10px rgba(244, 121, 32, 0.25);
+    box-shadow: 0 0 8px rgba(244, 121, 32, 0.4);
 }
 
 .toggle-item-switch input:checked + .toggle-slider-engine:before {
@@ -351,7 +351,7 @@
 
 #view-settings .form-input:focus {
     border-color: var(--ichtus-orange) !important;
-    box-shadow: 0 0 10px rgba(244, 121, 32, 0.35) !important;
+    box-shadow: 0 0 0 2px rgba(244, 121, 32, 0.25) !important;
 }
 
 /* Ensure selects inside settings get proper right-padding and SVG dropdown arrow */

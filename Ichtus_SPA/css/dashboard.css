@@ -569,11 +569,13 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.65);
     display: flex;
     align-items: center;
     justify-content: center;
     z-index: 10000;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .layout-manage-modal.hidden {
@@ -581,13 +583,15 @@
 }
 
 .layout-manage-content {
-    background: var(--bg-card);
+    background: rgba(24, 24, 26, 0.96);
     border: 1px solid var(--border-light);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1.5rem;
     min-width: 320px;
     max-width: 400px;
-    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+    box-shadow: none;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .layout-manage-content h3 {
@@ -738,10 +742,10 @@
 .widget-picker {
     position: fixed;
     z-index: 1000;
-    background: var(--bg-card);
+    background: rgba(24, 24, 26, 0.96);
     border: 1px solid var(--border-light);
-    border-radius: 10px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    border-radius: 12px;
+    box-shadow: none;
     padding: 0.4rem;
     min-width: 180px;
     display: flex;
@@ -817,10 +821,8 @@
 }
 
 .widget-card.interacting {
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
     border-color: var(--ichtus-orange, #f47920);
     z-index: 999;
-    transition: box-shadow 0.15s ease;
 }
 
 /* Grid overlay — shows cell boundaries in edit mode */
@@ -955,8 +957,10 @@ body.is-editing .widget-body {
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.6);
+    background: rgba(0,0,0,0.65);
     z-index: 9999;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .dash-confirm-modal {
@@ -964,14 +968,15 @@ body.is-editing .widget-body {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    background: var(--bg-card, #1e1e1e);
+    background: rgba(24, 24, 26, 0.96);
     border: 1px solid var(--border-light, #333);
-    border-radius: 12px;
+    border-radius: 16px;
     padding: 1.5rem;
     min-width: 300px;
     max-width: 400px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    box-shadow: none;
     z-index: 10000;
+    will-change: transform, opacity;
 }
 
 .dash-confirm-modal p {
@@ -1458,7 +1463,7 @@ body.is-editing .widget-body {
     border-radius: 8px;
     border: 1px solid rgba(255,255,255,0.12);
     image-rendering: auto;
-    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    background: #2a2a2a;
     object-fit: cover;
 }
 
@@ -1488,7 +1493,7 @@ body.is-editing .widget-body {
     border-radius: 6px;
     border: 1px solid rgba(255,255,255,0.12);
     image-rendering: auto;
-    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+    background: #2a2a2a;
 }
 
 .widget-card[data-widget-id="propresenter-playlist"] .widget-propresenter.pp-grid-layout .pp-slide-item.active .pp-slide-thumb {
@@ -1633,13 +1638,13 @@ body.is-editing .widget-body {
     top: 100%;
     right: 0;
     margin-top: 6px;
-    background: var(--bg-card, #2a2a2a);
+    background: rgba(24, 24, 26, 0.96);
     border: 1px solid var(--border-light, #444);
-    border-radius: 8px;
+    border-radius: 12px;
     padding: 4px;
     z-index: 200;
     min-width: 170px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    box-shadow: none;
     flex-direction: column;
     gap: 2px;
 }
@@ -2030,9 +2035,9 @@ body.is-editing .widget-body {
 }
 
 .plo-playlist-header-card {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%);
+    background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 10px;
+    border-radius: 12px;
     padding: 12px 16px;
     margin-bottom: 4px;
 }

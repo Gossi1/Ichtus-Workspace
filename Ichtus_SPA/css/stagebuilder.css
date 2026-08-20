@@ -99,13 +99,13 @@
     grid-template-columns: 1fr auto 1fr;
     align-items: center;
     gap: 16px;
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.04) 0%, rgba(255, 255, 255, 0.01) 100%);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-top: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
     padding: 14px 18px;
+    box-shadow: none;
 }
 
 #view-stagebuilder .sb-status-left,
@@ -333,35 +333,30 @@
     background: rgba(251, 191, 36, 0.18);
     border-color: rgba(251, 191, 36, 0.5);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(251, 191, 36, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Recall All — blue liquid-glass primary. */
+/* Recall All — blue primary. */
 #view-stagebuilder .sb-btn-primary {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.9) 0%, rgba(37, 99, 235, 0.95) 100%);
+    background: #3498db;
     border-color: rgba(59, 130, 246, 0.55);
-    border-top-color: rgba(96, 165, 250, 0.7);
     color: #ffffff;
     font-weight: 700;
 }
 
 #view-stagebuilder .sb-btn-primary:hover:not(:disabled) {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 1) 0%, rgba(37, 99, 235, 1) 100%);
+    background: #2f88c4;
     transform: translateY(-1px);
-    box-shadow: 0 8px 20px rgba(59, 130, 246, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* ============ Roster Card (the table container) ============ */
 #view-stagebuilder .sb-roster-card {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, 0.15);
-    border-top: 1px solid rgba(255, 255, 255, 0.35);
-    border-left: 1px solid rgba(255, 255, 255, 0.35);
-    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
     padding: 22px;
-    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    box-shadow: none;
 }
 
 #view-stagebuilder .sb-roster-header {
@@ -630,7 +625,7 @@
 
 /* Push button (per-row) */
 #view-stagebuilder .sb-row-push {
-    background: linear-gradient(135deg, var(--ichtus-orange) 0%, #c95a13 100%);
+    background: var(--ichtus-orange);
     color: #fff;
     border: none;
     border-radius: 8px;
@@ -651,7 +646,6 @@
 #view-stagebuilder .sb-row-push:hover:not(:disabled):not(.sb-row-push--pushing) {
     filter: brightness(1.1);
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(244, 121, 32, 0.35);
 }
 
 #view-stagebuilder .sb-row-push:disabled {
@@ -668,13 +662,13 @@
 }
 
 #view-stagebuilder .sb-row-push.sb-row-push--ok {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    box-shadow: 0 0 14px rgba(16, 185, 129, 0.4);
+    background: #10b981;
+    box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
 }
 
 #view-stagebuilder .sb-row-push.sb-row-push--err {
-    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-    box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+    background: #ef4444;
+    box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
 }
 
 /* Empty / waiting state — takes the same space as the table. */
@@ -727,8 +721,6 @@
     left: 50%;
     transform: translateX(-50%);
     background: rgba(16, 185, 129, 0.15);
-    backdrop-filter: blur(8px) saturate(120%);
-    -webkit-backdrop-filter: blur(8px) saturate(120%);
     border: 1px solid rgba(16, 185, 129, 0.35);
     color: #34d399;
     padding: 14px 28px;
@@ -740,7 +732,7 @@
     align-items: center;
     gap: 10px;
     z-index: 10000;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    box-shadow: none;
     max-width: 80%;
     text-align: center;
 }
@@ -918,27 +910,27 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(15, 23, 42, 0.6);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
+    background: rgba(0, 0, 0, 0.65);
     display: flex;
     justify-content: center;
     align-items: center;
     z-index: 9998;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .sb-glass-config-card {
-    background: linear-gradient(135deg, rgba(30, 41, 59, 0.7), rgba(15, 23, 42, 0.8));
-    border: 1px solid rgba(255, 255, 255, 0.08);
+    background: rgba(24, 24, 26, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 16px;
     padding: 24px;
     width: 100%;
     max-width: 640px;
-    box-shadow:
-        0 20px 50px rgba(0, 0, 0, 0.5),
-        inset 0 1px 1px rgba(255, 255, 255, 0.05);
+    box-shadow: none;
     color: #e2e8f0;
+    will-change: transform, opacity;
+    transform: translateZ(0);
 }
 
 .sb-config-header {

@@ -101,23 +101,23 @@
 /* ---------- Individual card ---------- */
 
 #view-integration .integration-card {
-    background: var(--bg-card, #242424);
-    border: 1px solid rgba(255, 255, 255, 0.07);
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 12px;
     padding: 18px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
     gap: 14px;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
-    transition: border-color 0.2s ease, transform 0.18s ease, box-shadow 0.2s ease;
+    box-shadow: none;
+    transition: border-color 0.2s ease, transform 0.18s ease, background 0.2s ease;
     min-height: 168px;
 }
 
 #view-integration .integration-card:hover {
     border-color: rgba(244, 121, 32, 0.45);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.28);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 #view-integration .integration-card-head {
@@ -353,7 +353,7 @@
 #integration-pp-modal .form-input:focus {
     outline: none;
     border-color: var(--ichtus-orange, #f47920);
-    box-shadow: 0 0 10px rgba(244, 121, 32, 0.35);
+    box-shadow: 0 0 0 2px rgba(244, 121, 32, 0.25);
 }
 
 .integration-pp-pwd-wrapper {

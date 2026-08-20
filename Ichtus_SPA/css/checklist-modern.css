@@ -2,16 +2,19 @@
    1. GLOBAL SYSTEM SETTINGS & MODULE WRAPPER
    ========================================================================== */
 :root {
-  --glass-bg: linear-gradient(135deg, rgba(255, 255, 255, 0.08) 0%, rgba(255, 255, 255, 0.02) 100%);
-  --glass-bg-hover: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
-  --glass-edge: rgba(255, 255, 255, 0.2);
-  --glass-edge-bright: rgba(255, 255, 255, 0.38);
-  --fluid-blur: blur(10px) saturate(120%);
-  
+  /* Matte Minimal Glass (Dark Mode) tokens */
+  --glass-bg: rgba(255, 255, 255, 0.03);
+  --glass-bg-hover: rgba(255, 255, 255, 0.06);
+  --glass-edge: rgba(255, 255, 255, 0.08);
+  --glass-edge-bright: rgba(255, 255, 255, 0.16);
+  --fluid-blur: blur(16px);
+
   /* Ichtus Brand Accents */
   --ichtus-orange: #f47920;
   --text-primary: #ffffff;
+  --text-main: #f9f9f7;
   --text-muted: rgba(255, 255, 255, 0.55);
+  --bg-main: #141416;
 }
 
 #view-checklist.app-view.active {
@@ -62,6 +65,14 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
+.cl-subtitle {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 4px 0 0 0;
+  max-width: 720px;
+}
+
 /* Translucent interactive back button */
 .cl-back-btn {
   font-size: 0.9rem;
@@ -83,13 +94,12 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   gap: 12px;
 }
 
-/* Core Buttons turned into Sleek Glass Capsules */
+/* Matte Minimal buttons (flat capsules, no glow) */
 .cl-btn, .btn-switch-role, .cl-action-btn {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgba(255, 255, 255, 0.05);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid var(--glass-edge);
-  border-top: 1px solid var(--glass-edge-bright);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
   padding: 10px 16px;
   border-radius: 12px;
@@ -100,14 +110,13 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.15), inset 0 1px 1px rgba(255,255,255,0.1);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
 }
 
 .cl-btn:hover, .btn-switch-role:hover, .cl-action-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.25), inset 0 1px 2px rgba(255,255,255,0.2);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
 }
 
@@ -135,18 +144,16 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   gap: 20px;
 }
 
-/* Liquid Glass Cards */
+/* Matte Minimal Checklist Cards */
 .cl-checklist-card {
-  background: var(--glass-bg);
+  background: rgba(255, 255, 255, 0.03);
   backdrop-filter: var(--fluid-blur);
   -webkit-backdrop-filter: var(--fluid-blur);
-  border: 1px solid var(--glass-edge);
-  border-top: 1px solid var(--glass-edge-bright);
-  border-left: 1px solid var(--glass-edge-bright);
-  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   padding: 22px;
-  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.1);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
   cursor: pointer;
   display: flex;
   flex-direction: column;
@@ -155,9 +162,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 }
 
 .cl-checklist-card:hover {
-  transform: translateY(-4px) scale(1.01);
-  background: var(--glass-bg-hover);
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.35), inset 0 1px 3px rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .cl-checklist-header {
@@ -180,7 +187,6 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 }
 .cl-checklist-card:hover .cl-repeat-icon {
   color: var(--ichtus-orange);
-  filter: drop-shadow(0 0 6px rgba(244, 121, 32, 0.6));
 }
 
 .cl-checklist-progress {
@@ -226,7 +232,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 .cl-checklist-progress-bar {
   flex-grow: 1;
   height: 6px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.35);
   border-radius: 100px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.05);
@@ -235,7 +241,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   height: 100%;
   border-radius: 100px;
   background: var(--ichtus-orange);
-  box-shadow: 0 0 14px rgba(244, 121, 32, 0.6);
+  box-shadow: 0 0 10px rgba(244, 121, 32, 0.4);
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .cl-checklist-progress-pct {
@@ -276,22 +282,22 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   flex-wrap: wrap;
   gap: 8px;
 }
-/* Translucent fluid Tag elements */
+/* Matte Minimal Tag Pills */
 .cl-tag-pill {
   padding: 6px 14px;
-  border-radius: 100px;
+  border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
   color: #ffffff;
-  background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: inset 0 0 0 2px var(--tag-color), 0 4px 10px rgba(0,0,0,0.1);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 0 0 1px var(--tag-color);
   transition: transform 0.25s ease, background 0.25s ease, border-color 0.25s ease;
 }
 .cl-tag-pill:hover {
   transform: translateY(-1px);
-  box-shadow: inset 0 0 0 3px var(--tag-color), 0 6px 14px rgba(0,0,0,0.15);
-  background: rgba(255,255,255,0.15);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 .cl-clear-filter {
   background: none;
@@ -309,9 +315,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 .cl-detail {
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  border-radius: 16px;
   padding: 24px;
-  box-shadow: inset 0 1px 1px rgba(255,255,255,0.05);
+  box-shadow: none;
 }
 .cl-detail-header {
   display: flex;
@@ -367,9 +373,9 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 .cl-item-checkbox:checked {
-  background: var(--ichtus-orange);
-  border-color: var(--ichtus-orange);
-  box-shadow: 0 0 10px rgba(244, 121, 32, 0.5);
+  background: #f47920;
+  border-color: #f47920;
+  box-shadow: 0 0 8px rgba(244, 121, 32, 0.4);
 }
 .cl-item-checkbox:checked::after {
   content: "✓";
@@ -415,33 +421,36 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 /* ==========================================================================
    6. OVERLAY SCREENS, BLUR MODALS & WINDOWS
    ========================================================================== */
+/* Flat dimming scrim — no stacking blur over cards */
 .overlay-screen, .cl-local-modal {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  background: rgba(0, 0, 0, 0.65);
   z-index: 1000;
   display: flex;
   justify-content: center;
   align-items: center;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
-/* Float Glass Modals Sheets */
+/* Matte Minimal Modal Sheets */
 .task-modal-dialog, .modal-dialog {
-  background: linear-gradient(145deg, rgba(45, 45, 45, 0.75) 0%, rgba(30, 30, 30, 0.45) 100%);
-  border: 1px solid rgba(255,255,255,0.15);
-  border-top: 1px solid rgba(255,255,255,0.3);
-  border-left: 1px solid rgba(255,255,255,0.3);
-  border-radius: 24px;
+  background: rgba(24, 24, 26, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
   width: 100%;
   max-width: 480px;
   padding: 28px;
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.5), inset 0 1px 2px rgba(255,255,255,0.1);
+  box-shadow: none;
   animation: modalPop 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 @keyframes modalPop {
@@ -470,7 +479,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 }
 .form-input, .modal-input, .manage-input {
   background: rgba(0, 0, 0, 0.25);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 10px;
   padding: 10px 14px;
   color: #ffffff;
@@ -480,7 +489,7 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 }
 .form-input:focus, .modal-input:focus, .manage-input:focus {
   border-color: var(--ichtus-orange);
-  box-shadow: 0 0 10px rgba(244, 121, 32, 0.3);
+  box-shadow: 0 0 0 1px var(--ichtus-orange);
   background: rgba(0, 0, 0, 0.4);
 }
 
@@ -538,15 +547,11 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
 .settings-panel {
   width: 340px;
   flex-shrink: 0;
-  background: linear-gradient(
-    145deg, 
-    rgba(45, 45, 45, 0.5) 0%, 
-    rgba(30, 30, 30, 0.25) 100%
-  );
-  backdrop-filter: blur(10px) saturate(120%);
-  -webkit-backdrop-filter: blur(10px) saturate(120%);
-  border-right: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 10px 0 45px rgba(0, 0, 0, 0.4);
+  background: rgba(20, 20, 22, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -606,14 +611,10 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   width: 100%;
   box-sizing: border-box;
   background: rgba(0, 0, 0, 0.25);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  
-  /* Scherpe, lichtreflecterende randen die glasdikte simuleren */
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-  border-left: 1px solid rgba(255, 255, 255, 0.35);
-  
+
+  /* Eenvoudige, effen matte rand — geen glasdikte reflectie */
+  border: 1px solid rgba(255, 255, 255, 0.12);
+
   border-radius: 10px;
   padding: 11px 14px;
   color: #ffffff;
@@ -621,21 +622,19 @@ body.checklist-sidebar-open #view-checklist.app-view.active {
   font-size: 0.95rem;
   font-weight: 500;
   outline: none;
-  transition: border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), background 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
 }
 
-/* Interactieve Hover & Focus states met subtiele gloed */
+/* Interactieve Hover & Focus states */
 .form-input:hover {
   background: rgba(0, 0, 0, 0.35);
-  border-color: rgba(255, 255, 255, 0.35);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 .form-input:focus {
   background: rgba(0, 0, 0, 0.45);
   border-color: var(--ichtus-orange);
-  box-shadow: 
-    0 0 0 1px var(--ichtus-orange),
-    0 0 14px rgba(244, 121, 32, 0.35);
+  box-shadow: 0 0 0 1px var(--ichtus-orange);
 }
 
 /* 4. Specifieke overschrijvingen voor Native WebKit elementen (Chrome, Edge, Safari) */
@@ -679,16 +678,10 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
 
 .btn-dropdown-trigger {
   width: 100%;
-  background: linear-gradient(
-    135deg,
-    rgba(255, 255, 255, 0.08) 0%,
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.3);
-  border-left: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 12px;
   padding: 12px 20px;
   color: #ffffff;
@@ -699,13 +692,13 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   display: flex;
   align-items: center;
   gap: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), background 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
 }
 
 .btn-dropdown-trigger:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.16);
   transform: translateY(-1px);
 }
 
@@ -731,24 +724,19 @@ select.form-input option { background-color: #2d2d2d; color: #ffffff; }
   left: 0;
   width: 100%;
   min-width: 200px;
-  background: linear-gradient(
-    135deg,
-    rgba(45, 45, 45, 0.92) 0%,
-    rgba(30, 30, 30, 0.85) 100%
-  );
-  backdrop-filter: blur(6px) saturate(120%);
-  -webkit-backdrop-filter: blur(6px) saturate(120%);
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-top: 1px solid rgba(255, 255, 255, 0.4);
-  border-left: 1px solid rgba(255, 255, 255, 0.4);
+  background: rgba(24, 24, 26, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
   padding: 6px;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: none;
   z-index: 950;
   box-sizing: border-box;
   opacity: 0;
   visibility: hidden;
   transform: translateY(-8px) scale(0.97);
+  will-change: transform, opacity;
   transition:
     opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
     transform 0.35s cubic-bezier(0.16, 1, 0.3, 1),
@@ -912,16 +900,10 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
 
 .btn-role {
   width: 100%;
-  background: linear-gradient(
-    135deg, 
-    rgba(255, 255, 255, 0.07) 0%, 
-    rgba(255, 255, 255, 0.02) 100%
-  );
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-top: 1px solid rgba(255, 255, 255, 0.35);
-  border-left: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 16px;
   padding: 16px 24px;
   color: #ffffff;
@@ -930,28 +912,467 @@ body.sidebar-collapsed #role-selector.overlay-role-selector {
   letter-spacing: -0.01em;
   cursor: pointer;
   text-align: center;
-  box-shadow: 
-    0 10px 25px rgba(0, 0, 0, 0.2),
-    inset 0 1px 1px rgba(255, 255, 255, 0.1);
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: none;
+  transition: transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
 }
 
 .btn-role:hover {
-  transform: translateY(-2px) scale(1.02);
-  background: linear-gradient(
-    135deg, 
-    rgba(255, 255, 255, 0.15) 0%, 
-    rgba(255, 255, 255, 0.05) 100%
-  );
-  border-color: rgba(255, 255, 255, 0.4);
-  box-shadow: 
-    0 15px 35px rgba(244, 121, 32, 0.25),
-    inset 0 1px 2px rgba(255, 255, 255, 0.25);
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .btn-role:active {
-  transform: translateY(1px) scale(0.99);
-  box-shadow: 
-    0 5px 15px rgba(244, 121, 32, 0.15),
-    inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  transform: translateY(1px);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* ==========================================================================
+   SETTINGS MODAL (Dienst Instellingen) — stg-*
+   ========================================================================== */
+.stg-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.stg-modal {
+  background: rgba(24, 24, 26, 0.92);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 440px;
+  padding: 24px;
+  box-shadow: none;
+  color: var(--text-primary);
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
+.stg-modal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.stg-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 1.4rem;
+  cursor: pointer;
+}
+
+.stg-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.stg-form-group label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.stg-form-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+}
+
+.stg-input-trigger {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--glass-edge);
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.95rem;
+  outline: none;
+  transition: 0.2s;
+  box-sizing: border-box;
+}
+
+.stg-input-trigger:focus,
+.stg-input-trigger.active {
+  border-color: var(--ichtus-orange);
+  box-shadow: 0 0 0 1px var(--ichtus-orange), 0 0 10px rgba(244, 121, 32, 0.3);
+  background: rgba(0, 0, 0, 0.6);
+}
+
+button.stg-input-trigger {
+  cursor: pointer;
+  text-align: left;
+}
+
+.stg-picker-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.stg-dropdown-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: #18191b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.7);
+  z-index: 1100;
+  user-select: none;
+}
+
+/* Calendar picker */
+.stg-cal-panel {
+  width: 280px;
+}
+
+.stg-cal-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.stg-cal-nav {
+  background: none;
+  border: none;
+  color: #c4c7c5;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.stg-cal-nav:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.stg-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 0.75rem;
+  color: #c4c7c5;
+  margin-bottom: 6px;
+}
+
+.stg-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.stg-cal-cell {
+  height: 32px;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #e3e3e3;
+}
+
+.stg-cal-cell:hover:not(.selected) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stg-cal-cell.selected {
+  background: #a8c7fa;
+  color: #041e49;
+  font-weight: 700;
+}
+
+.stg-cal-cell.other {
+  color: #555;
+}
+
+/* Time picker */
+.stg-time-panel {
+  width: 100%;
+}
+
+.stg-time-wrap {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  text-align: center;
+}
+
+.stg-time-col {
+  width: 45%;
+}
+
+.stg-time-col span {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.stg-time-scroll {
+  max-height: 140px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  scrollbar-width: thin;
+}
+
+.stg-time-btn {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.7);
+  padding: 5px 0;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
+.stg-time-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.stg-time-btn.selected {
+  background: #a8c7fa;
+  color: #041e49;
+  font-weight: 700;
+}
+
+/* Preset picker */
+.stg-preset-panel {
+  width: 100%;
+  padding: 8px;
+}
+
+.stg-preset-item {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: #eee;
+  font-size: 0.9rem;
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+}
+
+.stg-preset-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.stg-preset-item.selected {
+  background: rgba(168, 199, 250, 0.15);
+  color: #a8c7fa;
+  font-weight: 700;
+}
+
+.stg-preset-item.stg-orange {
+  color: var(--ichtus-orange);
+}
+
+.stg-preset-item.stg-red {
+  color: #ef4444;
+}
+
+.stg-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 4px 0;
+}
+
+.stg-btn {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: var(--fluid-blur);
+  -webkit-backdrop-filter: var(--fluid-blur);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.stg-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  transform: translateY(-1px);
+}
+
+.stg-btn-danger {
+  width: 100%;
+  margin-top: 10px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.stg-btn-danger:hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+/* ==========================================================================
+   10. DASHBOARD LAYOUT (matches the rest of the apps: agenda, analytics,
+       setlist, supervisor, settings)
+   ========================================================================== */
+
+/* Dashboard wrapper — same centering/max-width as the other apps */
+#view-checklist .dashboard {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  width: 100%;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+/* --- Header block with title + subtitle --- */
+#view-checklist .at-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding-bottom: 14px;
+  margin-bottom: 8px;
+}
+
+#view-checklist .at-title-block h1 {
+  font-size: 27px;
+  font-weight: 800;
+  color: var(--text-main, #f9f9f7);
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+#view-checklist .at-subtitle {
+  color: var(--text-muted, #9aa1af);
+  font-size: 0.8rem;
+  font-weight: 500;
+  margin: 0;
+  max-width: 720px;
+}
+
+/* KPI value numerals */
+#view-checklist .value {
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Metrics Grid (KPI Cards) --- */
+#view-checklist .metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+  width: 100%;
+}
+
+#view-checklist .metric-card {
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  padding: 10px 16px;
+  min-height: 64px;
+}
+
+#view-checklist .metric-label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+
+#view-checklist .metric-card .value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.1;
+  color: var(--text-primary, #ffffff);
+  letter-spacing: -0.02em;
+}
+
+/* Color-coded edges */
+#view-checklist .metric-card.orange-edge { border-color: rgba(244, 121, 32, 0.25); }
+#view-checklist .metric-card.blue-edge   { border-color: rgba(52, 152, 219, 0.25); }
+#view-checklist .orange-text { color: var(--ichtus-orange) !important; }
+#view-checklist .blue-text   { color: var(--ichtus-blue, #a8c7fa) !important; }
+
+/* --- Controls Row --- */
+#view-checklist .controls-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+
+#view-checklist .button-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+#view-checklist .control-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+#view-checklist .cl-countdown {
+  font-size: 1.35rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--ichtus-orange);
+}
+
+/* --- Section panel --- */
+#view-checklist .section-title {
+  display: block;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 12px;
+}
+
+#view-checklist .table-container-wrapper {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 14px;
+  padding: 4px;
+  overflow: hidden;
+  width: 100%;
+}
+
+#view-checklist .table-card-inner {
+  background: rgba(0, 0, 0, 0.4);
+  padding: 16px;
+  border-radius: 10px;
 }

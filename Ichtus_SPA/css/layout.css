@@ -56,6 +56,13 @@ html, body {
 
 .app-view.active {
     display: block;
+    background: var(--bg-main);
+}
+
+/* Numeric alignment: all table data + readouts use tabular figures */
+.app-view table td,
+.app-view table th {
+    font-variant-numeric: tabular-nums;
 }
 
 /* ==========================================================================

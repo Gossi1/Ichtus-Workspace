@@ -225,15 +225,15 @@
 }
 
 #view-songidassigner .sa-btn-primary {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.95), rgba(37, 99, 235, 1));
+    background: #3498db;
     color: #fff;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.3);
+    box-shadow: none;
 }
 
 #view-songidassigner .sa-btn-accent {
-    background: linear-gradient(135deg, rgba(244, 121, 32, 0.95), rgba(217, 95, 14, 1));
+    background: var(--ichtus-orange);
     color: #fff;
-    box-shadow: 0 4px 14px rgba(244, 121, 32, 0.3);
+    box-shadow: none;
 }
 
 #view-songidassigner .sa-btn-secondary {

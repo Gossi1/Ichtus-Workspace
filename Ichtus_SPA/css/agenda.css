@@ -55,13 +55,11 @@
    ========================================================================== */
 #view-agenda .action-bar,
 #view-agenda .toolbar {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
-    backdrop-filter: blur(10px) saturate(120%);
-    -webkit-backdrop-filter: blur(10px) saturate(120%);
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.38);
-    border-left: 1px solid rgba(255, 255, 255, 0.38);
-    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
     padding: 16px;
     display: flex;
     flex-wrap: wrap;
@@ -69,7 +67,7 @@
     justify-content: center;
     gap: 12px;
     margin-bottom: 16px;
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    box-shadow: none;
     width: 100%;
     max-width: 800px;
 }
@@ -102,7 +100,6 @@
 #view-agenda .btn-upload {
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.2);
-    border-top: 1px solid rgba(255, 255, 255, 0.38);
     padding: 10px 18px;
     border-radius: 10px;
     font-size: 0.9rem;
@@ -125,9 +122,8 @@
 }
 #view-agenda .btn-upload:hover,
 #view-agenda .btn-label:hover {
-    background: linear-gradient(135deg, rgba(244, 121, 32, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(244, 121, 32, 0.12) !important;
     border-color: #f47920 !important;
-    box-shadow: 0 4px 15px rgba(244, 121, 32, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -137,9 +133,8 @@
     color: #3498db !important;
 }
 #view-agenda .btn-load:hover {
-    background: linear-gradient(135deg, rgba(52, 152, 219, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(52, 152, 219, 0.12) !important;
     border-color: #3498db !important;
-    box-shadow: 0 4px 15px rgba(52, 152, 219, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -149,9 +144,8 @@
     color: #27ae60 !important;
 }
 #view-agenda .btn-dl:hover {
-    background: linear-gradient(135deg, rgba(39, 174, 96, 0.12) 0%, rgba(255, 255, 255, 0.02) 100%) !important;
+    background: rgba(39, 174, 96, 0.12) !important;
     border-color: #27ae60 !important;
-    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.25) !important;
     transform: translateY(-1px);
 }
 
@@ -160,8 +154,8 @@
     color: #f9f9f7;
 }
 #view-agenda .btn-nav:hover {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0%, rgba(255, 255, 255, 0.05) 100%);
-    border-color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.09);
+    border-color: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
 }
 
@@ -232,7 +226,7 @@
 }
 #view-agenda #customLabel:focus {
     border-color: #f47920;
-    box-shadow: 0 0 10px rgba(244, 121, 32, 0.35);
+    box-shadow: 0 0 0 2px rgba(244, 121, 32, 0.25);
 }
 
 /* ==========================================================================
