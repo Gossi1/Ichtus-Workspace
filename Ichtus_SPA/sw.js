@@ -10,7 +10,6 @@ const CACHE_NAME = 'ichtus-spa-v7';
 const PRECACHE_URLS = [
   '/Ichtus_SPA/',
   '/Ichtus_SPA/index.html',
-  '/Ichtus_SPA/css/style.css?v=10',
   '/Ichtus_SPA/css/checklist-modern.css',
   '/shared-assets/css/branding.css?v=2.1.0',
   '/Ichtus_SPA/js/router.js',
