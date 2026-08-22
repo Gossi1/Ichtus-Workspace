@@ -217,7 +217,7 @@ const setlistModule = {
             const dateStr = e.detail?.date || 'none';
             console.log('[SPA] Received worshiptools-setlist event, length:', e.detail?.setlist?.length, 'date:', dateStr);
             if (e.detail && e.detail.setlist) {
-                this.receiveSetlist(e.detail.setlist, e.detail.date);
+                this.receiveSetlist(e.detail.setlist, e.detail.date, e.detail.structured);
             }
         });
 
@@ -251,7 +251,7 @@ const setlistModule = {
                 // Only use server data if we don't already have extension data
                 if (!this.receivedSetlist && items) {
                     console.log('[SPA] Fetching setlist from server API, items:', items.length, 'date:', date);
-                    this.receiveSetlist(items, date);
+                    this.receiveSetlist(items, date, structured);
                 }
             }
         } catch (err) {
