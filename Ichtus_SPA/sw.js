@@ -4,13 +4,24 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v7';
+const CACHE_NAME = 'ichtus-spa-v8';
 
 // Static assets to pre-cache on install.
 const PRECACHE_URLS = [
   '/Ichtus_SPA/',
   '/Ichtus_SPA/index.html',
+  '/Ichtus_SPA/css/base.css',
+  '/Ichtus_SPA/css/layout.css',
   '/Ichtus_SPA/css/checklist-modern.css',
+  '/Ichtus_SPA/css/dashboard.css',
+  '/Ichtus_SPA/css/agenda.css',
+  '/Ichtus_SPA/css/patchbay.css',
+  '/Ichtus_SPA/css/analytics.css',
+  '/Ichtus_SPA/css/ndi.css',
+  '/Ichtus_SPA/css/setlist.css',
+  '/Ichtus_SPA/css/stagebuilder.css',
+  '/Ichtus_SPA/css/settings.css',
+  '/Ichtus_SPA/css/integration.css',
   '/shared-assets/css/branding.css?v=2.1.0',
   '/Ichtus_SPA/js/router.js',
   '/Ichtus_SPA/js/state.js',
