@@ -294,7 +294,10 @@ const setlistModule = {
         // preview first, then update badges once the library fetch resolves.
         this._loadKnownSongIdsFromLibrary()
             .then(knownIds => {
-                this.knownSongIds = knownIds;
+                // An empty Set means the library loaded but has no songs —
+                // treat it the same as null so we don't false-positive NIEUW
+                // on every single song.
+                this.knownSongIds = knownIds.size > 0 ? knownIds : null;
                 const newCount = this._countNewSongs();
                 console.log('[SPA] Known song IDs loaded:', knownIds.size, '— new in this setlist:', newCount);
                 this.renderSongPreview();
@@ -312,9 +315,9 @@ const setlistModule = {
             })
             .catch(err => {
                 console.warn('[SPA] Could not load library for new-song detection:', err?.message);
-                // Library unreachable — fall back to a plain render with
-                // no badges. Keeps the rest of the workflow working.
-                this.knownSongIds = new Set();
+                // Library unreachable — fall back to null so renderList
+                // skips NIEUW-badge logic entirely (no false positives).
+                this.knownSongIds = null;
                 this.renderSongPreview();
             });
 
