@@ -412,7 +412,7 @@ python server.py --open
 
 Firebase is **optioneel** (local-first + cloud-backup): de app draait volledig zonder config. De **browser** praat nooit direct met Firebase — alle state gaat via de lokale server (REST + WebSocket) en de server schrijft pas na een debounce een backup weg via de Firebase **Admin SDK**.
 
-> Zie [`FIREBASE_BACKUP.md`](FIREBASE_BACKUP.md) voor de volledige architectuur (topic-store, debounce, deny-all rules).
+> Zie [`FIREBASE_BACKUP.md`](docs/FIREBASE_BACKUP.md) voor de volledige architectuur (topic-store, debounce, deny-all rules).
 
 **Setup:**
 
