@@ -52,6 +52,12 @@ export function initWebSocket(server) {
                 if (msg.type === 'ping') {
                     ws.send(JSON.stringify({ event: 'pong' }));
                 }
+                if (msg.type === 'check-update') {
+                    // Lazy-import to avoid circular deps at load time
+                    import('./routes/system.js').then(({ triggerUpdateCheck }) => {
+                        triggerUpdateCheck('ws');
+                    }).catch(() => {});
+                }
             } catch (_) { /* ignore malformed */ }
         });
 

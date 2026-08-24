@@ -26,7 +26,7 @@ import { networkInterfaces } from 'os';
 import { initFirebaseAdmin, getFirestore } from './lib/firebase.js';
 // (consolidated elsewhere)
 import { initWebSocket, broadcast } from './ws.js';
-import systemRoutes, { startUpdatePolling } from './routes/system.js';
+import systemRoutes, { initUpdateChecker } from './routes/system.js';
 import x32Routes from './routes/x32.js';
 import iemRoutes, { initIemState, iemStateFileExists } from './routes/iem.js';
 import worshiptoolsRoutes from './routes/worshiptools.js';
@@ -159,10 +159,9 @@ app.get('*', (req, res) => {
 const server = createServer(app);
 initWebSocket(server);
 
-// Watch the remote repo for new commits and broadcast a single
-// `app:update` event on the WS hub the first time a new HEAD appears.
-// Connected SPA clients then surface the popup without polling themselves.
-startUpdatePolling(broadcast, 5 * 60 * 1000);
+// Check for remote updates on startup and when triggered by webhook / WS.
+// Connected SPA clients surface the popup when a new HEAD is detected.
+initUpdateChecker(broadcast);
 
 // ── Opt-in migratie: oude mic_monitor Firestore docs → iem-state.json ──
 // De mic/IEM monitor praat al niet meer met Firestore; iem-state.json is de

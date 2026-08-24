@@ -236,7 +236,7 @@ const updatePopup = {
         this._bound = true;
 
         // Server pushes `app:update` via the WS hub (see server.js +
-        // startUpdatePolling). ws-client.js dispatches it as `ws:app:update`
+        // initUpdateChecker). ws-client.js dispatches it as `ws:app:update`
         // on document. We show the modal directly from there so all
         // connected devices — not just the one whose updateChecker
         // polled last — see the popup the moment a new HEAD is detected.

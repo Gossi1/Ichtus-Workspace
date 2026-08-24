@@ -286,8 +286,33 @@ router.get('/check-update', async (req, res) => {
     }
 });
 
+// Manual trigger — POST /api/check-update-now
+// Allows the SPA or any admin tool to force an immediate check.
+router.post('/check-update-now', async (req, res) => {
+    try {
+        await triggerUpdateCheck('manual');
+        res.json({ success: true, message: 'Update check gestart.' });
+    } catch (err) {
+        res.status(500).json({ success: false, error: err.message?.slice(0, 200) });
+    }
+});
+
+// GitHub webhook — POST /api/webhook/push
+// Configure this URL in your GitHub repo under Settings → Webhooks.
+// No secret verification for now — the endpoint is on a local network.
+router.post('/webhook/push', async (req, res) => {
+    log('[webhook] GitHub push event ontvangen');
+    try {
+        await triggerUpdateCheck('webhook');
+        res.json({ success: true });
+    } catch (err) {
+        log('[webhook] check failed: ' + (err.message || '').slice(0, 120));
+        res.status(500).json({ success: false });
+    }
+});
+
 // Reusable: probe git + collect changelog. Used by both the REST endpoint
-// and the WebSocket broadcaster (startUpdatePolling below).
+// and the WebSocket event-driven update checker.
 export async function checkGitUpdates() {
     const { stdout: branchOut } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: ROOT_DIR, timeout: 10_000 });
     const branch = branchOut.trim();
@@ -360,58 +385,62 @@ function parseCommitLog(raw) {
     });
 }
 
-// ── Update Polling + WS Broadcast ─────────────────────────────────────
+// ── Update Checker (event-driven) ─────────────────────────────────────
 //
-// Polls the remote every `intervalMs` and broadcasts an `app:update`
-// event on the WebSocket hub if commits have appeared since the last
-// broadcast. The SPA listens for that event in ws-client.js and shows
-// the modal in js/modules/update-popup.js — no separate REST poll needed
-// on every connected device.
-let _pollingTimer = null;
+// Replaces the old 5-min polling loop. Checks are triggered by:
+//   1. Server startup (one initial check after 30s)
+//   2. GitHub webhook  → POST /api/webhook/push
+//   3. WebSocket client → { type: "check-update" }
+//   4. Manual REST call → POST /api/check-update-now
+//
+// The SPA listens for the `app:update` WS event in ws-client.js and
+// shows the modal in js/modules/update-popup.js.
+let _broadcast = null;
 let _lastBroadcastSha = null;
-let _pollingInFlight = false;
+let _checkInFlight = false;
 
-export function startUpdatePolling(broadcast, intervalMs = 5 * 60 * 1000) {
-    if (typeof broadcast !== 'function') {
-        log('[update-polling] startUpdatePolling: broadcast is not a function, skipping');
+/**
+ * Initialise the update checker. Call once from server.js after the
+ * WebSocket hub is ready.
+ */
+export function initUpdateChecker(broadcastFn) {
+    if (typeof broadcastFn !== 'function') {
+        log('[update-checker] initUpdateChecker: broadcast is not a function, skipping');
         return;
     }
-    if (_pollingTimer) {
-        log('[update-polling] already running');
-        return;
-    }
+    _broadcast = broadcastFn;
 
-    const tick = async () => {
-        if (_pollingInFlight) return;
-        _pollingInFlight = true;
-        try {
-            const payload = await checkGitUpdates();
-            if (payload.update_available && payload.head_remote) {
-                if (payload.head_remote !== _lastBroadcastSha) {
-                    _lastBroadcastSha = payload.head_remote;
-                    log(`[update-polling] broadcasting app:update @ ${payload.head_remote.slice(0, 7)} (${payload.behind_count} commits)`);
-                    try { broadcast('app:update', payload); } catch { /* hub gone */ }
-                }
-            } else {
-                _lastBroadcastSha = null;
-            }
-        } catch (err) {
-            log(`[update-polling] check failed: ${err.message?.slice(0, 120)}`);
-        } finally {
-            _pollingInFlight = false;
-        }
-    };
-
-    setTimeout(tick, 30_000);
-    _pollingTimer = setInterval(tick, intervalMs);
-    log(`[update-polling] gestart — interval ${intervalMs / 1000}s`);
+    // One initial check after startup so clients see pending updates fast.
+    setTimeout(() => triggerUpdateCheck('startup'), 30_000);
+    log('[update-checker] geinitialiseerd (event-driven, geen polling)');
 }
 
-export function stopUpdatePolling() {
-    if (_pollingTimer) {
-        clearInterval(_pollingTimer);
-        _pollingTimer = null;
-        _lastBroadcastSha = null;
+/**
+ * Run a single update check and broadcast `app:update` if new commits
+ * are found. Safe to call multiple times - concurrent calls are deduped.
+ *
+ * @param {string} source - Who triggered this (for logging): 'startup' | 'webhook' | 'ws' | 'manual'
+ */
+export async function triggerUpdateCheck(source = 'manual') {
+    if (!_broadcast) return;
+    if (_checkInFlight) return;
+    _checkInFlight = true;
+
+    try {
+        const payload = await checkGitUpdates();
+        if (payload.update_available && payload.head_remote) {
+            if (payload.head_remote !== _lastBroadcastSha) {
+                _lastBroadcastSha = payload.head_remote;
+                log(`[update-checker] broadcasting app:update @ ${payload.head_remote.slice(0, 7)} (${payload.behind_count} commits) [${source}]`);
+                try { _broadcast('app:update', payload); } catch { /* hub gone */ }
+            }
+        } else {
+            _lastBroadcastSha = null;
+        }
+    } catch (err) {
+        log(`[update-checker] check failed [${source}]: ${err.message?.slice(0, 120)}`);
+    } finally {
+        _checkInFlight = false;
     }
 }
 
