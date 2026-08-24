@@ -1293,6 +1293,34 @@ function injectFloatingSyncButton() {
         .ichtus-sync-status .dot.busy { background: #3b82f6; box-shadow: 0 0 6px #3b82f6; animation: ichtusPulse 1s infinite; }
         .ichtus-sync-status .dot.err { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
         .ichtus-sync-status .dot.idle { background: #4b5563; }
+
+        /* --- Progress bar --- */
+        .ichtus-sync-progress {
+            width: 100%;
+            height: 3px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .ichtus-sync-progress.active { opacity: 1; }
+        .ichtus-sync-progress-fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #3b82f6, #60a5fa);
+            border-radius: 2px;
+            transition: width 0.4s ease;
+        }
+        .ichtus-sync-progress-fill.done {
+            background: #22c55e;
+            width: 100% !important;
+        }
+        .ichtus-sync-progress-fill.err {
+            background: #ef4444;
+            width: 100% !important;
+        }
     `;
 
     // Inject stylesheet
@@ -1336,8 +1364,10 @@ function injectFloatingSyncButton() {
             </div>
             <div class="ichtus-panel-body" id="ichtus-panel-body"></div>
             <div class="ichtus-sync-status" id="ichtus-sync-status">
-                <span class="dot idle"></span>
-                <span>Klaar om te synchroniseren</span>
+                <div style="width:100%">
+                    <div style="display:flex;align-items:center;gap:6px"><span class="dot idle"></span><span>Klaar om te synchroniseren</span></div>
+                    <div class="ichtus-sync-progress" id="ichtus-sync-progress"><div class="ichtus-sync-progress-fill" id="ichtus-sync-progress-fill"></div></div>
+                </div>
             </div>
         `;
 
@@ -1421,12 +1451,23 @@ function injectFloatingSyncButton() {
 
         // 4. Sync button
         html += `
-            <button class="ichtus-sync-btn" id="ichtus-do-sync">🔄 Synchroniseren</button>
+            <button class="ichtus-sync-btn" id="ichtus-do-sync">Synchroniseren</button>
         `;
 
         body.innerHTML = html;
 
         // ── Sync action ──
+
+            // Progress bar helper
+            function updateSyncProgress(pct) {
+                const bar = document.getElementById('ichtus-sync-progress-fill');
+                const wrap = document.getElementById('ichtus-sync-progress');
+                if (bar && wrap) {
+                    wrap.classList.add('active');
+                    bar.style.width = Math.min(pct, 100) + '%';
+                }
+            }
+
         document.getElementById('ichtus-do-sync').onclick = async () => {
             const doSetlist = document.getElementById('ichtus-sync-setlist').checked;
             const doRoster = document.getElementById('ichtus-sync-roster').checked;
@@ -1437,7 +1478,7 @@ function injectFloatingSyncButton() {
             syncBtn.disabled = true;
             syncBtn.classList.add('syncing');
             syncBtn.innerHTML = '⏳ Synchroniseren...';
-            statusEl.innerHTML = '<span class="dot busy"></span><span>Bezig met synchroniseren...</span>';
+            statusEl.innerHTML = '<div style="width:100%"><div style="display:flex;align-items:center;gap:6px"><span class="dot busy"></span><span>Bezig met synchroniseren...</span></div><div class="ichtus-sync-progress active" id="ichtus-sync-progress"><div class="ichtus-sync-progress-fill" id="ichtus-sync-progress-fill"></div></div></div>';
 
             try {
                 if (doSetlist && doRoster) {
@@ -1445,7 +1486,13 @@ function injectFloatingSyncButton() {
                     await runAllTeamsSync({
                         onProgress: (msg) => {
                             console.log('[WT→SPA] Sync:', msg);
-                            statusEl.innerHTML = `<span class="dot busy"></span><span>${msg}</span>`;
+                            statusEl.querySelector('span:last-child').textContent = msg;
+                            // Parse "Team X/Y" to update progress bar
+                            const teamMatch = msg.match(/Team\s+(\d+)\/(\d+)/);
+                            if (teamMatch) {
+                                const pct = Math.round((parseInt(teamMatch[1]) / parseInt(teamMatch[2])) * 100);
+                                updateSyncProgress(pct);
+                            }
                         }
                     });
                 } else if (doSetlist) {
@@ -1458,7 +1505,12 @@ function injectFloatingSyncButton() {
                         skipSetlist: true,
                         onProgress: (msg) => {
                             console.log('[WT→SPA] Sync:', msg);
-                            statusEl.innerHTML = `<span class="dot busy"></span><span>${msg}</span>`;
+                            statusEl.querySelector('span:last-child').textContent = msg;
+                            const teamMatch = msg.match(/Team\s+(\d+)\/(\d+)/);
+                            if (teamMatch) {
+                                const pct = Math.round((parseInt(teamMatch[1]) / parseInt(teamMatch[2])) * 100);
+                                updateSyncProgress(pct);
+                            }
                         }
                     });
                 }
@@ -1466,22 +1518,22 @@ function injectFloatingSyncButton() {
                 syncBtn.innerHTML = '✅ Gesynchroniseerd!';
                 syncBtn.classList.remove('syncing');
                 if (!statusEl.querySelector('.ok') && !statusEl.querySelector('.err')) {
-                    statusEl.innerHTML = '<span class="dot ok"></span><span>✅ Alles gesynchroniseerd!</span>';
+                    statusEl.innerHTML = '<div style="width:100%"><div style="display:flex;align-items:center;gap:6px"><span class="dot ok"></span><span>✅ Alles gesynchroniseerd!</span></div><div class="ichtus-sync-progress active" id="ichtus-sync-progress"><div class="ichtus-sync-progress-fill done" id="ichtus-sync-progress-fill"></div></div></div>';
                 }
                 setTimeout(() => {
                     syncBtn.disabled = false;
-                    syncBtn.innerHTML = '🔄 Synchroniseren';
-                    statusEl.innerHTML = '<span class="dot idle"></span><span>Klaar om opnieuw te synchroniseren</span>';
+                    syncBtn.innerHTML = 'Synchroniseren';
+                    statusEl.innerHTML = '<div style="width:100%"><div style="display:flex;align-items:center;gap:6px"><span class="dot idle"></span><span>Klaar om opnieuw te synchroniseren</span></div></div>';
                 }, 3000);
             } catch (err) {
                 console.error('[WT→SPA] Sync error:', err);
                 syncBtn.innerHTML = '❌ Mislukt';
                 syncBtn.classList.remove('syncing');
-                statusEl.innerHTML = `<span class="dot err"></span><span>Sync mislukt: ${err?.message || 'onbekend'}</span>`;
+                statusEl.innerHTML = `<div style="width:100%"><div style="display:flex;align-items:center;gap:6px"><span class="dot err"></span><span>Sync mislukt: ${err?.message || 'onbekend'}</span></div><div class="ichtus-sync-progress active" id="ichtus-sync-progress"><div class="ichtus-sync-progress-fill err" id="ichtus-sync-progress-fill"></div></div></div>`;
                 setTimeout(() => {
                     syncBtn.disabled = false;
-                    syncBtn.innerHTML = '🔄 Synchroniseren';
-                    statusEl.innerHTML = '<span class="dot idle"></span><span>Klaar om opnieuw te proberen</span>';
+                    syncBtn.innerHTML = 'Synchroniseren';
+                    statusEl.innerHTML = '<div style="width:100%"><div style="display:flex;align-items:center;gap:6px"><span class="dot idle"></span><span>Klaar om opnieuw te proberen</span></div></div>';
                 }, 4000);
             }
         };
