@@ -456,99 +456,83 @@
                 </div>
             </div>
 
-            <!-- Admin Sidebar (left) -->
-            <aside id='admin-sidebar' class='settings-panel hidden'>
-                <div class='panel-header'>
-                    <h2 class='panel-title heading-font'>Instellingen</h2>
-                </div>
-                <div class='panel-content spaced'>
-                    <div class='form-group'>
-                        <label class='form-label'>Start Datum &amp; Tijd</label>
-                        <div class='form-row'>
-                            <input type='date' id='inp-date' class='form-input'>
-                            <input type='time' id='inp-time' class='form-input time-input'>
+            <!-- Main Checklist Area -->
+            <div class='checklist-main'>
+                <div class='dashboard'>
+
+                    <!-- Header block with subtitle -->
+                    <div class='at-header'>
+                        <div class='at-title-block'>
+                            <h1 class='heading-font'>Checklists</h1>
+                            <p class='at-subtitle'>Beheer de taken en checklists voor de dienst: wijs teams toe, stel deadlines in en volg de voortgang live.</p>
+                            <span id='cl-back-btn' class='cl-back-btn hidden' onclick='checklistModule.closeChecklistDetail()'>&#8592; Terug naar overzicht</span>
+                        </div>
+                        <div class='cl-header-right'>
+                            <button id='btn-add-checklist' class='cl-btn cl-btn-add' title='Nieuwe checklist toevoegen' onclick='checklistModule.showCreateChecklistModal()'>+</button>
+                            <button id='btn-settings' class='cl-btn cl-btn-settings' title='Instellingen' onclick="checklistModule.toggleSettingsModal()">&#9881;</button>
+                            <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
                         </div>
                     </div>
-                    <div class='form-group'>
-                        <label class='form-label'>Service Preset</label>
-                        <div class='form-row'>
-                            <div class='modern-dropdown-wrapper' id='preset-dropdown-wrapper'>
-                                <button type='button' id='btn-preset-trigger' class='btn-dropdown-trigger'>
-                                    <span id='preset-trigger-text'>Selecteer...</span>
-                                    <svg class='dropdown-caret' viewBox='0 0 10 10'><path d='M2 4l3 3 3-3'/></svg>
-                                </button>
-                                <div class='modern-dropdown-menu' id='preset-menu-dropdown'>
-                                    <div id='preset-list-items'></div>
-                                    <div class='modern-dropdown-divider'></div>
-                                    <button type='button' class='modern-dropdown-item' id='btn-add-preset-modern'>
-                                        <span>➕ Nieuwe lijst (Leeg)</span>
-                                    </button>
-                                    <button type='button' class='modern-dropdown-item' id='btn-dup-preset-modern'>
-                                        <span>📋 Dupliceer lijst</span>
-                                    </button>
-                                    <button type='button' class='modern-dropdown-item text-orange' id='btn-rename-preset-modern'>
-                                        <span>✏️ Hernoem lijst</span>
-                                    </button>
-                                    <button type='button' class='modern-dropdown-item text-red' id='btn-del-preset-modern'>
-                                        <span>✕ Verwijder lijst</span>
-                                    </button>
+
+                    <!-- ========== KPI LIVE METRICS ========== -->
+                    <div class='metrics-grid'>
+                        <div class='action-bar metric-card'>
+                            <strong class='metric-label'>Checklists</strong>
+                            <div class='value' id='cl-metric-total'>0</div>
+                        </div>
+                        <div class='action-bar metric-card orange-edge'>
+                            <strong class='metric-label orange-text'>Open Taken</strong>
+                            <div class='value orange-text' id='cl-metric-open'>0</div>
+                        </div>
+                        <div class='action-bar metric-card blue-edge'>
+                            <strong class='metric-label blue-text'>Voortgang</strong>
+                            <div class='value blue-text' id='cl-metric-progress'>0%</div>
+                        </div>
+                        <div class='action-bar metric-card'>
+                            <strong class='metric-label'>Countdown tot dienst</strong>
+                            <div class='value' id='main-countdown'>00:00:00</div>
+                        </div>
+                    </div>
+
+                    <!-- ========== QUICK ACTIONS & RUN-TIME CONTROLS ========== -->
+                    <div class='action-bar controls-row'>
+                        <div class='button-group'>
+                            <button id='btn-open-tag-manager' class='cl-action-btn'>&#127991; Tags</button>
+                            <button id='btn-open-task-modal-main' class='cl-action-btn'>&#9999;&#65039; Beheer</button>
+                        </div>
+                    </div>
+
+                    <div id='note-banner' class='note-banner hidden'></div>
+
+                    <!-- Checklist Overview (default view) -->
+                    <div id='cl-overview' class='cl-overview'>
+                        <div class='canvas-wrapper table-container-wrapper'>
+                            <div class='table-card-inner'>
+                                <strong class='section-title'>Checklists</strong>
+                                <div id='cl-checklist-list' class='cl-checklist-list'>
+                                    <!-- Checklists rendered here -->
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div class='panel-footer'>
-                    <button id='btn-reset' class='btn-reset'>Reset &amp; Archiveer</button>
-                </div>
-            </aside>
 
-            <!-- Main Checklist Area -->
-            <div class='checklist-main'>
-                <!-- Header with action buttons -->
-                <div class='cl-header-bar'>
-                    <div class='cl-header-left'>
-                        <span class='cl-header-title heading-font'>Checklists</span>
-                        <span id='cl-back-btn' class='cl-back-btn hidden' onclick='checklistModule.closeChecklistDetail()'>&#8592; Terug naar overzicht</span>
-                    </div>
-                    <div class='cl-header-right'>
-                        <button id='btn-add-checklist' class='cl-btn cl-btn-add' title='Nieuwe checklist toevoegen' onclick='checklistModule.showCreateChecklistModal()'>+</button>
-                        <button id='btn-settings' class='cl-btn cl-btn-settings' title='Instellingen' onclick="checklistModule.toggleAdminSidebar()">&#9881;</button>
-                        <button onclick='checklistModule.showRoleSelector()' class='btn-switch-role'>&#10236; Wissel Rol</button>
-                    </div>
-                </div>
+                        <!-- Tag Filter Bar -->
+                        <div id='cl-tag-filters' class='cl-tag-filters hidden'>
+                            <span class='cl-filter-label'>Filter:</span>
+                            <div id='cl-tag-filter-list' class='cl-tag-filter-list'></div>
+                            <button id='cl-clear-tag-filter' class='cl-clear-filter hidden' onclick='checklistModule.clearTagFilter()'>&#10005; wissen</button>
+                        </div>
 
-                <!-- Timer and Preset Info -->
-
-
-                <div id='note-banner' class='note-banner hidden'></div>
-
-                <!-- Checklist Overview (default view) -->
-                <div id='cl-overview' class='cl-overview'>
-                    <div id='cl-checklist-list' class='cl-checklist-list'>
-                        <!-- Checklists rendered here -->
                     </div>
 
-                    <!-- Action Buttons Bar -->
-                    <div class='cl-action-bar'>
-                        <button id='btn-open-tag-manager' class='cl-action-btn'>&#127991; Tags</button>
-                        <button id='btn-open-task-modal-main' class='cl-action-btn'>&#9999;&#65039; Beheer</button>
-                    </div>
-
-                    <!-- Tag Filter Bar -->
-                    <div id='cl-tag-filters' class='cl-tag-filters hidden'>
-                        <span class='cl-filter-label'>Filter:</span>
-                        <div id='cl-tag-filter-list' class='cl-tag-filter-list'></div>
-                        <button id='cl-clear-tag-filter' class='cl-clear-filter hidden' onclick='checklistModule.clearTagFilter()'>&#10005; wissen</button>
+                    <!-- Checklist Detail View (hidden by default) -->
+                    <div id='cl-detail' class='cl-detail hidden'>
+                        <div id='cl-detail-content' class='cl-detail-content'>
+                            <!-- Detail view rendered here -->
+                        </div>
                     </div>
 
                 </div>
-
-                <!-- Checklist Detail View (hidden by default) -->
-                <div id='cl-detail' class='cl-detail hidden'>
-                    <div id='cl-detail-content' class='cl-detail-content'>
-                        <!-- Detail view rendered here -->
-                    </div>
-                </div>
+            </div>
 
             <!-- Add Item Modal -->
             <div id='cl-add-item-modal' class='cl-local-modal hidden'>
@@ -644,6 +628,64 @@
                     <div class='modal-footer'>
                         <button id='btn-close-task-modal' class='btn-modal btn-modal-close'>Sluiten</button>
                     </div>
+                </div>
+            </div>
+
+            <!-- Settings Modal (Dienst Instellingen) -->
+            <div id='stg-modal' class='stg-overlay hidden' onclick="if(event.target===this) checklistModule.closeSettingsModal()">
+                <div class='stg-modal'>
+                    <div class='stg-modal-head'>
+                        <span>Dienst Instellingen</span>
+                        <button class='stg-close-btn' onclick='checklistModule.closeSettingsModal()'>&times;</button>
+                    </div>
+
+                    <div class='stg-form-group'>
+                        <label>Start Datum &amp; Tijd</label>
+                        <div class='stg-form-row'>
+                            <div class='stg-picker-wrap'>
+                                <input type='text' class='stg-input-trigger' id='stg-date' placeholder='20 Aug 2026' autocomplete='off'>
+                                <div class='stg-dropdown-panel stg-cal-panel hidden' id='stg-panel-date'>
+                                    <div class='stg-cal-head'>
+                                        <span id='stg-cal-title'></span>
+                                        <div>
+                                            <button class='stg-cal-nav' onclick='checklistModule.shiftSettingsMonth(-1)'>&lsaquo;</button>
+                                            <button class='stg-cal-nav' onclick='checklistModule.shiftSettingsMonth(1)'>&rsaquo;</button>
+                                        </div>
+                                    </div>
+                                    <div class='stg-cal-weekdays'><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+                                    <div class='stg-cal-grid' id='stg-cal-days'></div>
+                                </div>
+                            </div>
+
+                            <div class='stg-picker-wrap'>
+                                <input type='text' class='stg-input-trigger' id='stg-time' placeholder='10:00' maxlength='5' autocomplete='off'>
+                                <div class='stg-dropdown-panel stg-time-panel hidden' id='stg-panel-time'>
+                                    <div class='stg-time-wrap'>
+                                        <div class='stg-time-col'><span>Uur</span><div class='stg-time-scroll' id='stg-time-hours'></div></div>
+                                        <b style='color:var(--text-muted)'>:</b>
+                                        <div class='stg-time-col'><span>Min</span><div class='stg-time-scroll' id='stg-time-mins'></div></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class='stg-form-group'>
+                        <label>Service Preset</label>
+                        <div class='stg-picker-wrap'>
+                            <button class='stg-input-trigger' id='stg-btn-preset'><span>Standaard Dienst</span></button>
+                            <div class='stg-dropdown-panel stg-preset-panel hidden' id='stg-panel-preset'>
+                                <div id='stg-preset-list'></div>
+                                <div class='stg-divider'></div>
+                                <button class='stg-preset-item' onclick='checklistModule.addSettingsPreset()'>&#10133; Nieuwe lijst (Leeg)</button>
+                                <button class='stg-preset-item' onclick='checklistModule.dupSettingsPreset()'>&#128203; Dupliceer lijst</button>
+                                <button class='stg-preset-item stg-orange' onclick='checklistModule.renameSettingsPreset()'>&#9999;&#65039; Hernoem lijst</button>
+                                <button class='stg-preset-item stg-red' onclick='checklistModule.delSettingsPreset()'>&#10005; Verwijder lijst</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button class='stg-btn stg-btn-danger' onclick='checklistModule.resetAndArchive()'>Reset &amp; Archiveer Dienst</button>
                 </div>
             </div>
             </div>

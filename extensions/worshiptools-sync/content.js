@@ -1000,3 +1000,69 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
 
     return false; // not one of ours
 });
+
+// ======================================================================
+//  IN-PAGE FLOATING SYNC BUTTON (For PWA app windows & tabs)
+// ======================================================================
+function injectFloatingSyncButton() {
+    if (document.getElementById('ichtus-floating-sync-btn')) return;
+    if (!/\/app\/account\/[^/]+\/service\/[^/?#]+/i.test(location.href)) return;
+
+    const btn = document.createElement('button');
+    btn.id = 'ichtus-floating-sync-btn';
+    btn.innerHTML = '🔄 Sync naar App';
+    btn.style.cssText = `
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        z-index: 999999;
+        background: #ff6b00;
+        color: #ffffff;
+        border: none;
+        outline: none;
+        padding: 12px 20px;
+        border-radius: 30px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: transform 0.2s, background 0.2s;
+    `;
+    btn.onmouseover = () => btn.style.background = '#e05e00';
+    btn.onmouseout = () => btn.style.background = '#ff6b00';
+    btn.onclick = async () => {
+        if (btn.dataset.busy === '1') return;
+        btn.dataset.busy = '1';
+        btn.textContent = '⏳ Synchroniseren...';
+        try {
+            await runAllTeamsSync({
+                onProgress: (msg) => {
+                    console.log('[WT→SPA] Sync:', msg);
+                }
+            });
+            btn.textContent = '✅ Gesynced!';
+            setTimeout(() => {
+                btn.textContent = '🔄 Sync naar App';
+                btn.dataset.busy = '0';
+            }, 3000);
+        } catch (err) {
+            btn.textContent = '❌ Mislukt';
+            setTimeout(() => {
+                btn.textContent = '🔄 Sync naar App';
+                btn.dataset.busy = '0';
+            }, 3000);
+        }
+    };
+    document.body.appendChild(btn);
+}
+
+setInterval(() => {
+    if (/\/app\/account\/[^/]+\/service\/[^/?#]+/i.test(location.href)) {
+        injectFloatingSyncButton();
+    } else {
+        const existing = document.getElementById('ichtus-floating-sync-btn');
+        if (existing) existing.remove();
+    }
+}, 1000);
+

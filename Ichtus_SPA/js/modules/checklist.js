@@ -140,25 +140,7 @@ const checklistModule = {
         });
 
         // Reset
-        document.getElementById('btn-reset')?.addEventListener('click', async () => {
-            if (!confirm(__('cl_confirm_archive'))) return;
-            const activeTasks = this.getActiveTasks();
-            const done = activeTasks.filter(t => appState.checklist.tasksState[t.id]).length;
-            try {
-                await fetch('/api/commandcenter/archive', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        preset: appState.checklist.preset,
-                        completed: done,
-                        total: activeTasks.length
-                    })
-                });
-            } catch (e) {
-                console.warn('[CC] Archive push mislukt:', e.message);
-            }
-            this.syncState({ tasksState: {}, quickNote: { text: '', isPopup: false, timestamp: Date.now() } });
-        });
+        document.getElementById('btn-reset')?.addEventListener('click', () => this.resetAndArchive());
 
         // Modal
         document.getElementById('btn-close-modal')?.addEventListener('click', () => {
@@ -376,6 +358,7 @@ const checklistModule = {
         this.renderTaskDOM();
         this.renderProgressBars();
         this.handleNotes();
+        this._renderMetrics();
     },
 
     renderTaskDOM() {
@@ -638,6 +621,26 @@ const checklistModule = {
     // ========================================================================
     // OVERVIEW RENDERING
     // ========================================================================
+
+    _renderMetrics() {
+        const checklists = this._getChecklists();
+        const totalCl = checklists.length;
+        let totalItems = 0;
+        let doneItems = 0;
+        checklists.forEach(cl => {
+            const items = cl.items || [];
+            totalItems += items.length;
+            doneItems += items.filter(i => i.completed).length;
+        });
+        const pct = totalItems === 0 ? 0 : Math.round((doneItems / totalItems) * 100);
+        const setVal = (id, v) => {
+            const el = document.getElementById(id);
+            if (el) el.innerText = v;
+        };
+        setVal('cl-metric-total', totalCl);
+        setVal('cl-metric-open', totalItems - doneItems);
+        setVal('cl-metric-progress', pct + '%');
+    },
 
     renderChecklistOverview() {
         const listEl = document.getElementById('cl-checklist-list');
@@ -1771,7 +1774,308 @@ const checklistModule = {
                 checklistModule.closeContextMenu();
             }
         });
-    }
+    },
+
+    // ========================================================================
+    // SETTINGS MODAL (Dienst Instellingen) — kalender-, tijd- en preset-pickers
+    // ========================================================================
+    _STG_MONTHS: ['Jan', 'Feb', 'Mrt', 'Apr', 'Mei', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dec'],
+    _STG_FULL_MONTHS: ['Januari', 'Februari', 'Maart', 'April', 'Mei', 'Juni', 'Juli', 'Augustus', 'September', 'Oktober', 'November', 'December'],
+
+    _settingsModalInit() {
+        if (this.__stgReady) return;
+        this.__stgReady = true;
+
+        this.__stg = { calView: new Date(), els: {} };
+        ['stg-date', 'stg-time', 'stg-btn-preset', 'stg-panel-date', 'stg-panel-time', 'stg-panel-preset', 'stg-cal-days', 'stg-cal-title', 'stg-time-hours', 'stg-time-mins', 'stg-preset-list']
+            .forEach(id => { this.__stg.els[id] = document.getElementById(id); });
+
+        this.__stgBindEvents();
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+    },
+
+    // Haal datum/tijd/preset live uit appState
+    __stgRefreshFromState() {
+        const c = appState.checklist;
+        this.__stg.date = c.startDate || c.serviceDate || new Date().toISOString().split('T')[0];
+        this.__stg.time = c.startTime || c.serviceTime || '10:00';
+        const [y, m, d] = this.__stg.date.split('-').map(Number);
+        this.__stg.calView = new Date(y || 2000, (m || 1) - 1, d || 1);
+    },
+
+    __stgCurrentPreset() {
+        return appState.checklist.preset || appState.checklist.currentPreset || '';
+    },
+
+    __stgValidPresets() {
+        return Object.keys(appState.checklist.presets || {}).filter(k => appState.checklist.presets[k] !== null);
+    },
+
+    __stgRenderAll() {
+        const [y, m, d] = this.__stg.date.split('-').map(Number);
+        const dateInp = this.__stg.els['stg-date'];
+        if (dateInp) dateInp.value = `${d} ${this._STG_MONTHS[(m || 1) - 1]} ${y}`;
+        const timeInp = this.__stg.els['stg-time'];
+        if (timeInp) timeInp.value = this.__stg.time;
+        const presetBtn = this.__stg.els['stg-btn-preset'];
+        if (presetBtn && presetBtn.firstElementChild) presetBtn.firstElementChild.textContent = this.__stgCurrentPreset() || 'Selecteer...';
+        this.__stgInitPickers();
+        this.__stgRenderCalendar();
+        this.__stgRenderPresets();
+    },
+
+    __stgInitPickers() {
+        const [curH, curM] = this.__stg.time.split(':');
+        const hoursEl = this.__stg.els['stg-time-hours'];
+        const minsEl = this.__stg.els['stg-time-mins'];
+        if (hoursEl) {
+            hoursEl.innerHTML = Array.from({ length: 24 }, (_, h) => {
+                const val = String(h).padStart(2, '0');
+                return `<button class="stg-time-btn${val === curH ? ' selected' : ''}" data-val="${val}">${val}</button>`;
+            }).join('');
+        }
+        if (minsEl) {
+            minsEl.innerHTML = Array.from({ length: 12 }, (_, i) => {
+                const val = String(i * 5).padStart(2, '0');
+                return `<button class="stg-time-btn${val === curM ? ' selected' : ''}" data-val="${val}">${val}</button>`;
+            }).join('');
+        }
+    },
+
+    __stgRenderCalendar() {
+        const y = this.__stg.calView.getFullYear(), m = this.__stg.calView.getMonth();
+        const titleEl = this.__stg.els['stg-cal-title'];
+        if (titleEl) titleEl.textContent = `${this._STG_FULL_MONTHS[m]} ${y}`;
+
+        const firstDay = new Date(y, m, 1).getDay();
+        const daysInMonth = new Date(y, m + 1, 0).getDate();
+        const prevDays = new Date(y, m, 0).getDate();
+        const [selY, selM, selD] = this.__stg.date.split('-').map(Number);
+
+        let html = '';
+        for (let i = firstDay - 1; i >= 0; i--) html += `<div class="stg-cal-cell other" data-date="${y}-${m}-${prevDays - i}">${prevDays - i}</div>`;
+        for (let d = 1; d <= daysInMonth; d++) {
+            const isSel = selY === y && selM === m + 1 && selD === d;
+            html += `<div class="stg-cal-cell${isSel ? ' selected' : ''}" data-date="${y}-${m + 1}-${d}">${d}</div>`;
+        }
+        const total = (firstDay + daysInMonth > 35) ? 42 : 35;
+        for (let d = 1; d <= total - (firstDay + daysInMonth); d++) html += `<div class="stg-cal-cell other" data-date="${y}-${m + 2}-${d}">${d}</div>`;
+
+        const daysEl = this.__stg.els['stg-cal-days'];
+        if (daysEl) daysEl.innerHTML = html;
+    },
+
+    __stgRenderPresets() {
+        const listEl = this.__stg.els['stg-preset-list'];
+        if (!listEl) return;
+        const current = this.__stgCurrentPreset();
+        listEl.innerHTML = this.__stgValidPresets().map(p =>
+            `<button class="stg-preset-item${p === current ? ' selected' : ''}" data-preset="${String(p).replace(/"/g, '&quot;')}"><span>${String(p).replace(/</g, '&lt;')}</span>${p === current ? '&#10003;' : ''}</button>`
+        ).join('');
+    },
+
+    shiftSettingsMonth(dir) {
+        if (!this.__stg) return;
+        this.__stg.calView.setMonth(this.__stg.calView.getMonth() + dir);
+        this.__stgRenderCalendar();
+    },
+
+    __stgClosePanels() {
+        ['stg-panel-date', 'stg-panel-time', 'stg-panel-preset'].forEach(id => this.__stg.els[id]?.classList.add('hidden'));
+        ['stg-date', 'stg-time', 'stg-btn-preset'].forEach(id => this.__stg.els[id]?.classList.remove('active'));
+    },
+
+    __stgBindEvents() {
+        const toggle = (panel, trigger) => {
+            if (!panel || !trigger) return;
+            const isClosed = panel.classList.contains('hidden');
+            this.__stgClosePanels();
+            if (isClosed) {
+                panel.classList.remove('hidden');
+                trigger.classList.add('active');
+            }
+        };
+
+        const dateInp = this.__stg.els['stg-date'];
+        const timeInp = this.__stg.els['stg-time'];
+        const presetBtn = this.__stg.els['stg-btn-preset'];
+        if (dateInp) dateInp.onfocus = () => toggle(this.__stg.els['stg-panel-date'], dateInp);
+        if (timeInp) timeInp.onfocus = () => toggle(this.__stg.els['stg-panel-time'], timeInp);
+        if (presetBtn) presetBtn.onclick = (e) => { e.stopPropagation(); toggle(this.__stg.els['stg-panel-preset'], presetBtn); };
+
+        const calDays = this.__stg.els['stg-cal-days'];
+        if (calDays) calDays.onclick = (e) => {
+            const target = e.target.closest('[data-date]');
+            if (!target) return;
+            const [y, m, d] = target.dataset.date.split('-').map(Number);
+            const dt = new Date(y, m - 1, d);
+            this.__stg.date = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+            this.__stg.calView = new Date(dt);
+            appState.checklist.startDate = this.__stg.date;
+            this.syncState({ startDate: this.__stg.date });
+            this.__stgRenderAll();
+            this.__stgClosePanels();
+        };
+
+        const updateTime = (type, val) => {
+            let [h, m] = this.__stg.time.split(':');
+            if (type === 'h') h = val; else m = val;
+            this.__stg.time = `${h}:${m}`;
+            appState.checklist.startTime = this.__stg.time;
+            this.syncState({ startTime: this.__stg.time });
+            this.__stgInitPickers();
+            const timeInp = this.__stg.els['stg-time'];
+            if (timeInp) timeInp.value = this.__stg.time;
+        };
+        const hoursEl = this.__stg.els['stg-time-hours'];
+        const minsEl = this.__stg.els['stg-time-mins'];
+        if (hoursEl) hoursEl.onclick = (e) => e.target.dataset && e.target.dataset.val && updateTime('h', e.target.dataset.val);
+        if (minsEl) minsEl.onclick = (e) => e.target.dataset && e.target.dataset.val && updateTime('m', e.target.dataset.val);
+
+        const presetList = this.__stg.els['stg-preset-list'];
+        if (presetList) presetList.onclick = (e) => {
+            const item = e.target.closest('[data-preset]');
+            if (!item) return;
+            const name = item.dataset.preset;
+            if (name !== this.__stgCurrentPreset()) {
+                this.syncState({ preset: name, tasksState: {} });
+            }
+            this.__stgRefreshFromState();
+            this.__stgRenderAll();
+            this.__stgClosePanels();
+        };
+
+        if (dateInp) dateInp.onblur = () => {
+            const val = dateInp.value.trim();
+            const match = val.match(/^(\d{1,2})[\s\-\/\.]([a-zA-Z]{3,9}|\d{1,2})(?:[\s\-\/\.](\d{2,4}))?$/);
+            if (match) {
+                const d = parseInt(match[1], 10);
+                const y = match[3] ? (match[3].length === 2 ? 2000 + +match[3] : +match[3]) : new Date().getFullYear();
+                const m = isNaN(match[2]) ? this._STG_MONTHS.findIndex(x => x.toLowerCase() === match[2].slice(0, 3).toLowerCase()) : match[2] - 1;
+                if (m >= 0 && m < 12) {
+                    this.__stg.date = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    this.__stg.calView = new Date(y, m, d);
+                    appState.checklist.startDate = this.__stg.date;
+                    this.syncState({ startDate: this.__stg.date });
+                }
+            }
+            this.__stgRenderAll();
+        };
+
+        if (timeInp) timeInp.onblur = () => {
+            const match = timeInp.value.trim().match(/^(\d{1,2})[:.,\-]??(\d{2})?$/);
+            if (match) {
+                const h = String(Math.min(23, +match[1])).padStart(2, '0');
+                const m = String(Math.min(59, +(match[2] || 0))).padStart(2, '0');
+                this.__stg.time = `${h}:${m}`;
+                appState.checklist.startTime = this.__stg.time;
+                this.syncState({ startTime: this.__stg.time });
+                this.__stgInitPickers();
+            }
+            if (timeInp) timeInp.value = this.__stg.time;
+        };
+
+        // Dismiss dropdowns bij klik buiten de pickers
+        document.addEventListener('click', (e) => {
+            if (this.__stg && !e.target.closest('.stg-picker-wrap')) this.__stgClosePanels();
+        });
+        // Escape sluit de panels én de modal
+        document.addEventListener('keydown', (e) => {
+            if (this.__stg && e.key === 'Escape') {
+                this.__stgClosePanels();
+                this.closeSettingsModal();
+            }
+        });
+    },
+
+    openSettingsModal() {
+        this._settingsModalInit();
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+        const modal = document.getElementById('stg-modal');
+        if (modal) modal.classList.remove('hidden');
+    },
+
+    closeSettingsModal() {
+        const modal = document.getElementById('stg-modal');
+        if (modal) modal.classList.add('hidden');
+        this.__stgClosePanels();
+    },
+
+    toggleSettingsModal() {
+        const modal = document.getElementById('stg-modal');
+        if (!modal) return;
+        if (modal.classList.contains('hidden')) this.openSettingsModal();
+        else this.closeSettingsModal();
+    },
+
+    // Preset-operaties (zelfde logica als de admin-sidebar dropdown)
+    addSettingsPreset() {
+        const name = prompt(__('cl_preset_new_name'));
+        if (!name || appState.checklist.presets[name]) return;
+        const newPresets = { ...appState.checklist.presets };
+        newPresets[name] = [];
+        this.syncState({ presets: newPresets, preset: name, tasksState: {} });
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+    },
+
+    dupSettingsPreset() {
+        const name = prompt(__('cl_preset_rename_prompt') + ' \u2018' + this.__stgCurrentPreset() + '\u2019:', this.__stgCurrentPreset() + ' ' + __('cl_preset_dup_suffix'));
+        if (!name || appState.checklist.presets[name]) return;
+        const newPresets = { ...appState.checklist.presets };
+        newPresets[name] = [...(appState.checklist.presets[this.__stgCurrentPreset()] || [])].map(t => ({ ...t, id: 'c' + Math.random().toString(36).substr(2, 9) }));
+        this.syncState({ presets: newPresets, preset: name, tasksState: {} });
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+    },
+
+    renameSettingsPreset() {
+        const oldName = this.__stgCurrentPreset();
+        const newName = prompt(__('cl_preset_rename_prompt') + ' \u2018' + oldName + '\u2019:', oldName);
+        if (!newName || newName === oldName || appState.checklist.presets[newName]) return;
+        const newPresets = { ...appState.checklist.presets };
+        newPresets[newName] = newPresets[oldName];
+        newPresets[oldName] = null;
+        this.syncState({ presets: newPresets, preset: newName });
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+    },
+
+    delSettingsPreset() {
+        const validPresets = this.__stgValidPresets();
+        if (validPresets.length <= 1) return alert(__('cl_preset_cannot_delete'));
+        if (!confirm(__('cl_preset_confirm_delete') + ' \u2018' + this.__stgCurrentPreset() + '\u2019 ' + __('cl_preset_wilt_verwijderen'))) return;
+        const newPresets = { ...appState.checklist.presets };
+        newPresets[this.__stgCurrentPreset()] = null;
+        const newActive = Object.keys(newPresets).find(k => newPresets[k] !== null);
+        this.syncState({ presets: newPresets, preset: newActive, tasksState: {} });
+        this.__stgRefreshFromState();
+        this.__stgRenderAll();
+    },
+
+    // Reset & archiveer de dienst (zelfde logica als btn-reset in de admin-sidebar)
+    async resetAndArchive() {
+        if (!confirm(__('cl_confirm_archive'))) return;
+        const activeTasks = this.getActiveTasks();
+        const done = activeTasks.filter(t => appState.checklist.tasksState[t.id]).length;
+        try {
+            await fetch('/api/commandcenter/archive', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    preset: appState.checklist.preset,
+                    completed: done,
+                    total: activeTasks.length
+                })
+            });
+        } catch (e) {
+            console.warn('[CC] Archive push mislukt:', e.message);
+        }
+        this.syncState({ tasksState: {}, quickNote: { text: '', isPopup: false, timestamp: Date.now() } });
+        this.closeSettingsModal();
+    },
 
 };
 
