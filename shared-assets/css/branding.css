@@ -191,7 +191,7 @@ h1, h2, h3, .heading-font {
 .sidebar-logo-wrap {
     width: auto;
     min-width: 0;
-    height: 48px;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -202,7 +202,7 @@ h1, h2, h3, .heading-font {
 
 .sidebar-logo-wrap img {
     width: auto;
-    height: 40px;
+    height: 52px;
     object-fit: contain;
     transition: height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     max-width: 100%;
@@ -210,11 +210,11 @@ h1, h2, h3, .heading-font {
 
 /* Collapsed sidebar — logo kleiner zodat-ie past */
 .ichtus-sidebar.collapsed .sidebar-logo-wrap {
-    height: 40px;
+    height: 48px;
 }
 
 .ichtus-sidebar.collapsed .sidebar-logo-wrap img {
-    height: 24px;
+    height: 32px;
 }
 
 .sidebar-brand-text {
