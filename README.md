@@ -351,7 +351,7 @@ Ichtus_apps/
 │
 ├── .gitignore                   # Excludes: .venv/, serviceAccountKey.json
 │
-├── shared-assets/               # Shared branding & components
+├── assets/               # Shared branding & components
 │   ├── css/branding.css
 │   ├── fonts/
 │   └── js/

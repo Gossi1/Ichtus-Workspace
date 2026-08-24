@@ -7,7 +7,7 @@ const router = {
         if (this.initialized) return;
         this.initialized = true;
 
-        // Sidebar mobile hamburger handling is now in shared-assets/js/sidebar.js
+        // Sidebar mobile hamburger handling is now in assets/js/sidebar.js
 
         // Handle initial hash or default view
         const hash = window.location.hash.replace('#', '');
