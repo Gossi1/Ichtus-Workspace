@@ -114,3 +114,14 @@ mic-iem-server/serviceAccountKey.json
 # Song ID Assigner — user-specific library path config
 library-config.json
 Ichtus_SPA/dashboard-preview.html
+
+# ===========================
+# Gevoelige data — NOOIT committen!
+# ===========================
+# WorshipTools credentials (hardcoded in deze scripts — hier blijven ze tot
+# ze verwijderd zijn; de Node-route haalt credentials uit server-config.json)
+test_api.py
+show_roster.py
+
+# Persoonsgegevens (namen + UUIDs van kerkleden)
+people_cache.json

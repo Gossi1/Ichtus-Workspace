@@ -1190,6 +1190,25 @@
                          ========================================== -->
                     <aside class="setlist-sidebar">
 
+                        <!-- WorshipTools Diensten (live uit Firestore via /api/worshiptools-services) -->
+                        <div class="action-bar sidebar-card wt-services-card">
+                            <div class="card-header-row">
+                                <strong class="section-title">Diensten</strong>
+                                <select id="wt-svc-live-interval" class="wt-svc-live-select" title="Live verversen interval">
+                                    <option value="0">Uit</option>
+                                    <option value="2000">2s</option>
+                                    <option value="3000">3s</option>
+                                    <option value="5000">5s</option>
+                                    <option value="10000">10s</option>
+                                </select>
+                                <button id="btn-wt-services-refresh" class="wt-svc-refresh-btn" title="Diensten verversen">⟳</button>
+                            </div>
+                            <div id="wt-services-status" class="wt-svc-status"></div>
+                            <div id="wt-services-list" class="wt-services-list">
+                                <div class="wt-svc-loading">⏳ Diensten ophalen…</div>
+                            </div>
+                        </div>
+
                         <!-- WorshipTools Connection Capsule -->
                         <div class="action-bar sidebar-card">
                             <div class="card-header-row">
@@ -1259,6 +1278,23 @@
                         <!-- Live Notification Feeds -->
                         <div id="setlist-status-box" class="toggle-item status-alert-box green-alert" style="display: none;"></div>
                         <div id="setlist-date-display" class="toggle-item status-alert-box orange-alert" style="display: none;"></div>
+
+                        <!-- Playlist Conflict Modal -->
+                        <div id="sync-conflict-modal" class="overlay-screen overlay-task-modal hidden">
+                            <div class="task-modal-dialog" style="max-width: 420px;">
+                                <div class="modal-header-row">
+                                    <span class="modal-dialog-title-label">📋 Playlist bestaat al</span>
+                                </div>
+                                <div class="modal-content-scroll" style="padding: 16px;">
+                                    <p id="sync-conflict-msg" style="color: var(--text-main); font-size: 0.9rem; margin: 0 0 16px 0; line-height: 1.5;"></p>
+                                    <div style="display: flex; gap: 10px; justify-content: flex-end;">
+                                        <button id="sync-btn-skip" class="btn-nav">⏭ Overslaan</button>
+                                        <button id="sync-btn-new" class="btn-nav">➕ Nieuw</button>
+                                        <button id="sync-btn-override" class="btn-upload btn-label">🔄 Override</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- Live Content Target Preview Container (Separated Capsule) -->
                         <div class="canvas-wrapper preview-wrapper">
@@ -2331,7 +2367,8 @@
     </script>
     <script src='js/modules/agenda.js'></script>
     <script src='js/modules/checklist.js'></script>
-    <script src='js/modules/setlist.js?v=4'></script>
+    <script src='js/modules/setlist.js?v=10'></script>
+    <script src='js/modules/wt-services.js?v=3'></script>
     <script src='js/modules/patchbay.js'></script>
     <script src='js/modules/analytics.js'></script>
     <script src='js/modules/ndi.js'></script>

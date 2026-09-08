@@ -573,3 +573,255 @@
     background: rgba(234, 84, 85, 0.1);
 }
 
+/* --- Sync Conflict Modal --- */
+#sync-conflict-modal .task-modal-dialog {
+    max-width: 420px;
+}
+#sync-conflict-modal .modal-content-scroll {
+    padding: 16px;
+}
+#sync-conflict-modal #sync-btn-skip,
+#sync-conflict-modal #sync-btn-new {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    border-radius: 6px;
+    cursor: pointer;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+    transition: all 0.2s;
+}
+#sync-conflict-modal #sync-btn-skip:hover,
+#sync-conflict-modal #sync-btn-new:hover {
+    background: rgba(255, 255, 255, 0.1);
+}
+#sync-conflict-modal #sync-btn-override {
+    padding: 8px 14px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 6px;
+    cursor: pointer;
+    border: none;
+    color: #ffffff;
+    transition: all 0.2s;
+}
+
+/* ==========================================================================
+   WORSHIPTOOLS DIENSTEN RAIL — linkerbalk met 10 komende + 4 afgelopen
+   diensten (live uit Firestore via /api/worshiptools-services).
+   ========================================================================== */
+.wt-services-card {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 14px;
+    gap: 8px;
+}
+
+.wt-svc-refresh-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-muted, #9aa1af);
+    width: 28px;
+    height: 28px;
+    font-size: 0.95rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+.wt-svc-refresh-btn:hover {
+    color: var(--ichtus-orange, #f47920);
+    border-color: rgba(244, 121, 32, 0.5);
+    background: rgba(244, 121, 32, 0.08);
+}
+
+.wt-svc-live-select {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: var(--text-muted, #9aa1af);
+    font-size: 0.72rem;
+    padding: 3px 4px;
+    height: 28px;
+    cursor: pointer;
+    outline: none;
+    margin-left: auto;
+}
+.wt-svc-live-select:hover {
+    border-color: rgba(244, 121, 32, 0.5);
+}
+.wt-svc-live-select option {
+    background: #1a1f2b;
+    color: #dfe3ea;
+}
+
+.wt-svc-status {
+    font-size: 0.68rem;
+    color: var(--text-muted, #9aa1af);
+    min-height: 0.85rem;
+    margin-top: -4px;
+}
+
+.wt-services-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 60vh;
+    overflow-y: auto;
+    padding-right: 2px;
+}
+
+.wt-svc-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    color: var(--text-main, #e2e8f0);
+    font-family: inherit;
+}
+.wt-svc-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 159, 67, 0.35);
+}
+.wt-svc-item.active {
+    background: rgba(244, 121, 32, 0.12);
+    border-color: var(--ichtus-orange, #f47920);
+    box-shadow: 0 0 8px rgba(244, 121, 32, 0.15);
+}
+.wt-svc-item.today {
+    border-left: 3px solid var(--ichtus-green, #28c76f);
+}
+
+.wt-svc-item-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+}
+
+.wt-svc-date {
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted, #9aa1af);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+.wt-svc-item.active .wt-svc-date {
+    color: var(--ichtus-orange, #f47920);
+}
+
+.wt-svc-count {
+    font-size: 0.65rem;
+    font-weight: 700;
+    background: rgba(255, 255, 255, 0.07);
+    border-radius: 10px;
+    padding: 1px 7px;
+    color: var(--text-muted, #9aa1af);
+    flex-shrink: 0;
+}
+
+.wt-svc-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-top: 3px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wt-svc-reps {
+    font-size: 0.66rem;
+    color: var(--text-muted, #9aa1af);
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wt-svc-divider {
+    font-size: 0.66rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted, #9aa1af);
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding-top: 8px;
+    margin-top: 4px;
+}
+
+.wt-svc-loading,
+.wt-svc-empty,
+.wt-svc-error {
+    font-size: 0.78rem;
+    color: var(--text-muted, #9aa1af);
+    padding: 6px 2px;
+    line-height: 1.5;
+}
+.wt-svc-error {
+    color: var(--ichtus-red, #ea5455);
+}
+
+/* --- Setlist detail kaart (rechterkolom, bovenaan) --- */
+.wt-service-detail-sub {
+    font-size: 0.72rem;
+    color: var(--text-muted, #9aa1af);
+    font-weight: 500;
+}
+
+.wt-song-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+}
+
+.wt-song-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-radius: 6px;
+    padding: 7px 12px;
+}
+.wt-song-row:hover {
+    background: rgba(255, 255, 255, 0.045);
+}
+
+.wt-song-pos {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--text-muted, #9aa1af);
+    min-width: 22px;
+    text-align: right;
+}
+
+.wt-song-title {
+    flex: 1;
+    font-size: 0.88rem;
+    color: var(--text-main, #e2e8f0);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wt-song-key {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--ichtus-blue, #6892af);
+    background: rgba(104, 146, 175, 0.12);
+    border-radius: 4px;
+    padding: 2px 8px;
+    flex-shrink: 0;
+    min-width: 34px;
+    text-align: center;
+}
+

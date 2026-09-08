@@ -14,7 +14,14 @@
   Gebruik:
     powershell -ExecutionPolicy Bypass -File setup.ps1
     powershell -ExecutionPolicy Bypass -File setup.ps1 -InstallPath D:\MijnApps\Ichtus
+    powershell -ExecutionPolicy Bypass -File setup.ps1 -CredentialsFile D:\USB\server-config.json
     irm https://raw.githubusercontent.com/Gossi1/Ichtus-Workspace/master/setup.ps1 | iex
+
+  Credentials overzetten naar een andere PC (zonder opnieuw in te vullen):
+    1. Kopieer server-config.json (met je echte credentials) naar bv. een USB-stick.
+       LET OP: dit bestand NOOIT op GitHub/een publieke plek zetten -- de repo is publiek!
+    2. Draai op de nieuwe PC:  setup.ps1 -CredentialsFile E:\server-config.json
+       Het script kopieert je config automatisch naar de juiste plek.
 
   Vereisten: Windows 10/11 + admin-rechten (voor winget + service-registratie).
 #>
@@ -26,7 +33,8 @@ param(
     [string]$Branch = "master",
     [switch]$SkipWinget,    # Sla Git/Node-install over (bv. handmatig geinstalleerd)
     [switch]$SkipClone,     # Ga uit van een bestaande map (handig bij re-runs)
-    [switch]$SkipService    # Installeer dependencies maar registreer geen service
+    [switch]$SkipService,   # Installeer dependencies maar registreer geen service
+    [string]$CredentialsFile = ""  # Pad naar een meegebrachte server-config.json (van een andere PC)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -222,6 +230,27 @@ try {
         }
     } else {
         Write-Ok "nssm-service.json bestaat al -- overslaan"
+    }
+
+    # --------------------------------------------------------------
+    #  Stap 4.5 -- Server config (credentials) overzetten
+    # --------------------------------------------------------------
+    if ($CredentialsFile) {
+        if (-not (Test-Path $CredentialsFile)) {
+            Write-Err "CredentialsFile niet gevonden: $CredentialsFile"
+            exit 1
+        }
+        Copy-Item $CredentialsFile "server-config.json" -Force
+        Write-Ok "server-config.json gekopieerd van: $CredentialsFile"
+    } elseif (-not (Test-Path "server-config.json")) {
+        if (Test-Path "server-config.example.json") {
+            Copy-Item "server-config.example.json" "server-config.json"
+            Write-Warn "server-config.json aangemaakt als example -- vul hierin de WorshipTools credentials in!"
+        } else {
+            Write-Warn "Geen server-config.json gevonden en geen example om te kopieren."
+        }
+    } else {
+        Write-Ok "server-config.json bestaat al -- overslaan"
     }
 
     if (-not $SkipService) {

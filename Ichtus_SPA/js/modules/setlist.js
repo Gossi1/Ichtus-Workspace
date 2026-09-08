@@ -840,14 +840,100 @@ const setlistModule = {
         return struct;
     },
 
-    async handleSync() {
-        const statusBox = document.getElementById('setlist-status-box');
+    /**
+     * Show conflict modal and return a Promise resolving to
+     * 'skip' | 'new' | 'override'.
+     */
+    _showConflictModal(existingName) {
+        return new Promise(resolve => {
+            const modal = document.getElementById('sync-conflict-modal');
+            const msgEl = document.getElementById('sync-conflict-msg');
+            if (!modal || !msgEl) { resolve('skip'); return; }
 
+            msgEl.textContent = `Er bestaat al een playlist "${existingName}" in ProPresenter. Wat wil je doen?`;
+            modal.classList.remove('hidden');
+
+            const cleanup = () => {
+                modal.classList.add('hidden');
+                modal.removeEventListener('click', onBackdrop);
+                document.getElementById('sync-btn-skip')?.removeEventListener('click', onSkip);
+                document.getElementById('sync-btn-new')?.removeEventListener('click', onNew);
+                document.getElementById('sync-btn-override')?.removeEventListener('click', onOverride);
+            };
+            const onSkip    = () => { cleanup(); resolve('skip'); };
+            const onNew     = () => { cleanup(); resolve('new'); };
+            const onOverride = () => { cleanup(); resolve('override'); };
+            // Click on backdrop (outside dialog) = skip
+            const onBackdrop = (e) => { if (e.target === modal) onSkip(); };
+
+            document.getElementById('sync-btn-skip')?.addEventListener('click', onSkip);
+            document.getElementById('sync-btn-new')?.addEventListener('click', onNew);
+            document.getElementById('sync-btn-override')?.addEventListener('click', onOverride);
+            modal.addEventListener('click', onBackdrop);
+        });
+    },
+
+    /**
+     * Build sync items from parsedSongs + libraryMap.
+     * Returns { items, matchedSongs, unmatchedSongs }.
+     */
+    _buildSyncItems(libraryMap) {
+        const { opening, praise, closing } = this.parsedSongs;
+        const selectedTemplateKey = document.getElementById('setlist-service-type').value;
+        const template = this.SERVICE_TEMPLATES[selectedTemplateKey];
+
+        let items = [];
+        let matchedSongs = 0;
+        let unmatchedSongs = [];
+
+        template.items.forEach(tplItem => {
+            items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));
+            if (tplItem.insert) {
+                let listToInsert = [];
+                if (tplItem.insert === "opening") listToInsert = opening;
+                if (tplItem.insert === "praise") listToInsert = praise;
+                if (tplItem.insert === "closing") listToInsert = closing;
+                listToInsert.forEach(s => {
+                    const processedName = s.toLowerCase();
+                    let uuid = libraryMap[processedName];
+
+                    if (!uuid && this.structuredSongs) {
+                        const structured = this.structuredSongs.find(st => st.name && st.name.toLowerCase() === this.stripSongNumberPrefix(s).toLowerCase());
+                        if (structured && structured.number) {
+                            uuid = libraryMap[structured.number.toLowerCase()];
+                            if (uuid) console.log('[Sync] Matched by number:', structured.number, '→', s);
+                        }
+                    }
+
+                    if (!uuid) {
+                        const nameWithoutNumber = this.stripSongNumberPrefix(s);
+                        if (nameWithoutNumber && nameWithoutNumber !== s) {
+                            uuid = libraryMap[nameWithoutNumber.toLowerCase()];
+                            if (uuid) console.log('[Sync] Matched by clean name:', nameWithoutNumber, '←', s);
+                        }
+                    }
+
+                    if (uuid) {
+                        items.push(this.createItem(s, uuid));
+                        matchedSongs++;
+                    } else {
+                        unmatchedSongs.push(s);
+                    }
+                });
+            }
+        });
+
+        console.log('[Sync] Matched songs:', matchedSongs, 'Unmatched:', unmatchedSongs);
+        if (matchedSongs === 0 && unmatchedSongs.length > 0) {
+            console.warn('[Sync] No songs matched! Unmatched:', unmatchedSongs);
+            console.warn('[Sync] Available library items (first 10):', Object.keys(libraryMap).slice(0, 10));
+        }
+        return { items, matchedSongs, unmatchedSongs };
+    },
+
+    async handleSync() {
         if (!this.parsedSongs || this.countSongs() === 0) {
             const hasDataInStorage = !!localStorage.getItem('ichtus_received_setlist');
-
-            // If data exists in localStorage but wasn't loaded into memory
-            // (race: init hasn't finished), restore it now and retry once.
             if (hasDataInStorage) {
                 try {
                     const saved = JSON.parse(localStorage.getItem('ichtus_received_setlist'));
@@ -868,9 +954,6 @@ const setlistModule = {
                 } catch (_) {}
             }
 
-            // Show the waiting message plus a file:// URL tip (harmless for
-            // users who already have the bridge working; essential for users
-            // who haven't enabled "Allow access to file URLs").
             const locale = (typeof i18n !== 'undefined' && i18n.lang === 'nl') ? 'nl' : 'en';
             const tip = locale === 'nl'
                 ? 'Tip: Zorg dat de Chrome-extensie \"WorshipTools to Ichtus SPA Sync\" is geïnstalleerd. Open chrome://extensions, zoek de extensie en zet \"Toegang tot bestands-URL\" aan. Ververs daarna deze pagina en probeer opnieuw.'
@@ -883,179 +966,175 @@ const setlistModule = {
         this.showStatus(__('setlist_syncing'), '');
 
         try {
-            const BASE_URL = `http://${this.CONFIG.PRO_IP}:${this.CONFIG.PRO_PORT}/v1`;
+            const PROXY_BASE = `${window.location.origin}/api/pro`;
+            const BASE_URL = PROXY_BASE;
 
-            // Step 1: Get library UUID from name
-            console.log('[Sync] Step 1: Fetching libraries list...');
-            
+            // Step 1: Get library
             const libsResp = await proFetch(`${BASE_URL}/libraries`, { method: 'GET' });
-            console.log('[Sync] Libraries response status:', libsResp.status);
-            
-            if (!libsResp.ok) {
-                const errorText = await libsResp.text();
-                throw new Error(`Libraries list fetch failed: HTTP ${libsResp.status} - ${errorText}`);
-            }
-            
-            let libsData;
-            try {
-                libsData = await libsResp.json();
-            } catch (jsonErr) {
-                throw new Error(`Libraries response is not valid JSON: ${jsonErr.message}`);
-            }
-            
-            if (!Array.isArray(libsData)) {
-                throw new Error(`Libraries response is not an array: ${JSON.stringify(libsData).substring(0, 100)}`);
-            }
-            
-            // Find the library by name
+            if (!libsResp.ok) throw new Error(`Libraries list fetch failed: HTTP ${libsResp.status}`);
+            const libsData = await libsResp.json();
+            if (!Array.isArray(libsData)) throw new Error('Libraries response is not an array');
+
             const targetLib = libsData.find(lib => lib.name === this.CONFIG.LIBRARY_NAME);
-            if (!targetLib) {
-                throw new Error(`Library "${this.CONFIG.LIBRARY_NAME}" not found. Available: ${libsData.map(l => l.name).join(', ')}`);
-            }
-            console.log('[Sync] Found library:', targetLib.name, 'UUID:', targetLib.uuid);
-            
+            if (!targetLib) throw new Error(`Library "${this.CONFIG.LIBRARY_NAME}" not found. Available: ${libsData.map(l => l.name).join(', ')}`);
+
             // Step 2: Fetch library contents
-            console.log('[Sync] Step 2: Fetching library contents...');
-            
             const libResp = await proFetch(`${BASE_URL}/library/${targetLib.uuid}`, { method: 'GET' });
-            console.log('[Sync] Library response status:', libResp.status);
-            
-            if (!libResp.ok) {
-                const errorText = await libResp.text();
-                throw new Error(`Library contents fetch failed: HTTP ${libResp.status} - ${errorText}`);
-            }
-            
-            let libData;
-            try {
-                libData = await libResp.json();
-            } catch (jsonErr) {
-                throw new Error(`Library response is not valid JSON: ${jsonErr.message}`);
-            }
-            console.log('[Sync] Library items count:', libData.items?.length || 0);
-            
+            if (!libResp.ok) throw new Error(`Library contents fetch failed: HTTP ${libResp.status}`);
+            const libData = await libResp.json();
+
             const libraryMap = {};
             libData.items.forEach(item => {
                 libraryMap[item.name.toLowerCase().trim()] = item.uuid;
             });
 
             // Step 3: Build setlist items
-            console.log('[Sync] Step 3: Building setlist items...');
-            const { opening, praise, closing } = this.parsedSongs;
-            console.log('[Sync] Songs found - Opening:', opening.length, 'Praise:', praise.length, 'Closing:', closing.length);
+            const { items, matchedSongs, unmatchedSongs } = this._buildSyncItems(libraryMap);
 
-            const selectedTemplateKey = document.getElementById('setlist-service-type').value;
-            const template = this.SERVICE_TEMPLATES[selectedTemplateKey];
-
-            let items = [];
-            let matchedSongs = 0;
-            let unmatchedSongs = [];
-
-            template.items.forEach(tplItem => {
-                items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));                        if (tplItem.insert) {
-                    let listToInsert = [];
-                    if (tplItem.insert === "opening") listToInsert = opening;
-                    if (tplItem.insert === "praise") listToInsert = praise;
-                    if (tplItem.insert === "closing") listToInsert = closing;
-                    listToInsert.forEach(s => {
-                        const processedName = s.toLowerCase();
-                        // Strategy 1: match by full name in library (e.g. "o586 hij is heer")
-                        let uuid = libraryMap[processedName];
-
-                        // Strategy 2: match by song number if we have structured data
-                        if (!uuid && this.structuredSongs) {
-                            // Structured names omit the number prefix ("Great I Am"
-                            // vs raw "D044 Great I Am") — compare the clean name.
-                            const structured = this.structuredSongs.find(st => st.name && st.name.toLowerCase() === this.stripSongNumberPrefix(s).toLowerCase());
-                            if (structured && structured.number) {
-                                // Try matching by song number (e.g. "o586") — some libraries store just the number
-                                uuid = libraryMap[structured.number.toLowerCase()];
-                                if (uuid) {
-                                    console.log('[Sync] Matched by number:', structured.number, '→', s);
-                                }
-                            }
-                        }
-
-                        // Strategy 3: if the name has a prefix like "O586 Hij is Heer", 
-                        // strip the number prefix and try matching the clean name
-                        if (!uuid) {
-                            const nameWithoutNumber = this.stripSongNumberPrefix(s);
-                            if (nameWithoutNumber && nameWithoutNumber !== s) {
-                                uuid = libraryMap[nameWithoutNumber.toLowerCase()];
-                                if (uuid) {
-                                    console.log('[Sync] Matched by clean name:', nameWithoutNumber, '←', s);
-                                }
-                            }
-                        }
-
-                        if (uuid) {
-                            items.push(this.createItem(s, uuid));
-                            matchedSongs++;
-                        } else {
-                            unmatchedSongs.push(s);
-                        }
-                    });
-                }
-            });
-
-            console.log('[Sync] Matched songs:', matchedSongs, 'Unmatched:', unmatchedSongs);
-            
-            if (matchedSongs === 0 && unmatchedSongs.length > 0) {
-                console.warn('[Sync] No songs matched! Unmatched songs:', unmatchedSongs);
-                console.warn('[Sync] Available library items (first 10):', Object.keys(libraryMap).slice(0, 10));
-            }
-
-            // Step 4: Create new playlist
-            console.log('[Sync] Step 4: Creating playlist...');
+            // Step 4: Determine playlist name & check all existing playlists
             const playlistName = this.serviceDate || ("Web Sync: " + new Date().toLocaleTimeString(i18n.getLocale()));
-            console.log('[Sync] Creating playlist with name:', playlistName);
-            if (!this.serviceDate) {
-                console.warn('[Sync] WARNING: No serviceDate available! Using fallback name.');
-            }
-            const createPlaylist = await proFetch(`${BASE_URL}/playlists`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: playlistName })
-            }, 15000);
-            console.log('[Sync] Playlist creation status:', createPlaylist.status);
-            
-            if (!createPlaylist.ok) {
-                const errorText = await createPlaylist.text();
-                throw new Error(`Playlist creation failed: HTTP ${createPlaylist.status} - ${errorText}`);
-            }
-            
-            const newPlaylist = await createPlaylist.json();
-            console.log('[Sync] Playlist response:', newPlaylist);
-            
-            const playlistUuid = newPlaylist.uuid || newPlaylist.id?.uuid;
-            if (!playlistUuid) {
-                throw new Error('Could not get playlist UUID from response');
-            }
-            console.log('[Sync] Created playlist UUID:', playlistUuid);
 
-            // Step 5: Add items to playlist
-            console.log('[Sync] Step 5: Adding items to playlist...');
-            const putResp = await proFetch(`${BASE_URL}/playlist/${playlistUuid}`, {
+            let existingPlaylistUuid = null;
+            let allPlaylists = [];
+            try {
+                const plsResp = await proFetch(`${BASE_URL}/playlists`, { method: 'GET' });
+                console.log('[Sync] Playlist list status:', plsResp.status);
+                if (plsResp.ok) {
+                    const raw = await plsResp.json();
+                    console.log('[Sync] Playlist list raw:', JSON.stringify(raw).substring(0, 500));
+                    const tree = Array.isArray(raw) ? raw : (raw?.playlists || []);
+                    // Flatten nested tree: groups → children → playlists
+                    const flatten = (nodes) => {
+                        const result = [];
+                        for (const n of nodes) {
+                            if (n.field_type === 'playlist') result.push(n);
+                            if (n.children) result.push(...flatten(n.children));
+                        }
+                        return result;
+                    };
+                    allPlaylists = flatten(tree);
+                    console.log('[Sync] Parsed playlists count:', allPlaylists.length, 'names:', allPlaylists.map(p => p.id?.name));
+                    console.log('[Sync] Looking for:', playlistName);
+                    const match = allPlaylists.find(p => p.id?.name === playlistName);
+                    if (match) {
+                        existingPlaylistUuid = match.id?.uuid;
+                        console.log('[Sync] Existing playlist found:', match.id?.name, match.id?.uuid);
+                    } else {
+                        console.log('[Sync] No matching playlist found');
+                    }
+                }
+            } catch (e) { console.log('[Sync] Playlist fetch error:', e.message); }
+
+            let targetPlaylistUuid;
+
+            if (existingPlaylistUuid) {
+                // Playlist bestaat → vraag gebruiker
+                const choice = await this._showConflictModal(playlistName);
+                console.log('[Sync] Conflict choice:', choice);
+
+                if (choice === 'skip') {
+                    this.showStatus('⏭ Sync overgeslagen.', '');
+                    return;
+                }
+
+                if (choice === 'new') {
+                    // Zoek unieke naam met suffix
+                    let suffix = 2;
+                    let newName = `${playlistName} (${suffix})`;
+                    while (allPlaylists.some(p => p.id?.name === newName)) {
+                        suffix++;
+                        newName = `${playlistName} (${suffix})`;
+                    }
+                    const createResp = await proFetch(`${BASE_URL}/playlists`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name: newName })
+                    }, 15000);
+                    if (!createResp.ok) throw new Error(`Playlist creation failed: HTTP ${createResp.status}`);
+                    const newPl = await createResp.json();
+                    targetPlaylistUuid = newPl.uuid || newPl.id?.uuid;
+                }
+
+                if (choice === 'override') {
+                    // Update de BESTAANDE playlist in-place (geen nieuwe aanmaken).
+                    // Eerst items tussen Preek en Eindlied bewaren (handmatig toegevoegd),
+                    // dan die terug invoegen en de hele playlist vervangen via PUT.
+                    targetPlaylistUuid = existingPlaylistUuid;
+                    let preservedManualItems = [];
+                    try {
+                        const existResp = await proFetch(`${BASE_URL}/playlist/${existingPlaylistUuid}`, { method: 'GET' });
+                        if (existResp.ok) {
+                            const existData = await existResp.json();
+                            const existingItems = existData.items || existData;
+                            if (Array.isArray(existingItems)) {
+                                const preekIdx = existingItems.findIndex(i => i.type === 'header' && /preek/i.test(i.id?.name));
+                                const eindIdx = existingItems.findIndex(i => i.type === 'header' && /eind/i.test(i.id?.name));
+                                if (preekIdx >= 0 && eindIdx > preekIdx) {
+                                    preservedManualItems = existingItems.slice(preekIdx + 1, eindIdx).map(item => {
+                                        // id.uuid MOET gelijk zijn aan target_uuid, anders geeft
+                                        // ProPresenter PUT een 404 (de id.uuid van een playlist-item
+                                        // is niet dezelfde als de presentatie-uuid in de library).
+                                        const targetUuid = item.target_uuid || item.presentation_info?.presentation_uuid || item.id?.uuid || '';
+                                        return {
+                                            id: { uuid: targetUuid, name: item.id?.name || '', index: 0 },
+                                            type: item.type || 'presentation',
+                                            is_hidden: item.is_hidden ?? false,
+                                            is_pco: item.is_pco ?? false,
+                                            target_uuid: targetUuid,
+                                            destination: item.destination || 'presentation'
+                                        };
+                                    });
+                                }
+                            }
+                        }
+                    } catch (e) { console.warn('[Sync] Could not read existing playlist:', e.message); }
+
+                    if (preservedManualItems.length) {
+                        const newPreekIdx = items.findIndex(i => i.type === 'header' && /preek/i.test(i.id?.name));
+                        if (newPreekIdx >= 0) {
+                            items.splice(newPreekIdx + 1, 0, ...preservedManualItems);
+                            console.log('[Sync] Preserved', preservedManualItems.length, 'manual items after Preek');
+                        }
+                    }
+                    console.log('[Sync] Override target UUID (bestaande playlist):', targetPlaylistUuid);
+                }
+            }
+
+            if (!targetPlaylistUuid) {
+                // Geen conflict → maak nieuwe playlist
+                const createResp = await proFetch(`${BASE_URL}/playlists`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: playlistName })
+                }, 15000);
+                if (!createResp.ok) throw new Error(`Playlist creation failed: HTTP ${createResp.status}`);
+                const newPl = await createResp.json();
+                targetPlaylistUuid = newPl.uuid || newPl.id?.uuid;
+            }
+            if (!targetPlaylistUuid) throw new Error('Could not get playlist UUID from response');
+
+            // Step 5: PUT items into playlist
+            console.log('[Sync] PUT:', `${BASE_URL}/playlist/${targetPlaylistUuid}`, 'items:', items.length);
+            const putResp = await proFetch(`${BASE_URL}/playlist/${targetPlaylistUuid}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(items)
             }, 15000);
-            console.log('[Sync] Playlist update status:', putResp.status);
-            
+
+            console.log('[Sync] PUT status:', putResp.status);
             if (!putResp.ok) {
                 const errorText = await putResp.text();
+                console.error('[Sync] PUT error body:', errorText);
                 throw new Error(`Playlist update failed: HTTP ${putResp.status} - ${errorText}`);
             }
 
             let statusMsg = `✅ Sync gelukt! ${matchedSongs} nummers gesynchroniseerd.`;
+            if (existingPlaylistUuid) statusMsg += ` (Playlist geüpdatet)`;
             if (unmatchedSongs.length > 0) {
                 statusMsg += `\n❌ Niet gevonden (${unmatchedSongs.length}): ${unmatchedSongs.join(', ')}`;
             }
             this.showStatus(statusMsg, "success");
-            
-            if (unmatchedSongs.length > 0) {
-                console.warn('[Sync] Unmatched songs:', unmatchedSongs);
-            }
-            
+
         } catch (err) {
             console.error('[Sync] Error:', err);
             this.showStatus(`❌ Sync fout: ${err.message}`, "error");

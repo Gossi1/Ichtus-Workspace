@@ -30,6 +30,7 @@ import systemRoutes, { initUpdateChecker } from './routes/system.js';
 import x32Routes from './routes/x32.js';
 import iemRoutes, { initIemState, iemStateFileExists } from './routes/iem.js';
 import worshiptoolsRoutes from './routes/worshiptools.js';
+import worshiptoolsServicesRoutes from './routes/worshiptools-services.js';
 import commandCenterRoutes, { initCommandCenterTopic } from './routes/commandcenter.js';
 import patchbayRoutes, { initPatchbayTopic } from './routes/patchbay-state.js';
 import dashboardRoutes, { initDashboardTopic } from './routes/dashboard-state.js';
@@ -82,12 +83,46 @@ app.use('/api/iem', iemRoutes);
 // WorshipTools data sync op /api/worshiptools/*
 app.use('/api/worshiptools', worshiptoolsRoutes);
 
+// WorshipTools diensten & setlists (Node port van test_api.py) op /api/worshiptools-services/*
+app.use('/api/worshiptools-services', worshiptoolsServicesRoutes);
+
 // Command Center (local-first + cloud backup) op /api/commandcenter/*
 app.use('/api/commandcenter', commandCenterRoutes);
 
 // Patchbay / dashboard cloud sync (local-first + cloud backup)
 app.use('/api/patchbay', patchbayRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// ── ProPresenter API proxy (bypass CORS) ──────────────────────────────
+// De browser krijgt CORS errors bij PUT/POST naar ProPresenter.
+// Dit proxy alle /api/pro/* requests naar de ProPresenter server.
+app.all('/api/pro/*', async (req, res) => {
+    try {
+        const proHost = process.env.PRO_HOST || localConfig.propresenter?.host || '100.113.22.22';
+        const proPort = process.env.PRO_PORT || localConfig.propresenter?.port || '51253';
+        const proUrl = `http://${proHost}:${proPort}${req.url.replace(/^\/api\/pro/, '/v1')}`;
+        const bodyStr = (req.method !== 'GET' && req.method !== 'HEAD' && req.body) ? JSON.stringify(req.body) : null;
+        console.log(`[PRO-PROXY] ${req.method} ${proUrl} bodyLen=${bodyStr ? bodyStr.length : 0}`);
+        const fetchOpts = {
+            method: req.method,
+            headers: {},
+        };
+        if (bodyStr) {
+            fetchOpts.body = bodyStr;
+            fetchOpts.headers['Content-Type'] = req.headers['content-type'] || 'application/json';
+        }
+        const resp = await fetch(proUrl, fetchOpts);
+        const contentType = resp.headers.get('content-type');
+        const respText = await resp.text();
+        console.log(`[PRO-PROXY] Response: ${resp.status} body=${respText.substring(0, 200)}`);
+        res.status(resp.status);
+        if (contentType) res.set('Content-Type', contentType);
+        res.send(respText);
+    } catch (err) {
+        console.error('[PRO-PROXY] Error:', err.message);
+        res.status(502).json({ error: err.message });
+    }
+});
 
 // ── Firebase config injection middleware ────────────────────────────────
 // Serveert HTML bestanden met Firebase config injected voor </head>
@@ -248,10 +283,10 @@ async function start() {
   ║    /api/health            - Health check             ║
   ║    /api/status            - Status + logs            ║
   ║    /api/ndi/sources       - NDI discovery            ║
-  ║    /api/tockify/ics       - Tockify ICS proxy        ║
-  ║    /api/library/*         - Song ID library          ║
-  ║    /api/x32/*             - X32 OSC bridge           ║
-  ║    /api/iem/*             - Mic/IEM monitor          ║
+  ║    /api/tockify/ics       - Tockify ICS proxy        ║    ║    /api/library/*         - Song ID library          ║
+    ║    /api/x32/*             - X32 OSC bridge           ║
+    ║    /api/iem/*             - Mic/IEM monitor          ║
+    ║    /api/worshiptools-services - Diensten + setlists ║
   ║    /api/system/check-update - Git update check       ║
   ║    /ws                    - WebSocket hub            ║
   ╠══════════════════════════════════════════════════════╣

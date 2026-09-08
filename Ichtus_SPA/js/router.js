@@ -43,11 +43,14 @@ const router = {
         // Clean up Checklist module when navigating away (stops timer interval)
         if (this.currentView === 'checklist' && typeof checklistModule !== 'undefined' && checklistModule.cleanup) {
             checklistModule.cleanup();
-        }
-
-        // Clean up NDI module when navigating away
+        }        // Clean up NDI module when navigating away
         if (this.currentView === 'ndi' && typeof ndiModule !== 'undefined' && ndiModule.cleanup) {
             ndiModule.cleanup();
+        }
+
+        // Clean up WorshipTools services module when navigating away (stops poll timer)
+        if (this.currentView === 'setlist' && typeof wtServicesModule !== 'undefined' && wtServicesModule.cleanup) {
+            wtServicesModule.cleanup();
         }
 
         // Clean up Stage Builder module when navigating away (frees document-level
@@ -101,6 +104,7 @@ const router = {
             analyticsModule.init();
         } else if (view === 'setlist' && typeof setlistModule !== 'undefined') {
             setlistModule.init();
+            if (typeof wtServicesModule !== 'undefined') wtServicesModule.init();
         } else if (view === 'dashboard' && typeof dashboardModule !== 'undefined') {
             dashboardModule.init();
         } else if (view === 'ndi' && typeof ndiModule !== 'undefined') {
@@ -133,6 +137,7 @@ router.isSettingsActive   = () => router.currentView === 'settings';
 router.isAgendaActive     = () => router.currentView === 'agenda';
 router.isPatchbayActive   = () => router.currentView === 'patchbay';
 router.isSetlistActive    = () => router.currentView === 'setlist';
+router.isWtServicesActive = () => router.currentView === 'setlist';
 router.isStageBuilderActive = () => router.currentView === 'stagebuilder';
 router.isSupervisorActive  = () => router.currentView === 'supervisor';
 router.isSongIdAssignerActive = () => router.currentView === 'songidassigner';

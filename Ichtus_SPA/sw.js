@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v8';
+const CACHE_NAME = 'ichtus-spa-v11';
 
 // Static assets to pre-cache on install.
 const PRECACHE_URLS = [
@@ -98,6 +98,9 @@ self.addEventListener('fetch', event => {
   // Always skip chrome-extension and non-GET requests
   if (event.request.method !== 'GET') return;
   if (event.request.url.startsWith('chrome-extension://')) return;
+
+  // Skip cross-origin requests (ProPresenter, external APIs)
+  if (url.origin !== self.location.origin) return;
 
   // API calls → network only, no cache fallback (server offline = error)
   if (API_PATTERNS.some(pattern => event.request.url.includes(pattern))) {
