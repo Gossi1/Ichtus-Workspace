@@ -534,7 +534,7 @@ const setlistModule = {
      * names (which don't) — one place to keep the pattern consistent.
      */
     stripSongNumberPrefix(name) {
-        return String(name || '').replace(/^[A-Z]{1,3}\s*\d{1,4}\s+/, '').trim();
+        return String(name || '').replace(/^[A-Z]{1,3}\s*\d{1,4}[A-Za-z]?\s+/, '').trim();
     },
 
     renderTemplateDropdown() {

@@ -227,10 +227,12 @@ function parseSongNumber(line) {
     try {
         if (typeof line !== 'string') return { name: String(line || '') };
         // Match patterns: 1-4 letters (mixed case: "LvK", "Ps", "ELB") followed
-        // by digits (optionally separated by space) — e.g. O586, D143, LvK 9,
-        // Ps 150, ELB 838. Mixed-case prefixes are common in Dutch hymn books,
+        // by digits (optionally separated by space) with an optional trailing letter
+        // — e.g. O586, D143, D179N, LvK 9, Ps 150, ELB 838. The trailing letter
+        // (e.g. "N" in D179N) must be included so the number matches songidassigner's
+        // PREFIX_RE format. Mixed-case prefixes are common in Dutch hymn books,
         // so [A-Za-z] (not just [A-Z]) keeps them structured and artist-tagged.
-        const numberMatch = line.match(/^([A-Za-z]{1,4}\s*\d{1,4})\s+(.+)/);
+        const numberMatch = line.match(/^([A-Za-z]{1,4}\s*\d{1,4}[A-Za-z]?)\s+(.+)/);
         if (numberMatch) {
             return {
                 number: numberMatch[1].replace(/\s+/g, ' ').trim(),

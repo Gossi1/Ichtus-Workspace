@@ -272,7 +272,7 @@ const wtServicesModule = {
                 if (/setlist\s*eind/i.test(title)) break;
                 if (ignore.some(w => title.toLowerCase().includes(w))) continue;
 
-                const numMatch = title.match(/^([A-Z]{1,3}\s*\d{1,4})\s+(.+)/);
+                const numMatch = title.match(/^([A-Z]{1,3}\s*\d{1,4}[A-Za-z]?)\s+(.+)/);
                 bucket.push({
                     number: numMatch ? numMatch[1] : null,
                     name: numMatch ? numMatch[2] : title,
