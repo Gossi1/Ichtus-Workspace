@@ -4,6 +4,7 @@
     "worshiptools": {
         "apiKey": "HIER JE FIREBASE WEB API KEY",
         "accountId": "HIER JE WORSHIPTOOLS ACCOUNT UUID",
-        "refreshToken": "HIER JE FIREBASE REFRESH TOKEN"
+        "refreshToken": "HIER JE FIREBASE REFRESH TOKEN",
+        "apiToken": "HIER JE WORSHIPTOOLS API TOKEN (alleen nodig voor roster people-sync; zie show_roster.py)"
     }
 }

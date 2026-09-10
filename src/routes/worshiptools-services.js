@@ -13,19 +13,21 @@
  *   GET /api/worshiptools-services/services            → lijst (5 min cache)
  *   GET /api/worshiptools-services/services?refresh=1  → forceer verversen
  *   GET /api/worshiptools-services/services/:id/setlist → setlist van één dienst
+ *   GET /api/worshiptools-services/services/:id/roster  → roster van één dienst
  *
- * Credentials: env (WT_API_KEY / WT_ACCOUNT_ID / WT_REFRESH_TOKEN) →
- * server-config.json ("worshiptools" sectie) → defaults hieronder (gelijk
- * aan test_api.py).
+ * Credentials: env (WT_API_KEY / WT_ACCOUNT_ID / WT_REFRESH_TOKEN /
+ * WT_API_TOKEN) → server-config.json ("worshiptools" sectie) → defaults
+ * hieronder (gelijk aan test_api.py / show_roster.py).
  */
 
 import { Router } from 'express';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = resolve(__dirname, '..', '..');
+const PEOPLE_CACHE_FILE = resolve(ROOT_DIR, 'people_cache.json');
 
 // ── Config ────────────────────────────────────────────────────────────
 // Credentials worden NIET hardcoded. Ze komen uit (in volgorde):
@@ -38,6 +40,9 @@ const DEFAULT_CONFIG = {
     apiKey: '',
     accountId: '',
     refreshToken: '',
+    // API-token van api.worship.tools (alleen nodig voor de people-sync,
+    // niet voor Firestore). Zie show_roster.py — WT_TOKEN.
+    apiToken: '',
 };
 
 let cachedConfig = null;
@@ -57,6 +62,7 @@ function getConfig() {
         apiKey: process.env.WT_API_KEY || fromFile.apiKey || DEFAULT_CONFIG.apiKey,
         accountId: process.env.WT_ACCOUNT_ID || fromFile.accountId || DEFAULT_CONFIG.accountId,
         refreshToken: process.env.WT_REFRESH_TOKEN || fromFile.refreshToken || DEFAULT_CONFIG.refreshToken,
+        apiToken: process.env.WT_API_TOKEN || fromFile.apiToken || fromFile.wtToken || DEFAULT_CONFIG.apiToken,
     };
     if (!cachedConfig.apiKey || !cachedConfig.accountId || !cachedConfig.refreshToken) {
         throw new Error(
@@ -68,10 +74,116 @@ function getConfig() {
     return cachedConfig;
 }
 
-// ── Constants (gelijk aan test_api.py) ────────────────────────────────
+// ── Constants (gelijk aan test_api.py / show_roster.py) ───────────────
 const EXCLUDED_TYPE_IDS = new Set([
     'f30f3f88-1e83-4e1a-bc60-ef3974a071fb', // Ichtus Kids Blauw
 ]);
+
+// Team- en rol-mapping (gelijk aan show_roster.py). Vertaalt een
+// Firestore role-ID naar { role, team, teamOrder, roleOrder } zodat het
+// roster per team gegroepeerd én gesorteerd kan worden.
+const TEAMS_DATA = [
+    { name: 'Tech Team', order: 1, roles: [
+        { id: 'cbb79b68-2e6f-46e4-9d32-917a71d8236e', name: 'Tech Director', order: 1 },
+        { id: 'bfd25f3f-ef53-4a7b-813a-fdede2b1f0b8', name: 'Audio', order: 2 },
+        { id: '63354086-2a9d-451f-ab86-75d0f67f68ae', name: 'Beamer', order: 3 },
+        { id: '412d2989-bd3a-4988-8d09-3f7fd4367843', name: 'Stream', order: 4 },
+        { id: '7c7461bd-bfd0-4215-a180-e376ffb8d1b0', name: 'Lighting', order: 5 },
+        { id: 'd7b38845-2e13-4a56-86e6-69c49ff4c6f3', name: 'In-Ear Mixer', order: 6 },
+        { id: '84a10f22-52ef-43cc-9025-f3a3ccc2ac85', name: 'Backstage Assistant', order: 7 },
+    ] },
+    { name: 'Worship Team', order: 2, roles: [
+        { id: 'da8c7f47-c974-41ee-ab2a-3809f8f5d26e', name: 'Worship Leader', order: 1 },
+        { id: '9ccf7768-505d-4612-b058-0c6b5a773b4e', name: 'Vocalist', order: 2 },
+        { id: '18645fa3-d48a-4c48-b51a-afd3652f3927', name: 'Piano', order: 3 },
+        { id: 'dd360357-71f6-4892-8405-5d748080c6fd', name: 'Keys', order: 4 },
+        { id: '5799674f-da38-4b6a-9825-32e41d2c8755', name: 'Guitar', order: 5 },
+        { id: 'ab4bc739-d984-45af-929a-53a2673876a7', name: 'Electric Guitar', order: 6 },
+        { id: 'ecf3052e-115b-40e0-a247-6b9772722296', name: 'Bass Guitar', order: 7 },
+        { id: '5530795a-bd30-454e-99fe-a5073c93b620', name: 'Drums', order: 8 },
+        { id: '36b4098b-096e-4e94-ad3e-f51b35a8e670', name: 'Saxophone', order: 9 },
+    ] },
+];
+
+const ROLE_MAP = new Map();
+for (const t of TEAMS_DATA) {
+    for (const r of t.roles) {
+        ROLE_MAP.set(r.id, {
+            role: r.name,
+            team: t.name,
+            teamOrder: t.order,
+            roleOrder: r.order || 99,
+        });
+    }
+}
+
+// ── People cache (user-ID → volledige naam) ───────────────────────────
+// Wordt gevuld uit api.worship.tools (als WT_API_TOKEN aanwezig is) en
+// bewaard in people_cache.json — zelfde bestand als show_roster.py.
+const PEOPLE_SYNC_TTL_MS = 30 * 60 * 1000; // 30 min tussen API-syncs
+let peopleCache = new Map();
+let peopleCacheLoaded = false;
+let lastPeopleSync = 0;
+
+function loadPeopleCache() {
+    if (peopleCacheLoaded) return;
+    peopleCacheLoaded = true;
+    try {
+        if (existsSync(PEOPLE_CACHE_FILE)) {
+            const raw = JSON.parse(readFileSync(PEOPLE_CACHE_FILE, 'utf-8'));
+            peopleCache = new Map(Object.entries(raw || {}));
+        }
+    } catch (err) {
+        console.warn('  [WT-SVC] people_cache.json onleesbaar:', err.message);
+        peopleCache = new Map();
+    }
+}
+
+async function syncPeopleCache(force = false) {
+    loadPeopleCache();
+    const cfg = getConfig();
+    if (!cfg.apiToken) {
+        // Zonder API-token alleen de lokale cache gebruiken (kan stale zijn).
+        if (!peopleCache.size) {
+            console.warn('  [WT-SVC] Geen WT_API_TOKEN — people-sync overgeslagen, namen vallen terug op user-ID.');
+        }
+        return peopleCache;
+    }
+    if (!force && peopleCache.size > 0 && Date.now() - lastPeopleSync < PEOPLE_SYNC_TTL_MS) {
+        return peopleCache;
+    }
+
+    try {
+        const res = await fetch(`https://api.worship.tools/v1/account/${cfg.accountId}/people`, {
+            headers: { Authorization: `Bearer ${cfg.apiToken}`, Accept: 'application/json' },
+            signal: AbortSignal.timeout(6000),
+        });
+        if (!res.ok) {
+            console.warn(`  [WT-SVC] People API HTTP ${res.status} — cache behouden`);
+            return peopleCache;
+        }
+        const newPeople = await res.json();
+        let updated = 0;
+        for (const p of newPeople) {
+            const pid = p && p.id;
+            const fullName = `${(p.firstName || '').trim()} ${(p.lastName || '').trim()}`.trim();
+            if (pid && fullName && peopleCache.get(pid) !== fullName) {
+                peopleCache.set(pid, fullName);
+                updated++;
+            }
+        }
+        lastPeopleSync = Date.now();
+        try {
+            writeFileSync(PEOPLE_CACHE_FILE, JSON.stringify(Object.fromEntries(peopleCache), null, 2), 'utf-8');
+        } catch (err) {
+            console.warn('  [WT-SVC] people_cache.json schrijven mislukt:', err.message);
+        }
+        console.log(`  [WT-SVC] People gesynchroniseerd: ${peopleCache.size} personen (${updated} nieuw/bijgewerkt)`);
+    } catch (err) {
+        console.warn('  [WT-SVC] People-sync mislukt (cache behouden):', err.message);
+    }
+    return peopleCache;
+}
 
 const DAGNAMEN = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo'];
 const MAANDEN = ['jan', 'feb', 'mrt', 'apr', 'mei', 'jun', 'jul', 'aug', 'sep', 'okt', 'nov', 'dec'];
@@ -321,6 +433,66 @@ function extractSongs(doc) {
     });
 }
 
+// ── Roster extractie (port van show_roster.py) ───────────────────────
+function normalizeStatus(raw) {
+    const s = String(raw || 'pending').toLowerCase();
+    if (s === 'accepted') return 'accepted';
+    if (s === 'declined') return 'declined';
+    return 'pending';
+}
+
+async function fetchRosterPeople(accessToken, cuelistId) {
+    const url = `${cuelistsBaseUrl()}/${encodeURIComponent(cuelistId)}/people?pageSize=300`;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (res.status === 401 || res.status === 403) throw new AuthError(`Firestore geweigerd (HTTP ${res.status})`);
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`Firestore HTTP ${res.status}`);
+    const data = await res.json();
+    return data.documents || [];
+}
+
+function buildRoster(peopleDocs, people) {
+    // people: Map(userId → naam). Elke toewijzing wordt een entry die de
+    // Stage Builder direct kan renderen: { name, role, status, team }.
+    const teams = new Map(); // teamName → { order, accepted, declined, pending, members[] }
+
+    for (const doc of peopleDocs) {
+        const f = doc.fields || {};
+        const userId = vStr(f, 'user');
+        const roleId = vStr(f, 'role');
+        const status = normalizeStatus(vStr(f, 'status'));
+
+        const rInfo = ROLE_MAP.get(roleId);
+        if (!rInfo) continue;
+
+        const name = people.get(userId) || `Onbekend (${userId.slice(0, 8)}...)`;
+
+        let team = teams.get(rInfo.team);
+        if (!team) {
+            team = { order: rInfo.teamOrder, accepted: 0, declined: 0, pending: 0, members: [] };
+            teams.set(rInfo.team, team);
+        }
+        team[status]++;
+        team.members.push({
+            role: rInfo.role,
+            roleOrder: rInfo.roleOrder,
+            name,
+            status,
+            userId,
+        });
+    }
+
+    const teamList = [...teams.entries()]
+        .sort((a, b) => a[1].order - b[1].order)
+        .map(([name, t]) => ({
+            name,
+            ...t,
+            members: t.members.sort((a, b) => (a.roleOrder - b.roleOrder) || a.name.localeCompare(b.name, 'nl')),
+        }));
+
+    return teamList;
+}
+
 // ── Routes ────────────────────────────────────────────────────────────
 const router = Router();
 
@@ -336,6 +508,88 @@ router.get('/services', async (req, res) => {
         });
     } catch (err) {
         console.error('  [WT-SVC] Fout bij ophalen diensten:', err.message);
+        res.status(502).json({ success: false, error: err.message });
+    }
+});
+
+// Roster (people) van één dienst — port van show_roster.py
+router.get('/services/:id/roster', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const forcePeople = req.query.sync === '1' || req.query.sync === 'true';
+
+        // 1. People-namen ophalen/synchroniseren (best-effort)
+        const people = await syncPeopleCache(forcePeople);
+
+        // 2. Dienst-document voor de naam/datum (uit cache of live)
+        let doc = fullDocCache.get(id);
+        if (!doc) {
+            let token = await getAccessToken();
+            try {
+                doc = await fetchSingleCuelist(token, id);
+            } catch (err) {
+                if (err instanceof AuthError) {
+                    token = await getAccessToken(true);
+                    doc = await fetchSingleCuelist(token, id);
+                } else {
+                    throw err;
+                }
+            }
+            if (!doc) return res.status(404).json({ success: false, error: 'Dienst niet gevonden' });
+            fullDocCache.set(id, doc);
+        }
+        const parsed = parseEvent(doc);
+
+        // 3. People-subcollection ophalen
+        let token = await getAccessToken();
+        let peopleDocs;
+        try {
+            peopleDocs = await fetchRosterPeople(token, id);
+        } catch (err) {
+            if (err instanceof AuthError) {
+                token = await getAccessToken(true);
+                peopleDocs = await fetchRosterPeople(token, id);
+            } else {
+                throw err;
+            }
+        }
+
+        // 4. Groeperen per team + platte lijst voor de Stage Builder
+        const teams = buildRoster(peopleDocs, people);
+        const roster = [];
+        let declinedCount = 0;
+        for (const team of teams) {
+            for (const m of team.members) {
+                if (m.status === 'declined') {
+                    declinedCount++;
+                    continue; // declined nooit meenemen naar de Stage Builder
+                }
+                roster.push({
+                    name: m.name,
+                    role: m.role,
+                    status: m.status,
+                    team: team.name,
+                    userId: m.userId,
+                });
+            }
+        }
+
+        res.json({
+            success: true,
+            service: parsed
+                ? toClientService(parsed, new Date())
+                : { id, name: 'Onbekende dienst', displayDate: 'Geen datum' },
+            teams,
+            roster,
+            counts: {
+                total: roster.length,
+                accepted: roster.filter((r) => r.status === 'accepted').length,
+                pending: roster.filter((r) => r.status === 'pending').length,
+                declined: declinedCount,
+            },
+        });
+    } catch (err) {
+        console.error('  [WT-SVC] Fout bij ophalen roster:', err.message);
         res.status(502).json({ success: false, error: err.message });
     }
 });

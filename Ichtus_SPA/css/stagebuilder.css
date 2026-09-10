@@ -398,6 +398,54 @@
     flex-shrink: 0;
 }
 
+/* Dienst-selector (roster direct uit WorshipTools laden, zonder extension) */
+#view-stagebuilder .sb-service-picker {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+#view-stagebuilder .sb-service-picker select {
+    background: rgba(0, 0, 0, 0.35);
+    color: var(--text-main);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 8px;
+    padding: 6px 10px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    max-width: 240px;
+    outline: none;
+    cursor: pointer;
+}
+
+#view-stagebuilder .sb-service-picker select:hover,
+#view-stagebuilder .sb-service-picker select:focus {
+    border-color: rgba(255, 123, 0, 0.5);
+}
+
+#view-stagebuilder .sb-service-picker .sb-btn {
+    padding: 6px 12px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+}
+
+#view-stagebuilder .sb-service-picker .sb-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+@media (max-width: 1100px) {
+    #view-stagebuilder .sb-service-picker {
+        flex-wrap: wrap;
+        justify-content: flex-end;
+    }
+    #view-stagebuilder .sb-service-picker select {
+        max-width: 100%;
+        flex: 1;
+    }
+}
+
 /* ============ Table ============ */
 #view-stagebuilder .sb-roster-table-wrap {
     overflow-x: auto;

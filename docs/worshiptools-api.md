@@ -155,10 +155,12 @@ GET /api/worshiptools-services/services/:id/setlist
 ### Credentials
 
 Configuration (in volgorde):
-1. Environment variables: `WT_API_KEY`, `WT_ACCOUNT_ID`, `WT_REFRESH_TOKEN`
+1. Environment variables: `WT_API_KEY`, `WT_ACCOUNT_ID`, `WT_REFRESH_TOKEN`, `WT_API_TOKEN`
 2. `server-config.json` → sectie `"worshiptools"`
 
 ⚠️ Credentials worden NOOIT hardcoded — ze staan in `.gitignore`.
+
+`WT_API_TOKEN` is de `WT_TOKEN` uit `show_roster.py` — alleen nodig voor de roster people-sync (`api.worship.tools`). Zonder token draait de roster-endpoint op de lokale `people_cache.json` (namen blijven dan werken tot de cache ververst moet worden).
 
 ### Authenticatie
 
@@ -220,6 +222,47 @@ Haalt de volledige setlist van één dienst op.
   "count": 10
 }
 ```
+
+#### `GET /api/worshiptools-services/services/:id/roster`
+
+Haalt het roster (people-toewijzingen) van één dienst op — Node-port van `show_roster.py`. Gebruikt door de Stage Builder om het roster direct uit WorshipTools te laden (zonder Chrome-extension).
+
+**Query params:**
+- `sync=1` — Forceer people-sync via de WT API (`api.worship.tools`)
+
+**Flow:**
+1. **People-sync** (best-effort): `GET https://api.worship.tools/v1/account/{accountId}/people` met de `apiToken` → `people_cache.json` (30 min TTL). Zonder geldige token wordt de lokale cache gebruikt; onbekende user-ID's vallen terug op `Onbekend (…...)`.
+2. **Dienst-document** ophalen (uit cache of live) voor naam/datum.
+3. **People-subcollection**: `GET .../accounts/{accountId}/cuelists/{id}/people` uit Firestore.
+4. **Groeperen** per team (Tech Team / Worship Team) met de rol-mapping uit `show_roster.py`.
+
+**Response:**
+```json
+{
+  "success": true,
+  "service": { "id": "...", "name": "Familiedienst", "displayDate": "Zo 13 sep 2026 - 10:00" },
+  "teams": [
+    {
+      "name": "Worship Team",
+      "order": 2,
+      "accepted": 6,
+      "declined": 0,
+      "pending": 0,
+      "members": [
+        { "role": "Worship Leader", "roleOrder": 1, "name": "Menno Wellner", "status": "accepted", "userId": "..." }
+      ]
+    }
+  ],
+  "roster": [
+    { "name": "Menno Wellner", "role": "Worship Leader", "status": "accepted", "team": "Worship Team", "userId": "..." }
+  ],
+  "counts": { "total": 8, "accepted": 7, "pending": 1, "declined": 0 }
+}
+```
+
+**Opmerkingen:**
+- `roster` is de platte lijst die de Stage Builder rendert — `declined` toewijzingen zijn er al uitgefilterd (zelfde gedrag als de extension-scrape).
+- `teams` bevat ook declined/pending tellers en de volledige ledenlijst (met status) voor diagnose.
 
 ### Firestore Data Model
 
@@ -322,7 +365,8 @@ Maak een `server-config.json` (staat in `.gitignore`):
   "worshiptools": {
     "apiKey": "AIzaSy...",
     "accountId": "jouw-account-id",
-    "refreshToken": "1//..."
+    "refreshToken": "1//...",
+    "apiToken": "eyJ... (WT_TOKEN uit show_roster.py, optioneel)"
   }
 }
 ```
@@ -330,6 +374,7 @@ Maak een `server-config.json` (staat in `.gitignore`):
 Of gebruik environment variables:
 ```bash
 export WT_API_KEY="AIzaSy..."
+export WT_API_TOKEN="eyJ..."
 export WT_ACCOUNT_ID="jouw-account-id"
 export WT_REFRESH_TOKEN="1//..."
 ```

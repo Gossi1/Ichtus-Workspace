@@ -2120,6 +2120,14 @@
                             <h2 class='sb-roster-title'>WorshipTools Roster</h2>
                             <span class='sb-roster-sub'>Eén rij per rol-toewijzing — naam, rol, auto-matched preset, kanaal, recall. Zingt een gitarist ook (mee)? Klik op de mic-knop <strong>🎤</strong> — hij houdt zijn gitaarkanaal en krijgt er een extra zang-mic-preset + kanaal bij (dubbele recall).</span>
                         </div>
+                        <div class='sb-service-picker'>
+                            <select id='sb-service-select' title='Kies een dienst om het roster direct uit WorshipTools te laden (zonder Chrome-extension)' onchange='stagebuilderModule.onServiceSelectChange()'>
+                                <option value=''>— Kies dienst —</option>
+                            </select>
+                            <button id='sb-load-roster' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.loadRosterForService()' title='Laad het roster van de geselecteerde dienst direct uit WorshipTools'>
+                                Laad roster
+                            </button>
+                        </div>
                         <span id='sb-roster-meta' class='sb-roster-meta'>wachten op roster uit WorshipTools…</span>
                     </header>
 

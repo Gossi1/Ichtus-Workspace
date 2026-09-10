@@ -37,6 +37,11 @@ const stagebuilderModule = {
     roster: [],                  // raw WorshipTools roster entries
     rosterStatus: 'waiting',     // 'waiting' | 'received' | 'empty'
     rosterRows: [],              // [{id,name,role,slug,slot,channel,autoSlot,status,...}]
+    // -------- Diensten (direct uit WorshipTools via de server) --------
+    services: [],                // [{id,name,displayDate,time,isToday,isPast,cuesCount,rehearsals}]
+    servicesLoaded: false,
+    rosterSource: 'extension',   // 'extension' (Chrome-ext) | 'server' (direct uit WT via /api/worshiptools-services)
+    rosterServiceName: '',       // naam van de dienst waarvan het roster geladen is (server-bron)
 
     // -------- Timers / guards --------
     _toastTimer: null,
@@ -173,6 +178,12 @@ const stagebuilderModule = {
         this._renderRosterOrEmpty();
         this._renderConnectionBadge();
         this._signalStageBuilderReady();
+        // Vul de dienst-dropdown zodat de operator het roster van een
+        // specifieke dienst direct uit WorshipTools kan laden (zonder
+        // eerst de Chrome-extension te gebruiken). Best-effort — als de
+        // server-diensten niet beschikbaar zijn blijft de extension-flow
+        // gewoon werken.
+        this.loadServices();
         // Auto-Connect + Auto-Poll on view entry. refreshSessionStatus
         // reports current bridge state; if disconnected, opts.autoConnect
         // triggers an in-background connect (which itself triggers a
@@ -207,6 +218,112 @@ const stagebuilderModule = {
      *  Roster" button injected by the worshiptools-sync extension. */
     openWorshipTools() {
         window.open('https://planning.worshiptools.com/app', '_blank');
+    },
+
+    // ------------------------------------------------------------------
+    //  DIRECTE ROSTER-LOAD UIT WORSHIPTOOLS (via server, zonder extension)
+    //  Backend: GET /api/worshiptools-services/services/:id/roster
+    //  (Node-port van show_roster.py — haalt de people-subcollection van
+    //   een dienst rechtstreeks uit de WorshipTools Firestore datastore.)
+    // ------------------------------------------------------------------
+
+    /** Vul de dienst-dropdown met de 10 komende + 4 afgelopen diensten. */
+    async loadServices() {
+        const sel = document.getElementById('sb-service-select');
+        if (!sel) return;
+        if (this._svcLoadInFlight) return;
+        this._svcLoadInFlight = true;
+        try {
+            const resp = await fetch('/api/worshiptools-services/services');
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || 'HTTP ' + resp.status);
+
+            this.services = [...(data.upcoming || []), ...(data.past || [])];
+            this.servicesLoaded = true;
+
+            // Behoud de vorige selectie (als die nog in de lijst staat)
+            const prev = sel.value;
+            sel.innerHTML = '<option value="">— Kies dienst —</option>' +
+                this.services.map(function (s) {
+                    const label = s.displayDate + ' · ' + s.name;
+                    return '<option value="' + stagebuilderModule.escapeAttr(s.id) + '">' +
+                        stagebuilderModule.escapeHtml(label) + '</option>';
+                }).join('');
+            if (prev && this.services.some(s => s.id === prev)) sel.value = prev;
+            this._updateServicePickerState();
+        } catch (err) {
+            console.warn('[SB] Diensten ophalen mislukt:', err.message);
+            sel.innerHTML = '<option value="">— Diensten niet beschikbaar —</option>';
+        } finally {
+            this._svcLoadInFlight = false;
+        }
+    },
+
+    /** Dropdown wijziging: load-knop activeren zodra een dienst gekozen is. */
+    onServiceSelectChange() {
+        this._updateServicePickerState();
+    },
+
+    _updateServicePickerState() {
+        const sel = document.getElementById('sb-service-select');
+        const btn = document.getElementById('sb-load-roster');
+        if (!sel || !btn) return;
+        btn.disabled = !sel.value;
+    },
+
+    /** Laad het roster van de geselecteerde dienst en render het als rijen. */
+    async loadRosterForService() {
+        const sel = document.getElementById('sb-service-select');
+        const btn = document.getElementById('sb-load-roster');
+        if (!sel || !sel.value) {
+            this.showToast('Kies eerst een dienst in de dropdown.', 'error');
+            return;
+        }
+        if (this._rosterLoadInFlight) return;
+        this._rosterLoadInFlight = true;
+        if (btn) btn.disabled = true;
+
+        const serviceId = sel.value;
+        const service = this.services.find(s => s.id === serviceId);
+
+        try {
+            const resp = await fetch('/api/worshiptools-services/services/' + encodeURIComponent(serviceId) + '/roster');
+            const data = await resp.json();
+            if (!resp.ok || !data.success) throw new Error(data.error || 'HTTP ' + resp.status);
+
+            // Server-entries → dezelfde vorm als de extension-roster
+            // ({name, role, ...}); declined toewijzingen zijn al door de
+            // server eruit gefilterd. De bestaande filterpijplijn
+            // (_onRosterReceived → _isExcludedRole) blijft actief.
+            this.rosterSource = 'server';
+            this.rosterServiceName = (data.service && (data.service.name || '')) || (service && service.name) || '';
+            const counts = data.counts || {};
+
+            const entries = (data.roster || []).map(function (r) {
+                return {
+                    name: r.name,
+                    role: r.role,
+                    team: r.team,
+                    status: r.status,
+                    userId: r.userId,
+                };
+            });
+            this._onRosterReceived(entries);
+
+            const total = entries.length;
+            const pending = counts.pending || 0;
+            const declined = counts.declined || 0;
+            let msg = 'Roster geladen: ' + total + ' toewijzingen' +
+                (pending > 0 ? ' (' + pending + ' in afwachting)' : '');
+            if (declined > 0) msg += ' · ' + declined + ' afgewezen overgeslagen';
+            this.showToast(msg, 'success');
+        } catch (err) {
+            console.warn('[SB] Roster ophalen mislukt:', err.message);
+            this.showToast('Roster laden mislukt: ' + (err.message || 'onbekende fout'), 'error');
+        } finally {
+            this._rosterLoadInFlight = false;
+            this._updateServicePickerState();
+        }
     },
 
     _signalStageBuilderReady() {
@@ -291,6 +408,8 @@ const stagebuilderModule = {
         this.__rosterHandler = (e) => {
             const detail = (e && e.detail) || {};
             const data = Array.isArray(detail.roster) ? detail.roster : [];
+            this.rosterSource = 'extension';
+            this.rosterServiceName = '';
             this._onRosterReceived(data);
         };
         document.addEventListener('worshiptools-roster', this.__rosterHandler);
@@ -299,7 +418,11 @@ const stagebuilderModule = {
         this.__wsRosterHandler = (e) => {
             const d = (e && e.detail) || {};
             const data = Array.isArray(d.roster) ? d.roster : [];
-            if (data.length) this._onRosterReceived(data);
+            if (data.length) {
+                this.rosterSource = 'extension';
+                this.rosterServiceName = '';
+                this._onRosterReceived(data);
+            }
         };
         document.addEventListener('ws:wt:roster', this.__wsRosterHandler);
     },
@@ -1600,6 +1723,10 @@ const stagebuilderModule = {
         const meta = document.getElementById('sb-roster-meta');
         if (!meta) return;
         const ip = this._getX32Ip();
+        // Bron-aanduiding: extension-scrape of directe server-load.
+        const srcLabel = this.rosterSource === 'server'
+            ? (this.rosterServiceName ? 'direct uit WT · ' + this.rosterServiceName : 'direct uit WT')
+            : 'via extension';
         if (this.rosterStatus === 'received' && this.rosterRows.length > 0) {
             const total = this.rosterRows.length;
             const filled = this.rosterRows.filter(function (r) {
@@ -1607,9 +1734,9 @@ const stagebuilderModule = {
             }).length;
             const pollState = this._x32DiscoveredPresets ? 'gepolld' : 'wacht op Poll';
             meta.textContent = total + ' toewijzingen · ' +
-                filled + '/' + total + ' recall-klaar · ' + pollState + ' · console ' + ip;
+                filled + '/' + total + ' recall-klaar · ' + pollState + ' · ' + srcLabel + ' · console ' + ip;
         } else if (this.rosterStatus === 'empty') {
-            meta.textContent = '0 toewijzingen · open WorshipTools → Extract Roster · console ' + ip;
+            meta.textContent = '0 toewijzingen · ' + srcLabel + ' · open WorshipTools → Extract Roster · console ' + ip;
         } else {
             meta.textContent = 'wachten op roster uit WorshipTools… · console ' + ip;
         }
