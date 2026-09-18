@@ -449,14 +449,18 @@ export async function triggerUpdateCheck(source = 'manual') {
 router.post('/restart/:key', async (req, res) => {
     const { key } = req.params;
     log(`restart requested for: ${key}`);
-    // In NSSM context, nssm restart IchtusServer is run externally
-    // (e.g. from the supervisor UI). NSSM handles the actual restart.
-    res.json({ success: true, message: `Restart ${key} aangevraagd. NSSM handelt het af.` });
+    res.json({ success: true, message: `Restart ${key} aangevraagd. Server herstart binnen 500ms...` });
+    setTimeout(() => {
+        process.exit(0);
+    }, 500);
 });
 
 router.post('/restart-all', async (req, res) => {
     log('restart-all requested');
-    res.json({ success: true, message: 'Alle services worden herstart door NSSM.' });
+    res.json({ success: true, message: 'Server herstart binnen 500ms...' });
+    setTimeout(() => {
+        process.exit(0);
+    }, 500);
 });
 
 // ── Logs ───────────────────────────────────────────────────────────────

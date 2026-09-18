@@ -125,13 +125,14 @@ let peopleCache = new Map();
 let peopleCacheLoaded = false;
 let lastPeopleSync = 0;
 
-function loadPeopleCache() {
-    if (peopleCacheLoaded) return;
-    peopleCacheLoaded = true;
+function loadPeopleCache(force = false) {
+    if (!force && peopleCacheLoaded && peopleCache.size > 0) return;
     try {
         if (existsSync(PEOPLE_CACHE_FILE)) {
             const raw = JSON.parse(readFileSync(PEOPLE_CACHE_FILE, 'utf-8'));
             peopleCache = new Map(Object.entries(raw || {}));
+            peopleCacheLoaded = true;
+            console.log(`  [WT-SVC] people_cache.json geladen: ${peopleCache.size} personen`);
         }
     } catch (err) {
         console.warn('  [WT-SVC] people_cache.json onleesbaar:', err.message);
@@ -140,7 +141,7 @@ function loadPeopleCache() {
 }
 
 async function syncPeopleCache(force = false) {
-    loadPeopleCache();
+    loadPeopleCache(force);
     const cfg = getConfig();
     if (!cfg.apiToken) {
         // Zonder API-token alleen de lokale cache gebruiken (kan stale zijn).
@@ -534,6 +535,16 @@ function buildRoster(peopleDocs, people) {
 
 // ── Routes ────────────────────────────────────────────────────────────
 const router = Router();
+
+// Cache expliciet herladen van schijf (people_cache.json)
+router.all('/people/reload', (req, res) => {
+    loadPeopleCache(true);
+    res.json({
+        success: true,
+        count: peopleCache.size,
+        message: `People cache herladen (${peopleCache.size} personen ingeladen)`,
+    });
+});
 
 // Lijst: 10 komende + 4 afgelopen diensten
 router.get('/services', async (req, res) => {
