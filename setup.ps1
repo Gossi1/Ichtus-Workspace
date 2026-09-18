@@ -288,7 +288,8 @@ if (-not $SkipService) {
     # Wacht tot de service actief is (max 15 seconden)
     $ready = $false
     for ($i = 1; $i -le 15; $i++) {
-        $status = & nssm status IchtusServer 2>$null
+        $svcInfo = sc.exe query IchtusServer 2>$null
+        $status = if ($svcInfo -match 'RUNNING') { 'SERVICE_RUNNING' } else { 'UNKNOWN' }
         if ($status -eq 'SERVICE_RUNNING') {
             $ready = $true
             break
