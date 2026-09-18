@@ -696,9 +696,7 @@
     border-color: var(--ichtus-orange, #f47920);
     box-shadow: 0 0 8px rgba(244, 121, 32, 0.15);
 }
-.wt-svc-item.today {
-    border-left: 3px solid var(--ichtus-green, #28c76f);
-}
+
 
 .wt-svc-item-top {
     display: flex;

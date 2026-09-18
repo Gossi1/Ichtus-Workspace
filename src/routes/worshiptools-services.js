@@ -295,20 +295,59 @@ async function getAccessToken(force = false) {
         return tokenCache.token;
     }
     const cfg = getConfig();
-    const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${cfg.apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: cfg.refreshToken }).toString(),
-    });
-    if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(`Authenticatie mislukt (HTTP ${res.status}). Refresh token verlopen? ${text.slice(0, 160)}`);
+
+    // Retry (max 2 pogingen) — Firebase kan transient 400/503 geven
+    let lastErr;
+    for (let attempt = 0; attempt < 2; attempt++) {
+        if (attempt > 0) {
+            console.log(`  [WT-SVC] Auth retry (${attempt + 1}/2)…`);
+            await new Promise((r) => setTimeout(r, 1000 * attempt));
+        }
+        try {
+            const res = await fetch(`https://securetoken.googleapis.com/v1/token?key=${cfg.apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: cfg.refreshToken }).toString(),
+            });
+            if (!res.ok) {
+                const text = await res.text().catch(() => '');
+                lastErr = new Error(`Authenticatie mislukt (HTTP ${res.status}). Refresh token verlopen? ${text.slice(0, 160)}`);
+                continue; // retry
+            }
+            const data = await res.json();
+            if (!data.id_token) {
+                lastErr = new Error('Auth-response zonder id_token');
+                continue;
+            }
+            const expiresIn = parseInt(data.expires_in, 10) || 3600;
+            tokenCache = { token: data.id_token, expiresAt: Date.now() + expiresIn * 1000 };
+
+            // Firebase rotate-refresh-token: als een nieuw refresh_token wordt meegegeven,
+            // bewaar het zodat de volgende refresh niet faalt.
+            if (data.refresh_token && data.refresh_token !== cfg.refreshToken) {
+                try {
+                    const configPath = resolve(ROOT_DIR, 'server-config.json');
+                    if (existsSync(configPath)) {
+                        const raw = JSON.parse(readFileSync(configPath, 'utf-8'));
+                        if (raw.worshiptools) {
+                            raw.worshiptools.refreshToken = data.refresh_token;
+                            writeFileSync(configPath, JSON.stringify(raw, null, 4), 'utf-8');
+                            // In-memory cache bijwerken zodat huidige process ook het nieuwe token gebruikt
+                            cachedConfig.refreshToken = data.refresh_token;
+                            console.log('  [WT-SVC] Refresh token geroteerd — bijgewerkt in server-config.json');
+                        }
+                    }
+                } catch (err) {
+                    console.warn('  [WT-SVC] Kon refresh token niet opslaan:', err.message);
+                }
+            }
+            return tokenCache.token;
+        } catch (err) {
+            lastErr = err;
+            continue; // retry op network errors
+        }
     }
-    const data = await res.json();
-    if (!data.id_token) throw new Error('Auth-response zonder id_token');
-    const expiresIn = parseInt(data.expires_in, 10) || 3600;
-    tokenCache = { token: data.id_token, expiresAt: Date.now() + expiresIn * 1000 };
-    return tokenCache.token;
+    throw lastErr;
 }
 
 // ── Firestore ophalen ─────────────────────────────────────────────────

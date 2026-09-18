@@ -263,7 +263,10 @@ try {
         # prompts of 'pause' toont tijdens de geautomatiseerde install.
         $env:AUTO_INSTALL_NSSM = '1'
         try {
-            & .\install-service.bat
+            # Gebruik cmd /c in plaats van PowerShell's & operator:
+            # PowerShell voert batch files niet correct uit via &
+            # (subroutines, delayed expansion en PATH-resolutie falen stil).
+            cmd /c .\install-service.bat
             if ($LASTEXITCODE -ne 0) {
                 Write-Err "install-service.bat faalde -- zie output hierboven."
                 exit 1
