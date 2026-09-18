@@ -29,12 +29,20 @@ echo   [SVC]  !SVC_NAME!
 
 :: ------------------------------------------
 ::  nssm.exe zoeken in deze volgorde:
-::    1. nssm_temp\nssm-2.24\win64\nssm.exe (64-bit portable)
-::    2. nssm_temp\nssm-2.24\win32\nssm.exe (32-bit portable)
-::    3. nssm.exe ergens op PATH
+::    1. bin\nssm\win64\nssm.exe (meegeleverd 64-bit)
+::    2. bin\nssm\win32\nssm.exe (meegeleverd 32-bit)
+::    3. nssm_temp\nssm-2.24\win64\nssm.exe (64-bit portable)
+::    4. nssm_temp\nssm-2.24\win32\nssm.exe (32-bit portable)
+::    5. nssm.exe ergens op PATH
 :: ------------------------------------------
 set "NSSM_PATH="
-if exist "nssm_temp\nssm-2.24\win64\nssm.exe" (
+if exist "%~dp0bin\nssm\win64\nssm.exe" (
+    set "NSSM_PATH=%~dp0bin\nssm\win64\nssm.exe"
+)
+if "!NSSM_PATH!"=="" if exist "%~dp0bin\nssm\win32\nssm.exe" (
+    set "NSSM_PATH=%~dp0bin\nssm\win32\nssm.exe"
+)
+if "!NSSM_PATH!"=="" if exist "nssm_temp\nssm-2.24\win64\nssm.exe" (
     set "NSSM_PATH=nssm_temp\nssm-2.24\win64\nssm.exe"
 )
 if "!NSSM_PATH!"=="" if exist "nssm_temp\nssm-2.24\win32\nssm.exe" (

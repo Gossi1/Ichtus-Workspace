@@ -141,6 +141,7 @@ const i18n = {
             agenda_network_error: 'Netwerk fout — CORS proxy onbereikbaar. Probeer te herladen.',
             agenda_server_error: 'Server fout: ',
             agenda_error: 'Fout: ',
+            agenda_filename_title: 'Bestandsnaam voor download',
 
 
             // ==================== SETLIST MODULE ====================
@@ -465,6 +466,7 @@ const i18n = {
             agenda_network_error: 'Network error — CORS proxy unreachable. Try reloading.',
             agenda_server_error: 'Server error: ',
             agenda_error: 'Error: ',
+            agenda_filename_title: 'Filename for download',
 
 
             // ==================== SETLIST MODULE ====================

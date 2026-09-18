@@ -161,6 +161,21 @@ const agendaModule = {
         // Tunable via CSS custom properties --caret-w / --caret-h.
         this._installCustomCaret();
 
+        // Wire up custom filename input
+        const filenameInput = document.getElementById('agenda-filename');
+        if (filenameInput) {
+            filenameInput.addEventListener('input', () => {
+                filenameInput.dataset.userEdited = filenameInput.value.trim().length > 0 ? 'true' : 'false';
+            });
+            filenameInput.addEventListener('blur', () => {
+                if (!filenameInput.value.trim()) {
+                    filenameInput.dataset.userEdited = 'false';
+                    this.updateFilenameField();
+                }
+            });
+        }
+        this.updateFilenameField();
+
         this.initialized = true;
     },
 
@@ -887,6 +902,7 @@ const agendaModule = {
             if (agendaGroup) agendaGroup.style.display = 'none';
             if (status) status.innerText = __('agenda_no_items');
         }
+        this.updateFilenameField();
     },
 
     downloadImage() {
@@ -976,9 +992,81 @@ const agendaModule = {
         }
 
         const link = document.createElement('a');
-        link.download = 'Ichtus_Agenda.png';
+        link.download = this.getDownloadFilename(true);
         link.href = tC.toDataURL('image/png');
         link.click();
+    },
+
+    /**
+     * Compute ISO week number for a given date.
+     */
+    getISOWeek(d) {
+        const target = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+        const dayNr = (target.getUTCDay() + 6) % 7;
+        target.setUTCDate(target.getUTCDate() - dayNr + 3);
+        const firstThursday = target.getTime();
+        target.setUTCMonth(0, 1);
+        if (target.getUTCDay() !== 4) {
+            target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
+        }
+        return 1 + Math.ceil((firstThursday - target) / 604800000);
+    },
+
+    /**
+     * Compute a smart filename for the agenda image based on the week number
+     * (e.g. Agenda_week_34.png).
+     * If the operator has entered a custom name in #agenda-filename,
+     * use that instead.
+     */
+    getDownloadFilename(withExt = true) {
+        const input = document.getElementById('agenda-filename');
+        if (input && input.value && input.value.trim() && input.dataset.userEdited === 'true') {
+            let clean = input.value.trim().replace(/[<>:"/\\|?*]/g, '_');
+            clean = clean.replace(/\.png$/i, '');
+            return withExt ? `${clean}.png` : clean;
+        }
+
+        const activeEvents = (typeof appState !== 'undefined' && appState.agenda && Array.isArray(appState.agenda.allEvents))
+            ? appState.agenda.allEvents.filter(e => e && e.visible)
+            : [];
+
+        let targetDate = null;
+        // Priority 1: Event on Sunday (traditional main service day)
+        const sundayEvent = activeEvents.find(e => e.date instanceof Date && e.date.getDay() === 0);
+        if (sundayEvent) {
+            targetDate = sundayEvent.date;
+        } else if (activeEvents.length > 0 && activeEvents[0].date instanceof Date) {
+            // Priority 2: First visible event date
+            targetDate = activeEvents[0].date;
+        } else {
+            // Priority 3: Sunday of the active weekOffset
+            const now = new Date();
+            const day = now.getDay();
+            const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+            const weekOffset = (typeof appState !== 'undefined' && appState.agenda && typeof appState.agenda.weekOffset === 'number')
+                ? appState.agenda.weekOffset
+                : 0;
+            const sunday = new Date(now);
+            sunday.setDate(diff + (weekOffset * 7) + 6);
+            targetDate = sunday;
+        }
+
+        const weekNum = this.getISOWeek(targetDate);
+        const baseName = `Agenda_week_${weekNum}`;
+        return withExt ? `${baseName}.png` : baseName;
+    },
+
+    /**
+     * Synchronize the editable filename input field with the auto-computed
+     * service date name, unless the operator has typed a custom override.
+     */
+    updateFilenameField() {
+        const input = document.getElementById('agenda-filename');
+        if (!input) return;
+        if (input.dataset.userEdited === 'true' && input.value.trim()) {
+            return;
+        }
+        input.value = this.getDownloadFilename(false);
     },
 
     makeDraggable(el) {

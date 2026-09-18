@@ -149,6 +149,50 @@
     transform: translateY(-1px);
 }
 
+/* Filename Input Container (Liquid Glass) */
+#view-agenda .agenda-filename-container {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.32);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 10px;
+    padding: 2px 12px;
+    gap: 7px;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    height: 40px;
+    box-sizing: border-box;
+}
+#view-agenda .agenda-filename-container:focus-within {
+    border-color: rgba(39, 174, 96, 0.65);
+    background: rgba(0, 0, 0, 0.5);
+    box-shadow: 0 0 0 2px rgba(39, 174, 96, 0.15);
+}
+#view-agenda .filename-prefix {
+    font-size: 0.85rem;
+    opacity: 0.6;
+    user-select: none;
+}
+#view-agenda .agenda-filename-input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: #ffffff;
+    font-size: 0.88rem;
+    font-weight: 500;
+    font-family: inherit;
+    width: 175px;
+    padding: 0;
+}
+#view-agenda .agenda-filename-input::placeholder {
+    color: rgba(255, 255, 255, 0.35);
+}
+#view-agenda .filename-suffix {
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.45);
+    user-select: none;
+    font-weight: 600;
+}
+
 /* Navigation (Neutral Glass) */
 #view-agenda .btn-nav {
     color: #f9f9f7;

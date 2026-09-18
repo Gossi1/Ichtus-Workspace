@@ -402,6 +402,11 @@
                         <input type='file' id='fileInput' accept='image/*'>
                     </label>
                     <button class='btn-load' onclick='agendaModule.fetchTockify()'>Agenda ophalen</button>
+                    <div class='agenda-filename-container' title='Bestandsnaam voor download'>
+                        <span class='filename-prefix'>📁</span>
+                        <input type='text' id='agenda-filename' class='agenda-filename-input' placeholder='Agenda_week_38' spellcheck='false'>
+                        <span class='filename-suffix'>.png</span>
+                    </div>
                     <button class='btn-dl' onclick='agendaModule.downloadImage()'>Download PNG</button>
                 </div>
 
