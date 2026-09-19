@@ -178,6 +178,7 @@ const stagebuilderModule = {
         this._renderRosterOrEmpty();
         this._renderConnectionBadge();
         this._signalStageBuilderReady();
+        this._bindServiceDropdownListeners();
         // Vul de dienst-dropdown zodat de operator het roster van een
         // specifieke dienst direct uit WorshipTools kan laden (zonder
         // eerst de Chrome-extension te gebruiken). Best-effort — als de
@@ -205,6 +206,7 @@ const stagebuilderModule = {
         // Tear down the roster listener — otherwise a later re-init
         // would receive a stale CustomEvent from the bridge's cached roster.
         this._tearDownRosterListener();
+        this._unbindServiceDropdownListeners();
         this.initialized = false;
         this.__sbKeyBound = false;
     },
@@ -238,7 +240,9 @@ const stagebuilderModule = {
             const data = await resp.json();
             if (!resp.ok || !data.success) throw new Error(data.error || 'HTTP ' + resp.status);
 
-            this.services = [...(data.upcoming || []), ...(data.past || [])];
+            const upcoming = data.upcoming || [];
+            const past = data.past || [];
+            this.services = [...upcoming, ...past];
             this.servicesLoaded = true;
 
             // Behoud de vorige selectie (als die nog in de lijst staat)
@@ -249,11 +253,15 @@ const stagebuilderModule = {
                     return '<option value="' + stagebuilderModule.escapeAttr(s.id) + '">' +
                         stagebuilderModule.escapeHtml(label) + '</option>';
                 }).join('');
-            if (prev && this.services.some(s => s.id === prev)) sel.value = prev;
+            if (prev && this.services.some(s => s.id === prev)) {
+                sel.value = prev;
+            }
             this._updateServicePickerState();
+            this._syncCustomServiceDropdown(upcoming, past);
         } catch (err) {
             console.warn('[SB] Diensten ophalen mislukt:', err.message);
             sel.innerHTML = '<option value="">— Diensten niet beschikbaar —</option>';
+            this._renderCustomServiceDropdownError();
         } finally {
             this._svcLoadInFlight = false;
         }
@@ -262,6 +270,8 @@ const stagebuilderModule = {
     /** Dropdown wijziging: load-knop activeren zodra een dienst gekozen is. */
     onServiceSelectChange() {
         this._updateServicePickerState();
+        this._updateCustomServiceTriggerText();
+        this._updateCustomServiceActiveItem();
     },
 
     _updateServicePickerState() {
@@ -269,6 +279,185 @@ const stagebuilderModule = {
         const btn = document.getElementById('sb-load-roster');
         if (!sel || !btn) return;
         btn.disabled = !sel.value;
+    },
+
+    /* ==========================================================================
+       CUSTOM SERVICE DROPDOWN SYSTEM
+       ========================================================================== */
+
+    _bindServiceDropdownListeners() {
+        this._unbindServiceDropdownListeners();
+        this._svcDropdownClickHandler = (e) => {
+            const wrap = document.getElementById('sb-service-dropdown-wrap');
+            if (wrap && !wrap.contains(e.target)) {
+                this.closeServiceDropdown();
+            }
+        };
+        document.addEventListener('click', this._svcDropdownClickHandler);
+
+        this._svcDropdownKeyHandler = (e) => {
+            if (e.key === 'Escape') {
+                this.closeServiceDropdown();
+            }
+        };
+        document.addEventListener('keydown', this._svcDropdownKeyHandler);
+    },
+
+    _unbindServiceDropdownListeners() {
+        if (this._svcDropdownClickHandler) {
+            document.removeEventListener('click', this._svcDropdownClickHandler);
+            this._svcDropdownClickHandler = null;
+        }
+        if (this._svcDropdownKeyHandler) {
+            document.removeEventListener('keydown', this._svcDropdownKeyHandler);
+            this._svcDropdownKeyHandler = null;
+        }
+        this.closeServiceDropdown();
+    },
+
+    toggleServiceDropdown(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        const wrap = document.getElementById('sb-service-dropdown-wrap');
+        const trigger = document.getElementById('sb-service-trigger');
+        if (!wrap) return;
+        const isOpen = wrap.classList.toggle('open');
+        if (trigger) trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    },
+
+    closeServiceDropdown() {
+        const wrap = document.getElementById('sb-service-dropdown-wrap');
+        const trigger = document.getElementById('sb-service-trigger');
+        if (wrap && wrap.classList.contains('open')) {
+            wrap.classList.remove('open');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        }
+    },
+
+    selectService(serviceId, immediateLoad) {
+        const sel = document.getElementById('sb-service-select');
+        if (sel) {
+            sel.value = serviceId || '';
+            this.onServiceSelectChange();
+        }
+        this._updateCustomServiceTriggerText();
+        this._updateCustomServiceActiveItem();
+        this.closeServiceDropdown();
+
+        if (immediateLoad && serviceId) {
+            this.loadRosterForService();
+        }
+    },
+
+    _updateCustomServiceTriggerText() {
+        const sel = document.getElementById('sb-service-select');
+        const labelEl = document.getElementById('sb-service-trigger-text');
+        if (!labelEl) return;
+        const val = sel ? sel.value : '';
+        if (!val) {
+            labelEl.textContent = '— Kies dienst —';
+            labelEl.title = '— Kies dienst —';
+            return;
+        }
+        const svc = (this.services || []).find(s => s.id === val);
+        if (svc) {
+            const text = (svc.displayDate || '') + ' · ' + (svc.name || '');
+            labelEl.textContent = text;
+            labelEl.title = text;
+        } else {
+            labelEl.textContent = '— Kies dienst —';
+            labelEl.title = '— Kies dienst —';
+        }
+    },
+
+    _updateCustomServiceActiveItem() {
+        const sel = document.getElementById('sb-service-select');
+        const activeId = sel ? sel.value : '';
+        const items = document.querySelectorAll('#sb-service-menu .sb-service-item');
+        items.forEach(el => {
+            el.classList.toggle('selected', el.getAttribute('data-service-id') === activeId);
+        });
+    },
+
+    _syncCustomServiceDropdown(upcoming, past) {
+        const menu = document.getElementById('sb-service-menu');
+        if (!menu) return;
+
+        upcoming = upcoming || [];
+        past = past || [];
+        const sel = document.getElementById('sb-service-select');
+        const activeId = sel ? sel.value : '';
+
+        if (upcoming.length === 0 && past.length === 0) {
+            menu.innerHTML = '<div class="sb-service-menu-empty">Geen diensten gevonden</div>';
+            this._updateCustomServiceTriggerText();
+            return;
+        }
+
+        let html = '';
+
+        // Default item (unselect)
+        const isNoneSelected = !activeId ? ' selected' : '';
+        html += '<div class="sb-service-item' + isNoneSelected + '" data-service-id="" onclick="stagebuilderModule.selectService(\'\')">' +
+            '<div class="sb-service-item-main">' +
+                '<span class="sb-service-item-name" style="font-style:italic; opacity:0.8;">— Kies dienst —</span>' +
+            '</div>' +
+            '<span class="sb-service-item-check">' +
+                '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+            '</span>' +
+        '</div>';
+
+        const renderSvc = (s) => {
+            const isSel = s.id === activeId ? ' selected' : '';
+            const todayBadge = s.isToday ? '<span class="sb-service-item-badge today">Vandaag</span>' : '';
+            const cuesBadge = (s.cuesCount && s.cuesCount > 0) ? '<span class="sb-service-item-badge" style="background:rgba(255,255,255,0.08); color:var(--text-muted);">' + s.cuesCount + ' cues</span>' : '';
+            const idAttr = this.escapeAttr(s.id);
+            const dateStr = this.escapeHtml(s.displayDate || '');
+            const nameStr = this.escapeHtml(s.name || '');
+
+            return '<div class="sb-service-item' + isSel + '" data-service-id="' + idAttr + '"' +
+                ' onclick="stagebuilderModule.selectService(\'' + idAttr + '\')"' +
+                ' ondblclick="stagebuilderModule.selectService(\'' + idAttr + '\', true)"' +
+                ' title="' + dateStr + ' · ' + nameStr + '">' +
+                '<div class="sb-service-item-main">' +
+                    '<span class="sb-service-item-date">' + dateStr + '</span>' +
+                    '<span class="sb-service-item-name">' + nameStr + '</span>' +
+                '</div>' +
+                '<div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">' +
+                    todayBadge +
+                    cuesBadge +
+                    '<span class="sb-service-item-check">' +
+                        '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>' +
+                    '</span>' +
+                '</div>' +
+            '</div>';
+        };
+
+        if (upcoming.length > 0) {
+            html += '<div class="sb-service-menu-header">Komende diensten</div>';
+            html += upcoming.map(renderSvc).join('');
+        }
+
+        if (past.length > 0) {
+            if (upcoming.length > 0) {
+                html += '<div class="sb-service-menu-divider"></div>';
+            }
+            html += '<div class="sb-service-menu-header">Afgelopen</div>';
+            html += past.map(renderSvc).join('');
+        }
+
+        menu.innerHTML = html;
+        this._updateCustomServiceTriggerText();
+    },
+
+    _renderCustomServiceDropdownError() {
+        const menu = document.getElementById('sb-service-menu');
+        if (menu) {
+            menu.innerHTML = '<div class="sb-service-menu-empty" style="color:#f87171;">⚠️ Diensten ophalen mislukt</div>';
+        }
+        this._updateCustomServiceTriggerText();
     },
 
     /** Laad het roster van de geselecteerde dienst en render het als rijen. */

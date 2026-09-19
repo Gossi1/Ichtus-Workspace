@@ -2123,13 +2123,33 @@
                     <header class='sb-roster-header'>
                         <div class='sb-roster-title-block'>
                             <h2 class='sb-roster-title'>WorshipTools Roster</h2>
-                            <span class='sb-roster-sub'>Eén rij per rol-toewijzing — naam, rol, auto-matched preset, kanaal, recall. Zingt een gitarist ook (mee)? Klik op de mic-knop <strong>🎤</strong> — hij houdt zijn gitaarkanaal en krijgt er een extra zang-mic-preset + kanaal bij (dubbele recall).</span>
                         </div>
                         <div class='sb-service-picker'>
-                            <select id='sb-service-select' title='Kies een dienst om het roster direct uit WorshipTools te laden (zonder Chrome-extension)' onchange='stagebuilderModule.onServiceSelectChange()'>
-                                <option value=''>— Kies dienst —</option>
-                            </select>
-                            <button id='sb-load-roster' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.loadRosterForService()' title='Laad het roster van de geselecteerde dienst direct uit WorshipTools'>
+                            <div class='sb-service-dropdown-container' id='sb-service-dropdown-wrap'>
+                                <button type='button' class='sb-service-trigger' id='sb-service-trigger' onclick='stagebuilderModule.toggleServiceDropdown(event)' title='Kies een dienst om het roster direct uit WorshipTools te laden' aria-haspopup='listbox' aria-expanded='false'>
+                                    <span class='sb-service-trigger-icon' aria-hidden='true'>
+                                        <svg width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
+                                            <rect x='3' y='4' width='18' height='18' rx='2' ry='2'></rect>
+                                            <line x1='16' y1='2' x2='16' y2='6'></line>
+                                            <line x1='8' y1='2' x2='8' y2='6'></line>
+                                            <line x1='3' y1='10' x2='21' y2='10'></line>
+                                        </svg>
+                                    </span>
+                                    <span class='sb-service-trigger-text' id='sb-service-trigger-text'>— Kies dienst —</span>
+                                    <span class='sb-service-trigger-arrow' aria-hidden='true'>
+                                        <svg width='11' height='11' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'>
+                                            <polyline points='6 9 12 15 18 9'></polyline>
+                                        </svg>
+                                    </span>
+                                </button>
+                                <div class='sb-service-menu' id='sb-service-menu' role='listbox' tabindex='-1'>
+                                    <div class='sb-service-menu-empty'>Diensten laden…</div>
+                                </div>
+                                <select id='sb-service-select' class='sb-service-native-select' title='Kies een dienst om het roster direct uit WorshipTools te laden (zonder Chrome-extension)' onchange='stagebuilderModule.onServiceSelectChange()' tabindex='-1' aria-hidden='true'>
+                                    <option value=''>— Kies dienst —</option>
+                                </select>
+                            </div>
+                            <button id='sb-load-roster' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.loadRosterForService()' title='Laad het roster van de geselecteerde dienst direct uit WorshipTools' disabled>
                                 Laad roster
                             </button>
                         </div>
