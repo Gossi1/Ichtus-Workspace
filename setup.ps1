@@ -7,9 +7,8 @@
     1. Controleert winget, Git en Node.js -- installeert ze via 'winget' indien nodig
     2. Clone't de repository naar InstallPath (default: C:\Ichtus_apps)
     3. npm install (overslaan als node_modules al klopt)
-    4. Kopieert nssm-service.example.json naar nssm-service.json
-    5. Draait install-service.bat -- registreert IchtusServer als Windows-service
-       (downloadt NSSM automatisch als het niet gevonden wordt)
+    4. Kopieert winsw-service.example.xml naar winsw-service.xml
+    5. Draait install-service.bat -- registreert IchtusServer als Windows-service via WinSW
 
   Gebruik:
     powershell -ExecutionPolicy Bypass -File setup.ps1
@@ -216,20 +215,20 @@ try {
     }
 
     # --------------------------------------------------------------
-    #  Stap 4 -- NSSM service config + service registratie
+    #  Stap 4 -- WinSW service config + service registratie
     # --------------------------------------------------------------
-    Write-Section "Stap 4 -- NSSM service"
+    Write-Section "Stap 4 -- WinSW service"
 
-    if (-not (Test-Path "nssm-service.json")) {
-        if (Test-Path "nssm-service.example.json") {
-            Copy-Item "nssm-service.example.json" "nssm-service.json"
-            Write-Ok "nssm-service.json aangemaakt (defaults zijn OK voor de meeste setups)"
+    if (-not (Test-Path "winsw-service.xml")) {
+        if (Test-Path "winsw-service.example.xml") {
+            Copy-Item "winsw-service.example.xml" "winsw-service.xml"
+            Write-Ok "winsw-service.xml aangemaakt (defaults zijn OK voor de meeste setups)"
         } else {
-            Write-Err "nssm-service.example.json ontbreekt -- repository klopt niet."
+            Write-Err "winsw-service.example.xml ontbreekt -- repository klopt niet."
             exit 1
         }
     } else {
-        Write-Ok "nssm-service.json bestaat al -- overslaan"
+        Write-Ok "winsw-service.xml bestaat al -- overslaan"
     }
 
     # --------------------------------------------------------------
@@ -258,10 +257,10 @@ try {
             Write-Err "install-service.bat ontbreekt -- repository klopt niet."
             exit 1
         }
-        Write-Info "install-service.bat draaien (downloadt evt. NSSM en registreert de service)..."
+        Write-Info "install-service.bat draaien (installeert WinSW service)..."
         # Zet silent mode zodat install-service.bat geen interactieve
         # prompts of 'pause' toont tijdens de geautomatiseerde install.
-        $env:AUTO_INSTALL_NSSM = '1'
+        $env:AUTO_INSTALL_WINSW = '1'
         try {
             # Gebruik cmd /c in plaats van PowerShell's & operator:
             # PowerShell voert batch files niet correct uit via &
@@ -272,7 +271,7 @@ try {
                 exit 1
             }
         } finally {
-            Remove-Item Env:AUTO_INSTALL_NSSM -ErrorAction SilentlyContinue
+            Remove-Item Env:AUTO_INSTALL_WINSW -ErrorAction SilentlyContinue
         }
     } else {
         Write-Info "-SkipService gezet -- service wordt niet geregistreerd. Draai later: install-service.bat"
@@ -340,9 +339,9 @@ Write-Host "    Klik op het installatie-icoon (\u2191) in de adresbalk"
 Write-Host "    Of: Chrome menu > More tools > Create shortcut > 'Open as window'"
 Write-Host ""
 Write-Host "  Onderhoud:"
-Write-Host "    Updates ophalen + herstart:  nssm restart IchtusServer"
-Write-Host "    Status:                       nssm status  IchtusServer"
-Write-Host "    Logs:                         %TEMP%\IchtusServer-stdout.log"
+Write-Host "    Herstart service:             restart-service.bat  (of: bin\winsw\IchtusServer.exe restart)"
+Write-Host "    Status:                       bin\winsw\IchtusServer.exe status"
+Write-Host "    Logs:                         logs\IchtusServer.out.log"
 Write-Host "    Verwijderen:                  uninstall-service.bat"
 Write-Host "  ==================================================" -ForegroundColor Green
 Write-Host ""

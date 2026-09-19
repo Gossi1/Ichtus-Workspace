@@ -1,0 +1,34 @@
+<service>
+  <!-- Service Identification -->
+  <id>IchtusServer</id>
+  <name>Ichtus Workspace Server</name>
+  <description>Ichtus Workspace — consolidated Node.js server (SPA + X32 OSC + Mic/IEM + Supervisor)</description>
+
+  <!-- Process to run -->
+  <executable>node</executable>
+  <arguments>src\server.js</arguments>
+  <workingdirectory>%BASE%\..\..</workingdirectory>
+
+  <!-- Service Startup -->
+  <startmode>Automatic</startmode>
+
+  <!-- Crash Recovery: restart after 2 seconds, reset failure count after 1 hour -->
+  <onfailure action="restart" delay="2 sec"/>
+  <resetfailure>1 hour</resetfailure>
+
+  <!-- Graceful shutdown timeout (seconds) -->
+  <stoptimeout>15 sec</stoptimeout>
+
+  <!-- Logging: roll logs by size (5MB per file, retain 5 backups) -->
+  <log mode="roll-by-size">
+    <logpath>%BASE%\..\..\logs</logpath>
+    <sizeThreshold>5120</sizeThreshold>
+    <keepFiles>5</keepFiles>
+  </log>
+
+  <!-- Environment Variables -->
+  <env name="NODE_ENV" value="production"/>
+  <env name="PORT" value="8080"/>
+  <env name="HOST" value="0.0.0.0"/>
+  <env name="X32_IP" value="192.168.1.50"/>
+</service>

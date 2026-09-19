@@ -9,7 +9,7 @@
  */
 
 import { Router } from 'express';
-import { execFile } from 'child_process';
+import { execFile, spawn } from 'child_process';
 import { promisify } from 'util';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, copyFileSync, readdirSync, statSync } from 'fs';
 import path, { resolve, basename } from 'path';
@@ -444,23 +444,40 @@ export async function triggerUpdateCheck(source = 'manual') {
     }
 }
 
-// ── Service Restart (minimalistic — signals NSSM or self) ──────────────
+// ── Service Restart (signals WinSW or self) ───────────────────────────
+
+function scheduleServiceRestart(reason = 'service') {
+    setTimeout(() => {
+        if (process.env.WINSW_EXECUTABLE) {
+            log(`[restart] Spawning self-restart via WinSW: ${process.env.WINSW_EXECUTABLE} restart! (${reason})`);
+            try {
+                const child = spawn(process.env.WINSW_EXECUTABLE, ['restart!'], {
+                    detached: true,
+                    stdio: 'ignore'
+                });
+                child.unref();
+            } catch (err) {
+                log(`[restart] Failed to spawn WinSW restart: ${err.message}`);
+                process.exit(1);
+            }
+        } else {
+            log(`[restart] No WINSW_EXECUTABLE detected; exiting process (${reason})`);
+            process.exit(0);
+        }
+    }, 500);
+}
 
 router.post('/restart/:key', async (req, res) => {
     const { key } = req.params;
     log(`restart requested for: ${key}`);
     res.json({ success: true, message: `Restart ${key} aangevraagd. Server herstart binnen 500ms...` });
-    setTimeout(() => {
-        process.exit(0);
-    }, 500);
+    scheduleServiceRestart(`key:${key}`);
 });
 
 router.post('/restart-all', async (req, res) => {
     log('restart-all requested');
     res.json({ success: true, message: 'Server herstart binnen 500ms...' });
-    setTimeout(() => {
-        process.exit(0);
-    }, 500);
+    scheduleServiceRestart('all');
 });
 
 // ── Logs ───────────────────────────────────────────────────────────────

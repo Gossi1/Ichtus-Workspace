@@ -195,7 +195,7 @@ const updatePopup = {
                 statusText.classList.add('up-status-success');
             }
 
-            // Tell the running node process (NSSM-managed) to restart itself
+            // Tell the running node process (WinSW-managed) to restart itself
             try { await fetch('/api/restart-all', { method: 'POST' }); } catch { /* best-effort */ }
 
             this._pulling = false;

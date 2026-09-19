@@ -9,8 +9,8 @@ echo ==================================================
 echo.
 
 :: Check Administrator rechten
-net session >nul 2>&1
-if %errorlevel% neq 0 (
+fltmc >nul 2>&1
+if !errorlevel! neq 0 (
     echo   [WAARSCHUWING] Dit script vereist Administrator-rechten.
     echo   Klik met de rechtermuisknop op dit bestand en kies:
     echo   "Als administrator uitvoeren" (Run as administrator)
@@ -20,30 +20,25 @@ if %errorlevel% neq 0 (
 )
 
 set "SVC_NAME=IchtusServer"
-set "NSSM_PATH="
-if exist "%~dp0bin\nssm\win64\nssm.exe" set "NSSM_PATH=%~dp0bin\nssm\win64\nssm.exe"
-if "!NSSM_PATH!"=="" if exist "%~dp0bin\nssm\win32\nssm.exe" set "NSSM_PATH=%~dp0bin\nssm\win32\nssm.exe"
+set "WINSW_EXE=%CD%\bin\winsw\%SVC_NAME%.exe"
 
-echo   [1/2] Service stoppen...
-if not "!NSSM_PATH!"=="" (
-    "!NSSM_PATH!" stop !SVC_NAME! >nul 2>&1
+if exist "!WINSW_EXE!" (
+    echo   Service herstarten via WinSW...
+    "!WINSW_EXE!" restart
 ) else (
+    echo   [INFO] WinSW binary niet gevonden op !WINSW_EXE! - fallback via net stop/start...
     net stop !SVC_NAME! >nul 2>&1
-)
-
-timeout /t 2 /nobreak >nul
-
-echo   [2/2] Service starten...
-if not "!NSSM_PATH!"=="" (
-    "!NSSM_PATH!" start !SVC_NAME! >nul 2>&1
-) else (
+    ping 127.0.0.1 -n 3 >nul
     net start !SVC_NAME! >nul 2>&1
 )
 
-timeout /t 2 /nobreak >nul
+ping 127.0.0.1 -n 3 >nul
 
+echo.
 sc query !SVC_NAME! | findstr /i "STATE"
 echo.
 echo   [OK] !SVC_NAME! is herstart!
 echo.
 pause
+endlocal
+exit /b 0

@@ -3,347 +3,136 @@ setlocal EnableDelayedExpansion
 
 cd /d "%~dp0"
 
-:: ------------------------------------------------
-::  Silent mode? Zet door setup.ps1 met:
-::    set AUTO_INSTALL_NSSM=1
-:: ------------------------------------------------
-if "%AUTO_INSTALL_NSSM%"=="1" (
-    set "INTERACTIVE=0"
-) else (
-    set "INTERACTIVE=1"
-)
-
-:: ------------------------------------------------
-::  Defaults -- altijd geldig, JSON is optioneel.
-:: ------------------------------------------------
-set "NSSM_VER=2.24"
-set "NSSM_ARCH_DIR=win64"
-set "NSSM_PATH="
 set "SVC_NAME=IchtusServer"
-set "SVC_DISPLAY=Ichtus Workspace Server"
-set "SVC_DESC=Ichtus Workspace console server"
-set "LOG_OUT=%CD%\logs\nssm-stdout.log"
-set "LOG_ERR=%CD%\logs\nssm-stderr.log"
-set "ENV_STR="
-
-:: Arch detecteren
-if "%PROCESSOR_ARCHITECTURE%"=="x86"   set "NSSM_ARCH_DIR=win32"
-if "%PROCESSOR_ARCHITECTURE%"=="AMD64" set "NSSM_ARCH_DIR=win64"
-if "%PROCESSOR_ARCHITECTURE%"=="ARM64" set "NSSM_ARCH_DIR=win64"
-
-set "NSSM_TEMP_DIR=%CD%\nssm_temp"
+set "SVC_DIR=%CD%"
+set "WINSW_DIR=%CD%\bin\winsw"
+set "WINSW_SOURCE=%WINSW_DIR%\WinSW.NET461.exe"
+set "WINSW_EXE=%WINSW_DIR%\%SVC_NAME%.exe"
+set "WINSW_XML=%WINSW_DIR%\%SVC_NAME%.xml"
+set "ROOT_XML=%CD%\winsw-service.xml"
+set "EXAMPLE_XML=%CD%\winsw-service.example.xml"
 
 echo.
 echo   ==================================================
-echo      ICHTUS SERVER - NSSM SERVICE INSTALLER
+echo      ICHTUS SERVER - WINSW SERVICE INSTALLER
 echo   ==================================================
 echo.
 
-:: =============================================
-::  1. nssm-service.json aanwezig?
-:: =============================================
-if not exist "nssm-service.json" (
-    echo   [ERROR] nssm-service.json niet gevonden.
-    echo   Kopieer nssm-service.example.json naar nssm-service.json
-    call :_pause
-    exit /b 1
-)
-
-:: =============================================
-::  2. Service config inlezen (defaults + JSON override)
-:: =============================================
-call :read_json_config
-
-:: =============================================
-::  3. Node.js aanwezig?
-:: =============================================
+:: 1. Node.js aanwezig?
 where node >nul 2>&1
-if !errorlevel! neq 0 (
-    echo   [ERROR] Node.js niet gevonden. Installeer Node.js LTS.
-    call :_pause
-    exit /b 1
-)
+if !errorlevel! equ 0 goto :node_found
+echo   [ERROR] Node.js niet gevonden. Installeer Node.js LTS van https://nodejs.org/
+pause
+exit /b 1
 
-for /f "tokens=*" %%i in ('node --version') do set "NODE_VER=%%i"
-echo   [NODE] !NODE_VER! gevonden
-
-for /f "delims=" %%i in ('where node') do (
-    set "NODE_EXE=%%i"
-    goto :node_found
-)
 :node_found
-echo   [NODE] Locatie: !NODE_EXE!
-echo.
-
-:: =============================================
-::  4. NSSM zoeken of downloaden
-::     Prioriteit: JSON config > PATH > nssm_temp > download
-:: =============================================
-
-:: 4a. NSSM meegeleverd in bin\ (meest betrouwbaar, direct beschikbaar)
-if exist "%CD%\bin\nssm\!NSSM_ARCH_DIR!\nssm.exe" (
-    set "NSSM_PATH=%CD%\bin\nssm\!NSSM_ARCH_DIR!\nssm.exe"
-    echo   [NSSM] Gevonden in bin\nssm\!NSSM_ARCH_DIR!\
-    goto :nssm_found
+for /f "tokens=*" %%i in ('node --version 2^>nul') do set "NODE_VER=%%i"
+for /f "delims=" %%i in ('where node 2^>nul') do (
+    set "NODE_EXE=%%i"
+    goto :node_path_done
 )
+:node_path_done
+echo   [NODE]  !NODE_VER! gevonden [!NODE_EXE!]
 
-:: 4b. NSSM via JSON config (indien ingesteld)
-if defined NSSM_PATH (
-    if exist "!NSSM_PATH!" (
-        echo   [NSSM] Gevonden via nssm-service.json: !NSSM_PATH!
-        goto :nssm_found
-    ) else (
-        echo   [WARN] Geconfigureerd pad in nssm-service.json niet gevonden: !NSSM_PATH!
-        set "NSSM_PATH="
-    )
+:: 2. XML configuratie controleren
+if exist "!ROOT_XML!" goto :xml_ok
+if exist "!EXAMPLE_XML!" (
+    copy /y "!EXAMPLE_XML!" "!ROOT_XML!" >nul
+    echo   [OK]   winsw-service.xml aangemaakt
+    goto :xml_ok
 )
+echo   [ERROR] winsw-service.example.xml ontbreekt in %CD%.
+pause
+exit /b 1
 
-:: 4c. NSSM op PATH (snelste, betrouwbaarste)
-where nssm >nul 2>&1
-if !errorlevel!==0 (
-    for /f "delims=" %%i in ('where nssm') do (
-        set "NSSM_PATH=%%i"
-        goto :nssm_found
-    )
-)
+:xml_ok
+:: 3. WinSW binary controleren of downloaden
+if not exist "!WINSW_DIR!" mkdir "!WINSW_DIR!" >nul 2>&1
 
-:: 4c. NSSM in nssm_temp (van een vorige download)
-if exist "%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe" (
-    set "NSSM_PATH=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe"
-    echo   [NSSM] Gevonden in nssm_temp\ [hergebruikt]
-    goto :nssm_found
-)
-
-:: 4d. NSSM downloaden (laatste redmiddel)
-echo   [INFO] nssm.exe niet gevonden op deze PC.
-echo.
-if "%INTERACTIVE%"=="1" (
-    set /p DL_CHOICE="   NSSM automatisch downloaden? [J/N] > "
-) else (
-    set "DL_CHOICE=J"
-    echo   [AUTO] Download NSSM [silent mode]
-)
-if /i not "!DL_CHOICE!"=="J" (
-    echo.
-    echo   [ERROR] Geen NSSM. Installeer handmatig:
-    echo           https://nssm.cc/download
-    call :_pause
-    exit /b 1
-)
-
-call :download_nssm
+if exist "!WINSW_SOURCE!" goto :winsw_bin_ok
+echo   [INFO] WinSW.NET461.exe downloaden...
+powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { Invoke-WebRequest -Uri 'https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW.NET461.exe' -OutFile '!WINSW_SOURCE!' -UseBasicParsing -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
 if !errorlevel! neq 0 (
-    call :_pause
-    exit /b 1
+    curl.exe -sSL -o "!WINSW_SOURCE!" "https://github.com/winsw/winsw/releases/download/v2.12.0/WinSW.NET461.exe" >nul 2>&1
 )
+if exist "!WINSW_SOURCE!" goto :winsw_bin_ok
+echo   [ERROR] Kon WinSW.NET461.exe niet downloaden.
+pause
+exit /b 1
 
-:nssm_found
-if not exist "!NSSM_PATH!" (
-    echo   [ERROR] NSSM niet gevonden op "!NSSM_PATH!"
-    call :_pause
-    exit /b 1
-)
-echo   [NSSM] !NSSM_PATH!
-echo   [SVC]  !SVC_NAME! [!SVC_DISPLAY!]
-echo.
-
-:: =============================================
-::  5. Log directory
-:: =============================================
+:winsw_bin_ok
+:: 4. Logs map controleren
 if not exist "%CD%\logs" mkdir "%CD%\logs" >nul 2>&1
 
-:: =============================================
-::  6. Evt. bestaande service verwijderen
-:: =============================================
+:: 5. Bestaande service stoppen en verwijderen
 sc query !SVC_NAME! >nul 2>&1
-if !errorlevel!==0 (
-    echo   [INFO] Service !SVC_NAME! bestaat al -- verwijderen eerst...
-    "!NSSM_PATH!" stop !SVC_NAME! >nul 2>&1
-    timeout /t 2 /nobreak >nul
-    "!NSSM_PATH!" remove !SVC_NAME! confirm >nul 2>&1
-    echo   [OK] Bestaande service verwijderd
-)
+if !errorlevel! neq 0 goto :skip_remove
 
-:: =============================================
-::  7. Service installeren
-:: =============================================
 echo.
-echo   Service installeren...
+echo   [INFO] Bestaande service opruimen...
+sc stop !SVC_NAME! >nul 2>&1
+if exist "!WINSW_EXE!" "!WINSW_EXE!" stop >nul 2>&1
+ping 127.0.0.1 -n 3 >nul
 
-"!NSSM_PATH!" install !SVC_NAME! "!NODE_EXE!" "src\server.js"
+if exist "!WINSW_EXE!" "!WINSW_EXE!" uninstall >nul 2>&1
+sc delete !SVC_NAME! >nul 2>&1
+ping 127.0.0.1 -n 3 >nul
+echo   [OK]   Oude service verwijderd.
+
+:skip_remove
+:: 6. Wrapper en XML klaarzetten
+echo.
+echo   Configuratie gereedmaken...
+copy /y "!WINSW_SOURCE!" "!WINSW_EXE!" >nul
+
+powershell -NoProfile -Command "$xml = Get-Content -Raw '!ROOT_XML!'; $xml = $xml -replace '%%BASE%%\\.\\.\\..', '%CD%'; if (Get-Command node -ErrorAction SilentlyContinue) { $node = (Get-Command node).Source; $xml = $xml -replace '<executable>node</executable>', ('<executable>' + $node + '</executable>') }; [System.IO.File]::WriteAllText('!WINSW_XML!', $xml, [System.Text.Encoding]::UTF8)"
+if not exist "!WINSW_XML!" (
+    copy /y "!ROOT_XML!" "!WINSW_XML!" >nul
+)
+echo   [OK]   XML gereed: bin\winsw\%SVC_NAME%.xml
+
+:: 7. WinSW Service installeren
+echo.
+echo   Service !SVC_NAME! registreren...
+"!WINSW_EXE!" install
+if !errorlevel! equ 0 goto :install_ok
+echo.
+echo   ==================================================
+echo   [ERROR] Installatie mislukt!
+echo   ==================================================
+echo   Heb je dit script uitgevoerd als Administrator?
+echo   Klik met de rechtermuisknop op install-service.bat
+echo   en kies 'Als administrator uitvoeren'.
+echo.
+pause
+exit /b 1
+
+:install_ok
+echo   [OK]   Service geregistreerd.
+
+:: 8. Service starten
+echo.
+echo   Service !SVC_NAME! starten...
+"!WINSW_EXE!" start
 if !errorlevel! neq 0 (
-    echo   [ERROR] nssm install mislukt.
-    call :_pause
-    exit /b 1
+    echo   [INFO] Starten via net start...
+    net start !SVC_NAME!
 )
 
-"!NSSM_PATH!" set !SVC_NAME! DisplayName "!SVC_DISPLAY!"
-"!NSSM_PATH!" set !SVC_NAME! Description "!SVC_DESC!"
-"!NSSM_PATH!" set !SVC_NAME! AppDirectory "%CD%"
-"!NSSM_PATH!" set !SVC_NAME! Start SERVICE_AUTO_START
-"!NSSM_PATH!" set !SVC_NAME! AppRestartDelay 2000
-"!NSSM_PATH!" set !SVC_NAME! AppExit Default Restart
-"!NSSM_PATH!" set !SVC_NAME! AppStdout "!LOG_OUT!"
-"!NSSM_PATH!" set !SVC_NAME! AppStderr "!LOG_ERR!"
-"!NSSM_PATH!" set !SVC_NAME! AppRotateFiles 1
-"!NSSM_PATH!" set !SVC_NAME! AppRotateBytes 5242880
-"!NSSM_PATH!" set !SVC_NAME! AppRotateSeconds 0
-
-:: =============================================
-::  8. Environment variabelen (uit JSON)
-:: =============================================
+:: 9. Status controleren
+ping 127.0.0.1 -n 3 >nul
 echo.
-echo   Environment variabelen instellen...
-
-if not "!ENV_STR!"=="" (
-    "!NSSM_PATH!" set !SVC_NAME! AppEnvironmentExtra !ENV_STR!
-    echo   [OK] Env: !ENV_STR!
-) else (
-    echo   [INFO] Geen environment variabelen gevonden.
-)
-
-:: =============================================
-::  9. Service starten
-:: =============================================
-echo.
-echo   Service starten...
-"!NSSM_PATH!" start !SVC_NAME!
-if !errorlevel! neq 0 (
-    echo   [WARN] Service startte niet automatisch.
-    echo          nssm start !SVC_NAME!
-) else (
-    echo   [OK] Service gestart
-)
-
-:: =============================================
-::  10. Verificatie
-:: =============================================
-echo.
-echo   Verifying...
-sc query !SVC_NAME! >nul 2>&1
-if !errorlevel!==0 (
-    echo   [OK] Service !SVC_NAME! IS geregistreerd.
-) else (
-    echo   [FATAL] Service !SVC_NAME! is NIET geregistreerd.
-)
+echo   Status controleren...
+sc query !SVC_NAME! | findstr /i "STATE"
 
 echo.
 echo   ==================================================
 echo   Installatie voltooid.
-echo   Beheer: nssm status/start/stop/restart !SVC_NAME!
-echo   Logs:   !LOG_OUT!
-echo           !LOG_ERR!
+echo   Beheer:  restart-service.bat
+echo   Status:  bin\winsw\!SVC_NAME!.exe status
+echo   Logs:    logs\!SVC_NAME!.out.log
 echo   ==================================================
-
-if "%INTERACTIVE%"=="1" pause
-endlocal
-exit /b 0
-
-
-:: ============================================================
-::  SUBROUTINES (moeten VOOR exit /b staan!)
-:: ============================================================
-
-:_pause
-if "%INTERACTIVE%"=="1" pause >nul
-goto :eof
-
-:: ------------------------------------------------
-::  :read_json_config
-::  Leest service config via PowerShell ConvertFrom-Json
-::  output als KEY=VALUE per regel.
-:: ------------------------------------------------
-:read_json_config
-if not exist "nssm-service.json" goto :eof
-
-set "_PSFILE=%TEMP%\ichtus-readcfg.ps1"
->  "%_PSFILE%" echo $j = Get-Content -Raw 'nssm-service.json' ^| ConvertFrom-Json
->> "%_PSFILE%" echo $o = @()
->> "%_PSFILE%" echo if ($j.serviceName)        { $o += 'SVC_NAME=' + $j.serviceName }
->> "%_PSFILE%" echo if ($j.serviceDisplayName) { $o += 'SVC_DISPLAY=' + $j.serviceDisplayName }
->> "%_PSFILE%" echo if ($j.serviceDescription) { $o += 'SVC_DESC=' + $j.serviceDescription }
->> "%_PSFILE%" echo if ($j.stdoutLog)          { $o += 'LOG_OUT=' + $j.stdoutLog }
->> "%_PSFILE%" echo if ($j.stderrLog)          { $o += 'LOG_ERR=' + $j.stderrLog }
->> "%_PSFILE%" echo if ($j.nssmPath -and $j.nssmPath -ne '') { $o += 'NSSM_PATH=' + $j.nssmPath }
->> "%_PSFILE%" echo if ($j.env) { $e = @(); $j.env.psobject.properties ^| ForEach-Object { $e += "$($_.Name)=$($_.Value)" }; if ($e.Count -gt 0) { $o += 'ENV_STR=' + ($e -join ' ') } }
->> "%_PSFILE%" echo $o
-
-set "_PSOUT=%TEMP%\ichtus-cfg-out.txt"
-powershell -NoProfile -ExecutionPolicy Bypass -File "%_PSFILE%" > "%_PSOUT%" 2>nul
-if not exist "%_PSOUT%" goto :eof
-
-for /f "usebackq tokens=1* delims==" %%A in ("%_PSOUT%") do (
-    if "%%A"=="SVC_NAME"    set "SVC_NAME=%%B"
-    if "%%A"=="SVC_DISPLAY" set "SVC_DISPLAY=%%B"
-    if "%%A"=="SVC_DESC"    set "SVC_DESC=%%B"
-    if "%%A"=="LOG_OUT"     set "LOG_OUT=%%B"
-    if "%%A"=="LOG_ERR"     set "LOG_ERR=%%B"
-    if "%%A"=="NSSM_PATH"   set "NSSM_PATH=%%B"
-    if "%%A"=="ENV_STR"     set "ENV_STR=%%B"
-)
-
-del "%_PSFILE%" >nul 2>&1
-del "%_PSOUT%" >nul 2>&1
-goto :eof
-
-:: ------------------------------------------------
-::  :download_nssm
-:: ------------------------------------------------
-:download_nssm
-set "NSSM_URL=https://nssm.cc/release/nssm-%NSSM_VER%.zip"
-set "NSSM_ZIP=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%.zip"
-
 echo.
-echo   NSSM downloaden...
-echo   URL: !NSSM_URL!
-
-if not exist "%NSSM_TEMP_DIR%" mkdir "%NSSM_TEMP_DIR%" >nul 2>&1
-
-set "DL_OK=0"
-
-:: Methode 1: PowerShell
-powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { $ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri '!NSSM_URL!' -OutFile '!NSSM_ZIP!' -UseBasicParsing -ErrorAction Stop; exit 0 } catch { exit 1 }" >nul 2>&1
-if !errorlevel!==0 (
-    if exist "!NSSM_ZIP!" (
-        echo   [OK] Download geslaagd [PowerShell]
-        set "DL_OK=1"
-    )
-)
-
-:: Methode 2: curl (fallback)
-if "!DL_OK!"=="0" (
-    where curl >nul 2>&1
-    if !errorlevel!==0 (
-        curl -sSL --fail -o "!NSSM_ZIP!" "!NSSM_URL!" >nul 2>&1
-        if !errorlevel!==0 (
-            if exist "!NSSM_ZIP!" (
-                echo   [OK] Download geslaagd [curl]
-                set "DL_OK=1"
-            )
-        )
-    )
-)
-
-if "!DL_OK!"=="0" (
-    echo   [ERROR] Download mislukt. Probeer handmatig:
-    echo           https://nssm.cc/download
-    exit /b 1
-)
-
-:extract_nssm
-echo   Uitpakken...
-powershell -NoProfile -Command "Expand-Archive -Path '!NSSM_ZIP!' -DestinationPath '%NSSM_TEMP_DIR%' -Force" >nul 2>&1
-if !errorlevel! neq 0 (
-    echo   [ERROR] Extractie mislukt.
-    exit /b 1
-)
-
-set "NSSM_PATH=%NSSM_TEMP_DIR%\nssm-%NSSM_VER%\!NSSM_ARCH_DIR!\nssm.exe"
-if not exist "!NSSM_PATH!" (
-    echo   [ERROR] nssm.exe niet gevonden na uitpakken:
-    echo           !NSSM_PATH!
-    exit /b 1
-)
-
-echo   [OK] NSSM !NSSM_VER! [!NSSM_ARCH_DIR!] geinstalleerd
+pause
+endlocal
 exit /b 0

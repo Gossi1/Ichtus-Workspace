@@ -225,7 +225,7 @@ const supervisorModule = {
                         document.getElementById('sv-update-text').textContent = '✅ Code geüpdatet en services herstart';
                     }
                 } catch (restartErr) {
-                    document.getElementById('sv-update-text').textContent = 'Code geüpdatet, maar herstart mislukt: herstart handmatig met nssm restart IchtusServer';
+                    document.getElementById('sv-update-text').textContent = 'Code geüpdatet, maar herstart mislukt: herstart handmatig via restart-service.bat';
                 }
                 setTimeout(() => {
                     banner.classList.add('hidden');
@@ -332,7 +332,7 @@ const supervisorModule = {
                     <strong>Kan geen verbinding maken met supervisor</strong><br>
                     <span>${this._escapeHtml(err.message)}</span><br><br>
                     Controleer of de server service draait:<br>
-                    <code>nssm status IchtusServer</code><br>
+                    <code>restart-service.bat</code> of <code>sc query IchtusServer</code><br>
                     of open <a href="/api/status" target="_blank" rel="noopener">/api/status</a>
                 </div>
                 <button class="sv-btn sv-btn-retry" onclick="supervisorModule._poll()">🔄 Opnieuw proberen</button>

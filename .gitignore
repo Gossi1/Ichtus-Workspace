@@ -85,12 +85,11 @@ logs/
 temp/
 tmp/
 
-# NSSM installer (downloaded automatically by install-service.bat)
-nssm*.zip
-nssm_temp/
-
-# NSSM service config (local install paths, do not commit)
-nssm-service.json
+# WinSW generated / local files
+winsw-service.xml
+bin/winsw/IchtusServer.exe
+bin/winsw/IchtusServer.xml
+winsw_temp/
 
 # Runtime artifacts (auto-generated)
 supervisor.heartbeat
