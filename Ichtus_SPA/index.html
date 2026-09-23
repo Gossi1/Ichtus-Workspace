@@ -27,7 +27,7 @@
     <link rel='stylesheet' href='css/patchbay.css?v=1'>
     <link rel='stylesheet' href='css/analytics.css?v=1'>
     <link rel='stylesheet' href='css/ndi.css?v=1'>
-    <link rel='stylesheet' href='css/setlist.css?v=3'>
+    <link rel='stylesheet' href='css/setlist.css?v=5'>
     <link rel='stylesheet' href='css/stagebuilder.css?v=1'>
     
     <!-- Existing standalone CSS -->
@@ -1263,13 +1263,33 @@
                         <div class="action-bar toolbar-row">
                             <!-- Template Management Options -->
                             <div class="template-selector-row">
-                                <select id="setlist-service-type" class="form-input select-clean">
-                                    <option value="zondagDienst">ZondagDienst</option>
-                                    <option value="worshipAvond">Worship Avond</option>
-                                    <option value="doopDienst">DoopDienst</option>
-                                    <option value="avondmaalDienst">AvondmaalDienst</option>
-                                    <option value="delightedYouth">Delighted Youth</option>
-                                </select>
+                                <div class="setlist-template-dropdown-container" id="setlist-tpl-dropdown-wrap">
+                                    <button type="button" class="setlist-template-trigger" id="setlist-tpl-trigger" onclick="setlistModule.toggleTemplateDropdown(event)" title="Kies een template" aria-haspopup="listbox" aria-expanded="false">
+                                        <span class="setlist-template-trigger-icon" aria-hidden="true">
+                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                                <polyline points="2 17 12 22 22 17"></polyline>
+                                                <polyline points="2 12 12 17 22 12"></polyline>
+                                            </svg>
+                                        </span>
+                                        <span class="setlist-template-trigger-text" id="setlist-tpl-trigger-text">ZondagDienst</span>
+                                        <span class="setlist-template-trigger-arrow" aria-hidden="true">
+                                            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                <polyline points="6 9 12 15 18 9"></polyline>
+                                            </svg>
+                                        </span>
+                                    </button>
+                                    <div class="setlist-template-menu" id="setlist-tpl-menu" role="listbox" tabindex="-1">
+                                        <!-- Dynamisch gevuld door renderTemplateDropdown -->
+                                    </div>
+                                    <select id="setlist-service-type" class="setlist-template-native-select" title="Template kiezen" tabindex="-1" aria-hidden="true">
+                                        <option value="zondagDienst">ZondagDienst</option>
+                                        <option value="worshipAvond">Worship Avond</option>
+                                        <option value="doopDienst">DoopDienst</option>
+                                        <option value="avondmaalDienst">AvondmaalDienst</option>
+                                        <option value="delightedYouth">Delighted Youth</option>
+                                    </select>
+                                </div>
                                 <button id="btn-setlist-template-edit" class="btn-nav icon-pad" title="Template bewerken">⚙️</button>
                                 <button id="btn-setlist-template-new" class="btn-nav icon-pad" title="Nieuwe template">➕</button>
                             </div>
@@ -2404,7 +2424,7 @@
     </script>
     <script src='js/modules/agenda.js'></script>
     <script src='js/modules/checklist.js'></script>
-    <script src='js/modules/setlist.js?v=12'></script>
+    <script src='js/modules/setlist.js?v=14'></script>
     <script src='js/modules/wt-services.js?v=4'></script>
     <script src='js/modules/patchbay.js'></script>
     <script src='js/modules/analytics.js'></script>

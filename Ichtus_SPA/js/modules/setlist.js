@@ -682,16 +682,91 @@ const setlistModule = {
 
     renderTemplateDropdown() {
         const select = document.getElementById('setlist-service-type');
-        if (!select || !this.SERVICE_TEMPLATES) return;
-        const currentValue = select.value;
-        select.innerHTML = '';
-        for (const [key, tpl] of Object.entries(this.SERVICE_TEMPLATES)) {
-            const opt = document.createElement('option');
-            opt.value = key;
-            opt.textContent = tpl.name;
-            select.appendChild(opt);
+        if (!this.SERVICE_TEMPLATES) return;
+
+        const currentValue = select ? select.value : '';
+        const validKey = this.SERVICE_TEMPLATES[currentValue] ? currentValue : Object.keys(this.SERVICE_TEMPLATES)[0];
+
+        if (select) {
+            select.innerHTML = '';
+            for (const [key, tpl] of Object.entries(this.SERVICE_TEMPLATES)) {
+                const opt = document.createElement('option');
+                opt.value = key;
+                opt.textContent = tpl.name;
+                select.appendChild(opt);
+            }
+            if (validKey) select.value = validKey;
         }
-        if (this.SERVICE_TEMPLATES[currentValue]) select.value = currentValue;
+
+        // Render custom Stage Builder-style dropdown menu
+        const menu = document.getElementById('setlist-tpl-menu');
+        const triggerText = document.getElementById('setlist-tpl-trigger-text');
+
+        if (triggerText && validKey && this.SERVICE_TEMPLATES[validKey]) {
+            triggerText.textContent = this.SERVICE_TEMPLATES[validKey].name;
+            triggerText.title = this.SERVICE_TEMPLATES[validKey].name;
+        }
+
+        if (menu) {
+            let html = '<div class="setlist-template-menu-header">Templates</div>';
+            for (const [key, tpl] of Object.entries(this.SERVICE_TEMPLATES)) {
+                const isSelected = key === validKey;
+                html += `
+                <div class="setlist-template-item ${isSelected ? 'selected' : ''}" data-tpl-key="${this.escapeHtml(key)}" onclick="setlistModule.selectTemplate('${this.escapeHtml(key)}')">
+                    <span class="setlist-template-item-name">${this.escapeHtml(tpl.name)}</span>
+                    <span class="setlist-template-item-check" aria-hidden="true">✓</span>
+                </div>`;
+            }
+            menu.innerHTML = html;
+        }
+    },
+
+    toggleTemplateDropdown(event) {
+        if (event) {
+            event.stopPropagation();
+            event.preventDefault();
+        }
+        const wrap = document.getElementById('setlist-tpl-dropdown-wrap');
+        const trigger = document.getElementById('setlist-tpl-trigger');
+        if (!wrap) return;
+        const isOpen = wrap.classList.toggle('open');
+        if (trigger) trigger.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+    },
+
+    closeTemplateDropdown() {
+        const wrap = document.getElementById('setlist-tpl-dropdown-wrap');
+        const trigger = document.getElementById('setlist-tpl-trigger');
+        if (wrap && wrap.classList.contains('open')) {
+            wrap.classList.remove('open');
+            if (trigger) trigger.setAttribute('aria-expanded', 'false');
+        }
+    },
+
+    selectTemplate(key) {
+        if (!this.SERVICE_TEMPLATES || !this.SERVICE_TEMPLATES[key]) return;
+        const select = document.getElementById('setlist-service-type');
+        if (select) {
+            select.value = key;
+        }
+
+        const triggerText = document.getElementById('setlist-tpl-trigger-text');
+        if (triggerText) {
+            triggerText.textContent = this.SERVICE_TEMPLATES[key].name;
+            triggerText.title = this.SERVICE_TEMPLATES[key].name;
+        }
+
+        const items = document.querySelectorAll('#setlist-tpl-menu .setlist-template-item');
+        items.forEach(el => {
+            el.classList.toggle('selected', el.getAttribute('data-tpl-key') === key);
+        });
+
+        this.closeTemplateDropdown();
+
+        // Re-parse and re-render preview
+        if (this.receivedSetlist) {
+            this.parsedSongs = this.parseSongs(this.receivedSetlist);
+        }
+        this.renderSongPreview();
     },
 
     async loadTemplates() {
@@ -825,6 +900,14 @@ const setlistModule = {
         });
         document.getElementById('btn-setlist-template-edit')?.addEventListener('click', () => this.openTemplateEditor());
         document.getElementById('btn-setlist-template-new')?.addEventListener('click', () => this.showNewTemplateModal());
+
+        // Close template dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('setlist-tpl-dropdown-wrap');
+            if (wrap && !wrap.contains(e.target)) {
+                this.closeTemplateDropdown();
+            }
+        });
 
         // Modal events
         document.getElementById('btn-close-setlist-modal')?.addEventListener('click', () => this.closeTemplateModal());
