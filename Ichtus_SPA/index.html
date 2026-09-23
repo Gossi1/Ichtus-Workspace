@@ -27,7 +27,7 @@
     <link rel='stylesheet' href='css/patchbay.css?v=1'>
     <link rel='stylesheet' href='css/analytics.css?v=1'>
     <link rel='stylesheet' href='css/ndi.css?v=1'>
-    <link rel='stylesheet' href='css/setlist.css?v=1'>
+    <link rel='stylesheet' href='css/setlist.css?v=3'>
     <link rel='stylesheet' href='css/stagebuilder.css?v=1'>
     
     <!-- Existing standalone CSS -->
@@ -1267,6 +1267,7 @@
                                     <option value="zondagDienst">ZondagDienst</option>
                                     <option value="worshipAvond">Worship Avond</option>
                                     <option value="doopDienst">DoopDienst</option>
+                                    <option value="avondmaalDienst">AvondmaalDienst</option>
                                     <option value="delightedYouth">Delighted Youth</option>
                                 </select>
                                 <button id="btn-setlist-template-edit" class="btn-nav icon-pad" title="Template bewerken">⚙️</button>
@@ -1639,6 +1640,9 @@
                         <div class="footer-actions-menu-wrapper">
                             <button class="btn-nav btn-icon-only" onclick="this.parentElement.classList.toggle('open')" title="Meer opties">⋮</button>
                             <div class="footer-dropdown-menu">
+                                <button id="btn-export-tpl" class="dropdown-item">Exporteer bestand (JSON)</button>
+                                <button id="btn-import-tpl" class="dropdown-item">Importeer bestand (JSON)</button>
+                                <input type="file" id="input-import-tpl" accept=".json" style="display:none">
                                 <button id="btn-reset-tpl" class="dropdown-item">Reset naar standaard</button>
                                 <button id="btn-del-tpl" class="dropdown-item danger-text">Verwijder Template</button>
                             </div>
@@ -2400,8 +2404,8 @@
     </script>
     <script src='js/modules/agenda.js'></script>
     <script src='js/modules/checklist.js'></script>
-    <script src='js/modules/setlist.js?v=10'></script>
-    <script src='js/modules/wt-services.js?v=3'></script>
+    <script src='js/modules/setlist.js?v=12'></script>
+    <script src='js/modules/wt-services.js?v=4'></script>
     <script src='js/modules/patchbay.js'></script>
     <script src='js/modules/analytics.js'></script>
     <script src='js/modules/ndi.js'></script>

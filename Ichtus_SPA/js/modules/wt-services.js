@@ -252,25 +252,39 @@ const wtServicesModule = {
                 return;
             }
 
-            // Categorize songs into opening / praise / closing buckets
-            // using the same markers as setlist.js parseSongs()
-            const opening = [], praise = [], closing = [];
+            // Categorize songs into opening / praise / closing / doop / avondmaal buckets
+            const opening = [], praise = [], closing = [], doop = [], avondmaal = [];
             let bucket = opening;
-            const ignore = ['preek', 'opening dienst', 'offergave', 'repetities', 'kerkdiensten', 'worship tools', 'avondmaal', 'reserve'];
+            const ignore = ['preek', 'opening dienst', 'offergave', 'repetities', 'kerkdiensten', 'worship tools', 'reserve'];
+
+            // Check if active template has an opening slot (e.g. Worship Avond starts in praise)
+            const selectedKey = document.getElementById('setlist-service-type')?.value;
+            const currentTpl = (typeof setlistModule !== 'undefined' && setlistModule.SERVICE_TEMPLATES && setlistModule.SERVICE_TEMPLATES[selectedKey]);
+            if (currentTpl && !currentTpl.items.some(i => i.insert === 'opening')) {
+                bucket = praise;
+            }
 
             for (const song of data.songs) {
                 const title = song.title || '';
 
-                if (title.includes('D000 - Opening dienst en offergave')) {
+                if (title.includes('D000 - Opening dienst en offergave') || /opening\s*dienst/i.test(title)) {
                     bucket = praise;
                     continue;
                 }
-                if (title.includes('D000 - Preek')) {
+                if (title.includes('D000 - Preek') || /^D\d{3}\s*-\s*preek/i.test(title)) {
                     bucket = closing;
                     continue;
                 }
+                if (/doop/i.test(title) && /^D\d{3}/i.test(title)) {
+                    bucket = doop;
+                    continue;
+                }
+                if (/avondmaal/i.test(title) && /^D\d{3}/i.test(title)) {
+                    bucket = avondmaal;
+                    continue;
+                }
                 if (/setlist\s*eind/i.test(title)) break;
-                if (ignore.some(w => title.toLowerCase().includes(w))) continue;
+                if (ignore.some(w => title.toLowerCase() === w || title.toLowerCase().startsWith(w + ' '))) continue;
 
                 const numMatch = title.match(/^([A-Z]{1,3}\s*\d{1,4}[A-Za-z]?)\s+(.+)/);
                 bucket.push({
@@ -279,33 +293,16 @@ const wtServicesModule = {
                 });
             }
 
-            const renderBucket = (label, cls, songs) => {
-                if (!songs.length) return '';
-                let h = `<div class="song-bucket"><h4 class="bucket-title ${cls}">${label} (${songs.length})</h4><ul class="song-link-list">`;
-                songs.forEach(s => {
-                    const badge = s.number ? `<span class="song-number-badge">${this.escapeHtml(s.number)}</span> ` : '';
-                    h += `<li>${badge}${this.escapeHtml(s.name)}</li>`;
-                });
-                h += '</ul></div>';
-                return h;
-            };
-
-            let html = '';
-            html += renderBucket('Openingsliederen', 'bucket-opening', opening);
-            html += renderBucket('Praise & Worship', 'bucket-praise', praise);
-            html += renderBucket('Eindliederen', 'bucket-closing', closing);
-            if (!html) html = '<p class="setlist-empty">Geen nummers gevonden in de setlist.</p>';
-
-            previewEl.innerHTML = html;
-
-            // Feed parsed songs into setlistModule so sync uses WT data
+            // Feed parsed songs into setlistModule so sync uses WT data, and let setlistModule render template preview
             if (typeof setlistModule !== 'undefined') {
                 setlistModule.parsedSongs = {
                     opening: opening.map(s => s.number ? `${s.number} ${s.name}` : s.name),
                     praise: praise.map(s => s.number ? `${s.number} ${s.name}` : s.name),
                     closing: closing.map(s => s.number ? `${s.number} ${s.name}` : s.name),
+                    doop: doop.map(s => s.number ? `${s.number} ${s.name}` : s.name),
+                    avondmaal: avondmaal.map(s => s.number ? `${s.number} ${s.name}` : s.name),
                 };
-                setlistModule.structuredSongs = [...opening, ...praise, ...closing].map(s => ({
+                setlistModule.structuredSongs = [...opening, ...praise, ...closing, ...doop, ...avondmaal].map(s => ({
                     number: s.number || null,
                     name: s.name,
                 }));
@@ -322,7 +319,9 @@ const wtServicesModule = {
                 } else {
                     setlistModule.serviceDate = svc.displayDate || null;
                 }
+                setlistModule.updateConnectionStatus('received');
                 setlistModule.renderDateDisplay();
+                setlistModule.renderSongPreview();
             }
         } catch (err) {
             // Bij een stille live-poll de fout niet op het scherm gooien:

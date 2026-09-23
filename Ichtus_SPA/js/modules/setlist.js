@@ -72,7 +72,7 @@ const setlistModule = {
                 { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
                 { type: "header", name: "Praise & Worship", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "praise" },
                 { type: "header", name: "Preek", color: { red: 0.713, green: 0.352, blue: 0.062, alpha: 1.0 } },
-                { type: "header", name: "Doopliederen", color: { red: 0.588, green: 0.518, blue: 0.137, alpha: 1.0 } },
+                { type: "header", name: "Doopliederen", color: { red: 0.588, green: 0.518, blue: 0.137, alpha: 1.0 }, insert: "doop" },
                 { type: "header", name: "Eindlied", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "closing" },
                 { type: "header", name: "Einde-Dienst", color: { red: 0.545, green: 0.0, blue: 0.0, alpha: 1.0 } },
                 { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
@@ -87,7 +87,7 @@ const setlistModule = {
                 { type: "header", name: "Announcments", color: { red: 0.3686274588108063, green: 0.27450981736183167, blue: 0.04313725605607033, alpha: 1.0 } },
                 { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
                 { type: "header", name: "Worship", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Avondmaal", color: { red: 1.0, green: 0.843137264251709, blue: 0.0, alpha: 1.0 } },
+                { type: "header", name: "Avondmaal", color: { red: 1.0, green: 0.843137264251709, blue: 0.0, alpha: 1.0 }, insert: "avondmaal" },
                 { type: "header", name: "Preek", color: { red: 0.7137255072593689, green: 0.3529411852359772, blue: 0.062745101749897, alpha: 1.0 } },
                 { type: "header", name: "Ending Song", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "closing" },
                 { type: "header", name: "Service End", color: { red: 0.545098066329956, green: 0.0, blue: 0.0, alpha: 1.0 } },
@@ -123,8 +123,9 @@ const setlistModule = {
         if (!this.initialized) {
             this.initialized = true;
 
-            // Load templates
-            this.SERVICE_TEMPLATES = JSON.parse(localStorage.getItem('setlistTemplates')) || JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES));
+            // Load templates from file (defaults loaded synchronously as immediate baseline)
+            this.SERVICE_TEMPLATES = JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES));
+            this.loadTemplates();
 
             // Load saved ProPresenter IP — priority:
             // 1. Centrale settings (Settings app) — alleen als expliciet opgeslagen
@@ -413,7 +414,7 @@ const setlistModule = {
 
     countSongs() {
         if (!this.parsedSongs) return 0;
-        return this.parsedSongs.opening.length + this.parsedSongs.praise.length + this.parsedSongs.closing.length;
+        return Object.values(this.parsedSongs).reduce((total, arr) => total + (Array.isArray(arr) ? arr.length : 0), 0);
     },
 
     updateConnectionStatus(state) {
@@ -443,46 +444,54 @@ const setlistModule = {
     },
 
     /**
-     * Render the song preview with optional song-number badges.
-     * Tries to match parsed songs with structured data to show
-     * song numbers (e.g. "O586") as small badges next to the name.
+     * Render the template-driven preview showing all headers, presentation cues,
+     * and songs assigned to their template slots. Supports drag-and-drop reordering.
      */
     renderSongPreview() {
         const container = document.getElementById('setlist-preview');
-        if (!container || !this.parsedSongs) return;
+        if (!container) return;
+        if (!this.parsedSongs) {
+            container.innerHTML = '<p class="setlist-empty">' + __('setlist_empty_preview') + '</p>';
+            return;
+        }
 
-        const { opening, praise, closing } = this.parsedSongs;
+        const selectEl = document.getElementById('setlist-service-type');
+        let selectedTemplateKey = selectEl?.value;
+        const allTemplates = (this.SERVICE_TEMPLATES && Object.keys(this.SERVICE_TEMPLATES).length > 0)
+            ? this.SERVICE_TEMPLATES
+            : this.DEFAULT_TEMPLATES;
 
-        // Build a lookup from the structured data (song name -> number)
+        if (!selectedTemplateKey || !allTemplates?.[selectedTemplateKey]) {
+            selectedTemplateKey = allTemplates ? Object.keys(allTemplates)[0] : 'zondagDienst';
+            if (selectEl && selectedTemplateKey) selectEl.value = selectedTemplateKey;
+        }
+
+        let template = allTemplates?.[selectedTemplateKey] || this.DEFAULT_TEMPLATES?.zondagDienst;
+        if (!template || !Array.isArray(template.items)) {
+            template = this.DEFAULT_TEMPLATES?.zondagDienst;
+        }
+
+        // Build a lookup from structured data (song name -> number)
         const numberMap = {};
         if (this.structuredSongs) {
             this.structuredSongs.forEach(s => {
                 if (s.number && s.name) {
-                    // Map by clean name (lowercased)
                     numberMap[s.name.toLowerCase()] = s.number;
                 }
             });
         }
 
-        /** Render a list of songs, adding number badges where available */
-        const renderList = (songs) => {
-            // Build a normalized lookup of known IDs once per render. Empty
-            // Set = no library loaded yet (badges stay hidden).
-            const knownIds = this.knownSongIds || null;
-            const norm = v => String(v || '').replace(/\s+/g, '');
+        const knownIds = this.knownSongIds || null;
+        const norm = v => String(v || '').replace(/\s+/g, '');
 
-            return songs.map(s => {
-                // Parsed lines keep the number prefix ("D044 Great I Am") while
-                // structured names are clean ("Great I Am") — resolve the badge
-                // against the clean name and show the number as the badge.
+        /** Render a list of songs, adding drag handles and badges */
+        const renderList = (songs, slotKey) => {
+            return songs.map((s, idx) => {
                 const cleanName = this.stripSongNumberPrefix(s);
                 const num = numberMap[cleanName.toLowerCase()] || numberMap[s.toLowerCase()];
                 const displayName = num ? cleanName : s;
                 const escaped = this.escapeHtml(displayName);
 
-                // DEFAULT: assume "in library" so a missing library fetch
-                // doesn't make every song appear NIEUW. Only mark new if
-                // we have data loaded AND the lookup genuinely misses.
                 let isNew = false;
                 if (num && knownIds) {
                     isNew = !knownIds.has(norm(num));
@@ -492,33 +501,167 @@ const setlistModule = {
                     : '';
 
                 const badge = num ? `<span class="song-number-badge">${this.escapeHtml(num)}</span> ` : '';
-                return `<li>${badge}${newBadge}${escaped}</li>`;
+                const dragIcon = `<span class="song-drag-handle" title="Sleep om te verplaatsen">⠿</span>`;
+                return `<li class="song-preview-item" data-index="${idx}" data-song="${this.escapeHtml(s)}">${dragIcon}${badge}${newBadge}<span>${escaped}</span></li>`;
             }).join('');
         };
 
+        // Auto-merge into single slot if template defines only one slot (e.g. Worship Avond)
+        const availableSlots = template.items.filter(i => i.insert).map(i => i.insert);
+        if (availableSlots.length === 1) {
+            const singleSlot = availableSlots[0];
+            for (const [slot, songs] of Object.entries(this.parsedSongs)) {
+                if (slot !== singleSlot && Array.isArray(songs) && songs.length > 0) {
+                    if (!this.parsedSongs[singleSlot]) this.parsedSongs[singleSlot] = [];
+                    this.parsedSongs[singleSlot].push(...songs);
+                    this.parsedSongs[slot] = [];
+                }
+            }
+        }
+
+        // Group items into header sections so presentations are contained in their header's box
+        const sections = [];
+        let currentSection = null;
+
+        template.items.forEach(tplItem => {
+            if (tplItem.type === 'header') {
+                currentSection = {
+                    header: tplItem,
+                    presentations: [],
+                    insert: tplItem.insert || null
+                };
+                sections.push(currentSection);
+            } else if (tplItem.type === 'presentation') {
+                if (!currentSection) {
+                    currentSection = {
+                        header: { name: 'Intro', color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
+                        presentations: [],
+                        insert: null
+                    };
+                    sections.push(currentSection);
+                }
+                currentSection.presentations.push(tplItem);
+            }
+        });
+
         let html = '';
+        const renderedSlots = new Set();
 
-        if (opening.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-opening">Openingsliederen (${opening.length})</h4><ul class="song-link-list">`;
-            html += renderList(opening);
-            html += '</ul></div>';
-        }
-        if (praise.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-praise">Praise & Worship (${praise.length})</h4><ul class="song-link-list">`;
-            html += renderList(praise);
-            html += '</ul></div>';
-        }
-        if (closing.length > 0) {
-            html += `<div class="song-bucket"><h4 class="bucket-title bucket-closing">Eindliederen (${closing.length})</h4><ul class="song-link-list">`;
-            html += renderList(closing);
-            html += '</ul></div>';
+        sections.forEach(sec => {
+            const hex = this.rgbToHex(sec.header.color);
+            const songs = sec.insert ? (this.parsedSongs[sec.insert] || []) : [];
+            if (sec.insert) {
+                renderedSlots.add(sec.insert);
+            }
+            const totalCount = sec.presentations.length + songs.length;
+
+            html += `
+            <div class="song-bucket template-header-bucket" ${sec.insert ? `data-insert="${this.escapeHtml(sec.insert)}"` : ''}>
+                <div class="bucket-header" style="border-left-color: ${hex};">
+                    <span class="bucket-color-dot" style="background-color: ${hex};"></span>
+                    <h4 class="bucket-title" style="color: ${hex};">${this.escapeHtml(sec.header.name)}</h4>
+                    <span class="bucket-count-badge" style="background-color: ${hex}20; color: ${hex}; border: 1px solid ${hex}40;">${totalCount}</span>
+                </div>
+                <div class="bucket-body">`;
+
+            // Presentations belonging to this header
+            if (sec.presentations.length > 0) {
+                sec.presentations.forEach(pres => {
+                    html += `
+                    <div class="template-presentation-item">
+                        <span class="presentation-icon">🎬</span>
+                        <span class="presentation-name">${this.escapeHtml(pres.name)}</span>
+                        <span class="presentation-dest-badge">${this.escapeHtml(pres.destination || 'presentation')}</span>
+                    </div>`;
+                });
+            }
+
+            // Songs belonging to this header (if slot is defined)
+            if (sec.insert) {
+                html += `
+                    <ul class="song-link-list ${songs.length === 0 ? 'empty-list' : ''}" data-insert="${this.escapeHtml(sec.insert)}">
+                        ${songs.length > 0 ? renderList(songs, sec.insert) : '<li class="slot-empty-notice">(Geen liederen toegewezen)</li>'}
+                    </ul>`;
+            } else if (sec.presentations.length === 0) {
+                html += `<div class="slot-empty-notice">(Geen items)</div>`;
+            }
+
+            html += `
+                </div>
+            </div>`;
+        });
+
+        // Check for any unassigned songs not covered by the template's slots
+        const unassignedSlots = [];
+        for (const [slotKey, songs] of Object.entries(this.parsedSongs)) {
+            if (!renderedSlots.has(slotKey) && Array.isArray(songs) && songs.length > 0) {
+                unassignedSlots.push({ slot: slotKey, songs });
+            }
         }
 
-        if (html === '') {
-            html = '<p class="setlist-empty">Geen nummers gevonden in de setlist.</p>';
+        if (unassignedSlots.length > 0) {
+            unassignedSlots.forEach(u => {
+                html += `
+                <div class="song-bucket template-header-bucket" data-insert="${this.escapeHtml(u.slot)}">
+                    <div class="bucket-header" style="border-left-color: #f47920;">
+                        <span class="bucket-color-dot" style="background-color: #f47920;"></span>
+                        <h4 class="bucket-title" style="color: #f47920;">Overige liederen (${this.escapeHtml(u.slot)})</h4>
+                        <span class="bucket-count-badge" style="background-color: rgba(244,121,32,0.2); color: #f47920; border: 1px solid rgba(244,121,32,0.4);">${u.songs.length}</span>
+                    </div>
+                    <ul class="song-link-list" data-insert="${this.escapeHtml(u.slot)}">
+                        ${renderList(u.songs, u.slot)}
+                    </ul>
+                </div>`;
+            });
         }
 
         container.innerHTML = html;
+
+        // Bind SortableJS for drag-and-drop between headers
+        if (typeof Sortable !== 'undefined') {
+            if (this.previewSortables) {
+                this.previewSortables.forEach(s => {
+                    try { s.destroy(); } catch (_) {}
+                });
+            }
+            this.previewSortables = [];
+
+            const lists = container.querySelectorAll('.song-link-list');
+            lists.forEach(listEl => {
+                const s = Sortable.create(listEl, {
+                    group: 'setlist-preview-songs',
+                    animation: 150,
+                    handle: '.song-drag-handle',
+                    draggable: '.song-preview-item',
+                    filter: '.slot-empty-notice',
+                    ghostClass: 'sortable-ghost',
+                    onEnd: (evt) => {
+                        const fromSlot = evt.from.dataset.insert;
+                        const toSlot = evt.to.dataset.insert;
+                        if (!fromSlot || !toSlot) return;
+
+                        if (fromSlot === toSlot) {
+                            const arr = this.parsedSongs[fromSlot];
+                            if (arr) {
+                                const [item] = arr.splice(evt.oldIndex, 1);
+                                arr.splice(evt.newIndex, 0, item);
+                            }
+                        } else {
+                            const srcArr = this.parsedSongs[fromSlot] || [];
+                            const tgtArr = this.parsedSongs[toSlot] || (this.parsedSongs[toSlot] = []);
+                            const [item] = srcArr.splice(evt.oldIndex, 1);
+                            if (item) {
+                                tgtArr.splice(evt.newIndex, 0, item);
+                            }
+                        }
+
+                        // Re-render to refresh counts and empty placeholders
+                        this.renderSongPreview();
+                    }
+                });
+                this.previewSortables.push(s);
+            });
+        }
     },
 
     escapeHtml(text) {
@@ -539,7 +682,7 @@ const setlistModule = {
 
     renderTemplateDropdown() {
         const select = document.getElementById('setlist-service-type');
-        if (!select) return;
+        if (!select || !this.SERVICE_TEMPLATES) return;
         const currentValue = select.value;
         select.innerHTML = '';
         for (const [key, tpl] of Object.entries(this.SERVICE_TEMPLATES)) {
@@ -551,11 +694,134 @@ const setlistModule = {
         if (this.SERVICE_TEMPLATES[currentValue]) select.value = currentValue;
     },
 
+    async loadTemplates() {
+        try {
+            // First attempt to load from server API (persisted to Ichtus_SPA/data/setlist-templates.json)
+            const res = await fetch('/api/setlist/templates');
+            if (res.ok) {
+                const data = await res.json();
+                if (data.success && data.templates && Object.keys(data.templates).length > 0) {
+                    // Check if there was an unmigrated localStorage version with custom templates
+                    const localSaved = localStorage.getItem('setlistTemplates');
+                    if (localSaved && !localStorage.getItem('setlistTemplatesMigrated')) {
+                        try {
+                            const parsedLocal = JSON.parse(localSaved);
+                            if (parsedLocal && Object.keys(parsedLocal).length > 0) {
+                                await this.saveTemplates(parsedLocal);
+                                this.SERVICE_TEMPLATES = parsedLocal;
+                                localStorage.setItem('setlistTemplatesMigrated', 'true');
+                                this.renderTemplateDropdown();
+                                this.renderSongPreview();
+                                return;
+                            }
+                        } catch (_) {}
+                    }
+
+                    this.SERVICE_TEMPLATES = data.templates;
+                    this.renderTemplateDropdown();
+                    this.renderSongPreview();
+                    return;
+                }
+            }
+        } catch (err) {
+            console.warn('[Setlist] Server template API failed, trying static fallback:', err.message);
+        }
+
+        // Fallback: static JSON file in data/
+        try {
+            const res = await fetch('data/setlist-templates.json');
+            if (res.ok) {
+                const templates = await res.json();
+                if (templates && Object.keys(templates).length > 0) {
+                    this.SERVICE_TEMPLATES = templates;
+                    this.renderTemplateDropdown();
+                    this.renderSongPreview();
+                    return;
+                }
+            }
+        } catch (_) {}
+
+        // Fallback to defaults
+        this.SERVICE_TEMPLATES = JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES));
+        this.renderTemplateDropdown();
+        this.renderSongPreview();
+    },
+
+    async saveTemplates(templatesToSave = null) {
+        const templates = templatesToSave || this.SERVICE_TEMPLATES;
+        try {
+            const res = await fetch('/api/setlist/templates', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(templates)
+            });
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || `HTTP ${res.status}`);
+            }
+            console.log('[Setlist] Templates saved to file successfully');
+            return true;
+        } catch (err) {
+            console.error('[Setlist] Failed to save templates to file:', err.message);
+            // Fallback: save to localStorage so changes are not lost if server is unreachable
+            localStorage.setItem('setlistTemplates', JSON.stringify(templates));
+            this.showStatus('Server offline: lokaal opgeslagen', 'warning');
+            return false;
+        }
+    },
+
+    exportTemplatesToFile() {
+        try {
+            const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(this.SERVICE_TEMPLATES, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute('href', dataStr);
+            downloadAnchor.setAttribute('download', 'setlist-templates.json');
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            this.showStatus('Templates geëxporteerd!', 'success');
+        } catch (e) {
+            alert('Fout bij exporteren: ' + e.message);
+        }
+    },
+
+    importTemplatesFromFile(file) {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = async (e) => {
+            try {
+                const imported = JSON.parse(e.target.result);
+                if (typeof imported !== 'object' || Array.isArray(imported)) {
+                    throw new Error('Ongeldig bestandsformaat');
+                }
+                this.SERVICE_TEMPLATES = imported;
+                await this.saveTemplates();
+                this.renderTemplateDropdown();
+                if (this.editingTemplateKey && this.SERVICE_TEMPLATES[this.editingTemplateKey]) {
+                    this.openTemplateEditor();
+                } else {
+                    this.closeTemplateModal();
+                }
+                this.showStatus('Templates geïmporteerd en opgeslagen!', 'success');
+            } catch (err) {
+                alert('Kon bestand niet importeren: ' + err.message);
+            }
+        };
+        reader.readAsText(file);
+    },
+
     bindEvents() {
         document.getElementById('btn-setlist-sync')?.addEventListener('click', () => this.handleSync());
         document.getElementById('btn-setlist-clear')?.addEventListener('click', () => this.clearSetlist());
         document.getElementById('btn-open-worshiptools')?.addEventListener('click', () => {
             window.open('https://planning.worshiptools.com/app', '_blank');
+        });
+        document.getElementById('setlist-service-type')?.addEventListener('change', () => {
+            console.log('[SPA] Service template changed in dropdown');
+            if (this.receivedSetlist) {
+                this.parsedSongs = this.parseSongs(this.receivedSetlist);
+            }
+            this.renderSongPreview();
         });
         document.getElementById('btn-setlist-template-edit')?.addEventListener('click', () => this.openTemplateEditor());
         document.getElementById('btn-setlist-template-new')?.addEventListener('click', () => this.showNewTemplateModal());
@@ -576,6 +842,34 @@ const setlistModule = {
             });
         }
 
+        // Realtime template sync via WebSocket hub
+        document.addEventListener('ws:setlist:templates', (e) => {
+            if (e.detail?.templates) {
+                console.log('[SPA] Realtime setlist templates update received');
+                this.SERVICE_TEMPLATES = e.detail.templates;
+                this.renderTemplateDropdown();
+                const modal = document.getElementById('setlist-template-modal');
+                if (modal && !modal.classList.contains('hidden') && this.editingTemplateKey) {
+                    if (this.SERVICE_TEMPLATES[this.editingTemplateKey]) {
+                        this.openTemplateEditor();
+                    } else {
+                        this.closeTemplateModal();
+                    }
+                }
+            }
+        });
+
+        // Template file export / import
+        document.getElementById('btn-export-tpl')?.addEventListener('click', () => this.exportTemplatesToFile());
+        document.getElementById('btn-import-tpl')?.addEventListener('click', () => {
+            document.getElementById('input-import-tpl')?.click();
+        });
+        document.getElementById('input-import-tpl')?.addEventListener('change', (e) => {
+            if (e.target.files && e.target.files[0]) {
+                this.importTemplatesFromFile(e.target.files[0]);
+                e.target.value = '';
+            }
+        });
     },
 
     /**
@@ -781,40 +1075,47 @@ const setlistModule = {
     },
 
     parseSongs(rawText) {
-        let opening = [], praise = [], closing = [];
+        let opening = [], praise = [], closing = [], doop = [], avondmaal = [];
         let currentBucket = opening;
         const seen = new Set();
-        const ignore = ["preek", "opening", "offergave", "repetities", "kerkdiensten", "worship tools", "avondmaal", "reserve"];
+        const ignore = ["preek", "opening", "offergave", "repetities", "kerkdiensten", "worship tools", "reserve"];
+
+        // If template has no opening slot (e.g. Worship Avond), start in praise
+        const selectedKey = document.getElementById('setlist-service-type')?.value;
+        const currentTpl = (this.SERVICE_TEMPLATES && this.SERVICE_TEMPLATES[selectedKey]) || (this.DEFAULT_TEMPLATES && this.DEFAULT_TEMPLATES[selectedKey]);
+        const hasOpening = currentTpl ? currentTpl.items.some(i => i.insert === 'opening') : true;
+        if (!hasOpening) {
+            currentBucket = praise;
+        }
 
         const lines = rawText.split('\n');
         for (let line of lines) {
             line = line.trim();
             if (!line) continue;
 
-            if (line.includes("D000 - Opening dienst en offergave")) {
+            // Detect section markers
+            if (line.includes("D000 - Opening dienst en offergave") || /opening\s*dienst/i.test(line)) {
                 currentBucket = praise;
                 continue;
-            } else if (line.includes("D000 - Preek")) {
+            } else if (line.includes("D000 - Preek") || /^D\d{3}\s*-\s*preek/i.test(line)) {
                 currentBucket = closing;
+                continue;
+            } else if (/doop/i.test(line) && /^D\d{3}/i.test(line)) {
+                currentBucket = doop;
+                continue;
+            } else if (/avondmaal/i.test(line) && /^D\d{3}/i.test(line)) {
+                currentBucket = avondmaal;
                 continue;
             }
 
-            // "D000 - Setlist eind" — end-of-service placeholder. Never a song
-            // itself, and nothing after it belongs to the setlist. (Safety net:
-            // content.js already truncates at extraction time, but cached
-            // payloads from before that fix may still contain the marker.)
+            // "D000 - Setlist eind" — end-of-service placeholder
             if (/setlist\s*eind/i.test(line)) {
                 break;
             }
 
-            if (ignore.some(word => line.toLowerCase().includes(word))) continue;
+            if (ignore.some(word => line.toLowerCase() === word || line.toLowerCase().startsWith(word + ' '))) continue;
 
             let cleaned = line.replace(/^\d{1,2}:\d{2}\s*(?:\|\s*)?/, '').trim();
-            // Strip only a trailing SINGLE-letter key (e.g. " D", " F#") — a
-            // legacy fallback for payloads that still carry the key inline.
-            // Multi-letter chords (Am, Dm, C#m, maj, sus, ...) are NEVER
-            // stripped: they collide with real words like "Am" in "Great I Am".
-            // The key badge is already excluded at extraction (content.js).
             cleaned = cleaned.replace(/\s+[A-G][b#]?\s*$/, '').trim();
 
             if (cleaned && !seen.has(cleaned)) {
@@ -822,7 +1123,7 @@ const setlistModule = {
                 seen.add(cleaned);
             }
         }
-        return { opening, praise, closing };
+        return { opening, praise, closing, doop, avondmaal };
     },
 
     createItem(name, uuid, isHeader = false, color = null, destination = "presentation") {
@@ -878,9 +1179,9 @@ const setlistModule = {
      * Returns { items, matchedSongs, unmatchedSongs }.
      */
     _buildSyncItems(libraryMap) {
-        const { opening, praise, closing } = this.parsedSongs;
         const selectedTemplateKey = document.getElementById('setlist-service-type').value;
-        const template = this.SERVICE_TEMPLATES[selectedTemplateKey];
+        const template = (this.SERVICE_TEMPLATES && this.SERVICE_TEMPLATES[selectedTemplateKey])
+            || (this.DEFAULT_TEMPLATES && this.DEFAULT_TEMPLATES[selectedTemplateKey]);
 
         let items = [];
         let matchedSongs = 0;
@@ -889,10 +1190,7 @@ const setlistModule = {
         template.items.forEach(tplItem => {
             items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));
             if (tplItem.insert) {
-                let listToInsert = [];
-                if (tplItem.insert === "opening") listToInsert = opening;
-                if (tplItem.insert === "praise") listToInsert = praise;
-                if (tplItem.insert === "closing") listToInsert = closing;
+                let listToInsert = (this.parsedSongs && this.parsedSongs[tplItem.insert]) || [];
                 listToInsert.forEach(s => {
                     const processedName = s.toLowerCase();
                     let uuid = libraryMap[processedName];
@@ -1230,6 +1528,8 @@ const setlistModule = {
                     <option value="opening" ${item.insert === 'opening' ? 'selected' : ''}>+ Opening</option>
                     <option value="praise" ${item.insert === 'praise' ? 'selected' : ''}>+ Worship</option>
                     <option value="closing" ${item.insert === 'closing' ? 'selected' : ''}>+ Closing</option>
+                    <option value="doop" ${item.insert === 'doop' ? 'selected' : ''}>+ Doop</option>
+                    <option value="avondmaal" ${item.insert === 'avondmaal' ? 'selected' : ''}>+ Avondmaal</option>
                 </select>
                 <input type="text" class="i-uuid" value="${item.uuid || ''}" placeholder="Target UUID" style="display:${!isHeader ? 'block' : 'none'}; flex: 2;">
                 <input type="text" class="i-dest" value="${item.destination || 'presentation'}" placeholder="Dest" style="width: 90px;">
@@ -1291,16 +1591,13 @@ const setlistModule = {
         else container.appendChild(newRow);
     },
 
-    saveTemplateEdit() {
+    async saveTemplateEdit() {
         // Persist any changes to the editable template title (the input.next to "Template:").
         const titleEl = document.getElementById('edit-tpl-name');
         if (titleEl && this.SERVICE_TEMPLATES[this.editingTemplateKey]) {
             const newName = (titleEl.value || '').trim();
             if (newName) this.SERVICE_TEMPLATES[this.editingTemplateKey].name = newName;
         }
-        // Re-render the template <select> so a rename is reflected in the dropdown
-        // immediately, not just on next page reload.
-        this.renderTemplateDropdown();
         const rows = document.querySelectorAll('#tpl-items-container .tpl-item-row');
         const newItems = [];
         rows.forEach(row => {
@@ -1320,7 +1617,8 @@ const setlistModule = {
             newItems.push(obj);
         });
         this.SERVICE_TEMPLATES[this.editingTemplateKey].items = newItems;
-        localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
+        await this.saveTemplates();
+        this.renderTemplateDropdown();
         this.closeTemplateModal();
         this.showStatus('Template opgeslagen!', 'success');
     },
@@ -1348,36 +1646,36 @@ const setlistModule = {
         document.getElementById('new-template-modal')?.classList.add('hidden');
     },
 
-    confirmNewTemplate() {
+    async confirmNewTemplate() {
         const name = document.getElementById('new-tpl-name-input')?.value.trim();
         if (!name) return;
         const key = name.replace(/[^a-zA-Z0-9]/g, '') + Date.now();
         this.SERVICE_TEMPLATES[key] = { name: name, items: [] };
-        localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
+        await this.saveTemplates();
         this.renderTemplateDropdown();
         document.getElementById('setlist-service-type').value = key;
         this.closeNewTemplateModal();
         this.openTemplateEditor();
     },
 
-    deleteCurrentTemplate() {
+    async deleteCurrentTemplate() {
         if (Object.keys(this.SERVICE_TEMPLATES).length <= 1) {
             alert(__('setlist_cannot_delete_last'));
             return;
         }
         if (confirm(__('setlist_confirm_delete') + ' \'' + this.SERVICE_TEMPLATES[this.editingTemplateKey].name + '\' ' + __('setlist_wilt_verwijderen'))) {
             delete this.SERVICE_TEMPLATES[this.editingTemplateKey];
-            localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
+            await this.saveTemplates();
             this.closeTemplateModal();
             this.renderTemplateDropdown();
             this.showStatus('Template verwijderd.', 'success');
         }
     },
 
-    resetTemplateToDefault() {
+    async resetTemplateToDefault() {
         if (confirm(__('setlist_confirm_reset'))) {
             this.SERVICE_TEMPLATES[this.editingTemplateKey] = JSON.parse(JSON.stringify(this.DEFAULT_TEMPLATES[this.editingTemplateKey]));
-            localStorage.setItem('setlistTemplates', JSON.stringify(this.SERVICE_TEMPLATES));
+            await this.saveTemplates();
             this.openTemplateEditor();
         }
     },

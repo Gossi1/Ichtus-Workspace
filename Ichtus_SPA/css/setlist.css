@@ -113,6 +113,170 @@
 .bucket-title.bucket-praise  { border-color: var(--ichtus-orange); color: var(--ichtus-orange); }
 .bucket-title.bucket-closing { border-color: var(--ichtus-green); color: var(--ichtus-green); }
 
+/* Template-driven Setlist Preview */
+.template-header-bucket {
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 8px;
+    padding: 10px 14px;
+    transition: border-color 0.2s;
+}
+
+.template-header-bucket .bucket-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-left: 8px;
+    border-left: 3px solid var(--text-muted);
+}
+
+.bucket-color-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+}
+
+.template-header-bucket .bucket-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 0;
+    border-left: none;
+    padding-left: 0;
+}
+
+.bucket-count-badge {
+    margin-left: auto;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 12px;
+}
+
+.template-structural-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.015);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+    border-left: 3px solid var(--text-muted);
+    border-radius: 6px;
+    padding: 8px 12px;
+}
+
+.template-structural-item .structural-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.template-structural-item .structural-type-badge {
+    margin-left: auto;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.template-presentation-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    padding: 7px 12px;
+    margin-bottom: 6px;
+    color: var(--text-main);
+    transition: background 0.15s, border-color 0.15s;
+}
+
+.template-presentation-item:last-child {
+    margin-bottom: 0;
+}
+
+.template-presentation-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.template-presentation-item .presentation-icon {
+    font-size: 0.95rem;
+    opacity: 0.9;
+}
+
+.template-presentation-item .presentation-name {
+    font-size: 0.84rem;
+    font-weight: 500;
+    color: var(--text-main);
+}
+
+.template-presentation-item .presentation-dest-badge {
+    margin-left: auto;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: rgba(255, 255, 255, 0.45);
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 2px 7px;
+    border-radius: 4px;
+}
+
+.song-preview-item {
+    display: flex;
+    align-items: center;
+    padding: 5px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+    user-select: none;
+    color: var(--text-main);
+}
+
+.song-preview-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.song-drag-handle {
+    cursor: grab;
+    color: var(--text-muted);
+    opacity: 0.4;
+    margin-right: 8px;
+    font-size: 1rem;
+    line-height: 1;
+    transition: opacity 0.15s;
+}
+
+.song-preview-item:hover .song-drag-handle {
+    opacity: 0.9;
+}
+
+.song-drag-handle:active {
+    cursor: grabbing;
+}
+
+.slot-empty-notice {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    font-style: italic;
+    opacity: 0.6;
+    padding: 6px 8px;
+    list-style: none;
+}
+
+.song-link-list.empty-list {
+    min-height: 28px;
+    padding: 4px;
+    border: 1px dashed rgba(255, 255, 255, 0.04);
+    border-radius: 4px;
+}
+
 /* Template Editor inside Setlist */
 #view-setlist .tpl-item-row {
     display: flex;

@@ -34,6 +34,7 @@ import worshiptoolsServicesRoutes from './routes/worshiptools-services.js';
 import commandCenterRoutes, { initCommandCenterTopic } from './routes/commandcenter.js';
 import patchbayRoutes, { initPatchbayTopic } from './routes/patchbay-state.js';
 import dashboardRoutes, { initDashboardTopic } from './routes/dashboard-state.js';
+import setlistRoutes from './routes/setlist.js';
 
 // ── Paths ──────────────────────────────────────────────────────────────
 const __dirname = fileURLToPath(new URL('.', import.meta.url));
@@ -92,6 +93,9 @@ app.use('/api/commandcenter', commandCenterRoutes);
 // Patchbay / dashboard cloud sync (local-first + cloud backup)
 app.use('/api/patchbay', patchbayRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Setlist templates (persisted to Ichtus_SPA/data/setlist-templates.json)
+app.use('/api/setlist', setlistRoutes);
 
 // ── ProPresenter API proxy (bypass CORS) ──────────────────────────────
 // De browser krijgt CORS errors bij PUT/POST naar ProPresenter.

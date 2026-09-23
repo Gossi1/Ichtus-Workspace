@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v11';
+const CACHE_NAME = 'ichtus-spa-v13';
 
 // Static assets to pre-cache on install.
 const PRECACHE_URLS = [
@@ -33,6 +33,8 @@ const PRECACHE_URLS = [
   '/Ichtus_SPA/js/modules/agenda.js',
   '/Ichtus_SPA/js/modules/checklist.js',
   '/Ichtus_SPA/js/modules/setlist.js',
+  '/Ichtus_SPA/js/modules/wt-services.js',
+  '/Ichtus_SPA/data/setlist-templates.json',
   '/Ichtus_SPA/js/modules/patchbay.js',
   '/Ichtus_SPA/js/modules/analytics.js',
   '/Ichtus_SPA/js/modules/ndi.js',

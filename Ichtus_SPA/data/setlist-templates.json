@@ -1,0 +1,412 @@
+{
+  "zondagDienst": {
+    "name": "ZondagDienst",
+    "items": [
+      {
+        "type": "header",
+        "name": "Welcome",
+        "color": {
+          "red": 0.407,
+          "green": 0.572,
+          "blue": 0.686,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop voor de dienst",
+        "uuid": "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52"
+      },
+      {
+        "type": "header",
+        "name": "Openingslied",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "opening"
+      },
+      {
+        "type": "header",
+        "name": "Mededelingen",
+        "color": {
+          "red": 0.368,
+          "green": 0.274,
+          "blue": 0.043,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Mededelingen",
+        "uuid": "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9"
+      },
+      {
+        "type": "header",
+        "name": "Praise & Worship",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "praise"
+      },
+      {
+        "type": "header",
+        "name": "Preek",
+        "color": {
+          "red": 0.713,
+          "green": 0.352,
+          "blue": 0.062,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "header",
+        "name": "Eindlied",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "closing"
+      },
+      {
+        "type": "header",
+        "name": "Einde-Dienst",
+        "color": {
+          "red": 0.545,
+          "green": 0,
+          "blue": 0,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop na de dienst",
+        "uuid": "6e8e3626-ebcc-4efa-aad1-53253561d08a"
+      }
+    ]
+  },
+  "worshipAvond": {
+    "name": "Worship Avond",
+    "items": [
+      {
+        "type": "header",
+        "name": "Welcome",
+        "color": {
+          "red": 0.407,
+          "green": 0.572,
+          "blue": 0.686,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop voor de dienst",
+        "uuid": "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52"
+      },
+      {
+        "type": "header",
+        "name": "Worship",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "praise"
+      },
+      {
+        "type": "header",
+        "name": "Einde-Dienst",
+        "color": {
+          "red": 0.545,
+          "green": 0,
+          "blue": 0,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop na de dienst",
+        "uuid": "6e8e3626-ebcc-4efa-aad1-53253561d08a"
+      }
+    ]
+  },
+  "doopDienst": {
+    "name": "DoopDienst",
+    "items": [
+      {
+        "type": "header",
+        "name": "Welcome",
+        "color": {
+          "red": 0.407,
+          "green": 0.572,
+          "blue": 0.686,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop voor de dienst",
+        "uuid": "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52"
+      },
+      {
+        "type": "header",
+        "name": "Openingslied",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "opening"
+      },
+      {
+        "type": "header",
+        "name": "Mededelingen",
+        "color": {
+          "red": 0.368,
+          "green": 0.274,
+          "blue": 0.043,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Mededelingen",
+        "uuid": "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9"
+      },
+      {
+        "type": "header",
+        "name": "Praise & Worship",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "praise"
+      },
+      {
+        "type": "header",
+        "name": "Preek",
+        "color": {
+          "red": 0.713,
+          "green": 0.352,
+          "blue": 0.062,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "header",
+        "name": "Doopliederen",
+        "color": {
+          "red": 0.588,
+          "green": 0.518,
+          "blue": 0.137,
+          "alpha": 1
+        },
+        "insert": "doop"
+      },
+      {
+        "type": "header",
+        "name": "Eindlied",
+        "color": {
+          "red": 0.098,
+          "green": 0.486,
+          "blue": 0.098,
+          "alpha": 1
+        },
+        "insert": "closing"
+      },
+      {
+        "type": "header",
+        "name": "Einde-Dienst",
+        "color": {
+          "red": 0.545,
+          "green": 0,
+          "blue": 0,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop na de dienst",
+        "uuid": "6e8e3626-ebcc-4efa-aad1-53253561d08a"
+      }
+    ]
+  },
+  "avondmaalDienst": {
+    "name": "AvondmaalDienst",
+    "items": [
+      {
+        "type": "header",
+        "name": "Welcome",
+        "color": {
+          "red": 0.40784314274787903,
+          "green": 0.572549045085907,
+          "blue": 0.686274528503418,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop voor de dienst",
+        "uuid": "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52"
+      },
+      {
+        "type": "header",
+        "name": "Intro",
+        "color": {
+          "red": 0.09803921729326248,
+          "green": 0.48627451062202454,
+          "blue": 0.09803921729326248,
+          "alpha": 1
+        },
+        "insert": "opening"
+      },
+      {
+        "type": "header",
+        "name": "Announcments",
+        "color": {
+          "red": 0.3686274588108063,
+          "green": 0.27450981736183167,
+          "blue": 0.04313725605607033,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Mededelingen",
+        "uuid": "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9"
+      },
+      {
+        "type": "header",
+        "name": "Worship",
+        "color": {
+          "red": 0.09803921729326248,
+          "green": 0.48627451062202454,
+          "blue": 0.09803921729326248,
+          "alpha": 1
+        },
+        "insert": "praise"
+      },
+      {
+        "type": "header",
+        "name": "Avondmaal",
+        "color": {
+          "red": 1,
+          "green": 0.843137264251709,
+          "blue": 0,
+          "alpha": 1
+        },
+        "insert": "avondmaal"
+      },
+      {
+        "type": "header",
+        "name": "Preek",
+        "color": {
+          "red": 0.7137255072593689,
+          "green": 0.3529411852359772,
+          "blue": 0.062745101749897,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "header",
+        "name": "Ending Song",
+        "color": {
+          "red": 0.09803921729326248,
+          "green": 0.48627451062202454,
+          "blue": 0.09803921729326248,
+          "alpha": 1
+        },
+        "insert": "closing"
+      },
+      {
+        "type": "header",
+        "name": "Service End",
+        "color": {
+          "red": 0.545098066329956,
+          "green": 0,
+          "blue": 0,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "Loop na de dienst",
+        "uuid": "6e8e3626-ebcc-4efa-aad1-53253561d08a"
+      }
+    ]
+  },
+  "delightedYouth": {
+    "name": "Delighted Youth",
+    "items": [
+      {
+        "type": "header",
+        "name": "Welcome",
+        "destination": "presentation",
+        "color": {
+          "red": 0.40784313725490196,
+          "green": 0.5725490196078431,
+          "blue": 0.6862745098039216,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "presentation",
+        "name": "YOUTH Announcement",
+        "destination": "announcements",
+        "uuid": "fe887688-747e-442e-a357-8b37865bdf5a"
+      },
+      {
+        "type": "header",
+        "name": "Worship",
+        "destination": "presentation",
+        "color": {
+          "red": 0.09803921568627451,
+          "green": 0.48627450980392156,
+          "blue": 0.09803921568627451,
+          "alpha": 1
+        },
+        "insert": "praise"
+      },
+      {
+        "type": "header",
+        "name": "Preek",
+        "destination": "presentation",
+        "color": {
+          "red": 0.7137254901960784,
+          "green": 0.35294117647058826,
+          "blue": 0.06274509803921569,
+          "alpha": 1
+        }
+      },
+      {
+        "type": "header",
+        "name": "Service End",
+        "destination": "presentation",
+        "color": {
+          "red": 0.5450980392156862,
+          "green": 0,
+          "blue": 0,
+          "alpha": 1
+        },
+        "insert": "closing"
+      },
+      {
+        "type": "presentation",
+        "name": "YOUTH Announcement",
+        "destination": "announcements",
+        "uuid": "fe887688-747e-442e-a357-8b37865bdf5a"
+      }
+    ]
+  }
+}
