@@ -4,7 +4,7 @@
    Network-first voor API calls
    ============================================ */
 
-const CACHE_NAME = 'ichtus-spa-v17';
+const CACHE_NAME = 'ichtus-spa-v18';
 
 // Static assets to pre-cache on install.
 const PRECACHE_URLS = [

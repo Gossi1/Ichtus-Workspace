@@ -40,6 +40,7 @@ router.get('/templates', (req, res) => {
 
         const raw = readFileSync(TEMPLATES_FILE, 'utf-8');
         const templates = JSON.parse(raw);
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
         res.json({ success: true, templates });
     } catch (err) {
         console.error('  [SETLIST] Error reading templates file:', err.message);

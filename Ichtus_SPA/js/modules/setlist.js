@@ -40,71 +40,87 @@ const setlistModule = {
         "zondagDienst": {
             name: "ZondagDienst",
             items: [
-                { type: "header", name: "Welcome", color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
-                { type: "presentation", name: "Loop voor de dienst", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
-                { type: "header", name: "Openingslied", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "opening" },
-                { type: "header", name: "Mededelingen", color: { red: 0.368, green: 0.274, blue: 0.043, alpha: 1.0 } },
-                { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
-                { type: "header", name: "Praise & Worship", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Preek", color: { red: 0.713, green: 0.352, blue: 0.062, alpha: 1.0 } },
-                { type: "header", name: "Eindlied", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "closing" },
-                { type: "header", name: "Einde-Dienst", color: { red: 0.545, green: 0.0, blue: 0.0, alpha: 1.0 } },
-                { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
             ]
         },
         "worshipAvond": {
             name: "Worship Avond",
             items: [
-                { type: "header", name: "Welcome", color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
-                { type: "presentation", name: "Loop voor de dienst", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
-                { type: "header", name: "Worship", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Einde-Dienst", color: { red: 0.545, green: 0.0, blue: 0.0, alpha: 1.0 } },
-                { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "header", name: "Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
             ]
         },
         "doopDienst": {
             name: "DoopDienst",
             items: [
-                { type: "header", name: "Welcome", color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
-                { type: "presentation", name: "Loop voor de dienst", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
-                { type: "header", name: "Openingslied", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "opening" },
-                { type: "header", name: "Mededelingen", color: { red: 0.368, green: 0.274, blue: 0.043, alpha: 1.0 } },
-                { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
-                { type: "header", name: "Praise & Worship", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Preek", color: { red: 0.713, green: 0.352, blue: 0.062, alpha: 1.0 } },
-                { type: "header", name: "Doopliederen", color: { red: 0.588, green: 0.518, blue: 0.137, alpha: 1.0 }, insert: "doop" },
-                { type: "header", name: "Eindlied", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "closing" },
-                { type: "header", name: "Einde-Dienst", color: { red: 0.545, green: 0.0, blue: 0.0, alpha: 1.0 } },
-                { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "header", name: "Doopliederen", destination: "presentation", color: { red: 0.5882352941176471, green: 0.5176470588235295, blue: 0.13725490196078433, alpha: 1 }, insert: "doop" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
             ]
         },
         "avondmaalDienst": {
             name: "AvondmaalDienst",
             items: [
-                { type: "header", name: "Welcome", color: { red: 0.40784314274787903, green: 0.572549045085907, blue: 0.686274528503418, alpha: 1.0 } },
-                { type: "presentation", name: "Loop voor de dienst", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
-                { type: "header", name: "Intro", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "opening" },
-                { type: "header", name: "Announcments", color: { red: 0.3686274588108063, green: 0.27450981736183167, blue: 0.04313725605607033, alpha: 1.0 } },
-                { type: "presentation", name: "Mededelingen", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
-                { type: "header", name: "Worship", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Avondmaal", color: { red: 1.0, green: 0.843137264251709, blue: 0.0, alpha: 1.0 }, insert: "avondmaal" },
-                { type: "header", name: "Preek", color: { red: 0.7137255072593689, green: 0.3529411852359772, blue: 0.062745101749897, alpha: 1.0 } },
-                { type: "header", name: "Ending Song", color: { red: 0.09803921729326248, green: 0.48627451062202454, blue: 0.09803921729326248, alpha: 1.0 }, insert: "closing" },
-                { type: "header", name: "Service End", color: { red: 0.545098066329956, green: 0.0, blue: 0.0, alpha: 1.0 } },
-                { type: "presentation", name: "Loop na de dienst", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Avondmaal", destination: "presentation", color: { red: 1, green: 0.8431372549019608, blue: 0, alpha: 1 }, insert: "avondmaal" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "header", name: "Einde-dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
             ]
         },
         "delightedYouth": {
             name: "Delighted Youth",
             items: [
-                { type: "header", name: "Welcome", color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
-                { type: "presentation", name: "YOUTH Announcement", uuid: "fe887688-747e-442e-a357-8b37865bdf5a", destination: "announcements" },
-                { type: "header", name: "Intro", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "opening" },
-                { type: "header", name: "Announcements", color: { red: 0.368, green: 0.274, blue: 0.043, alpha: 1.0 } },
-                { type: "header", name: "Worship", color: { red: 0.098, green: 0.486, blue: 0.098, alpha: 1.0 }, insert: "praise" },
-                { type: "header", name: "Preek", color: { red: 0.713, green: 0.352, blue: 0.062, alpha: 1.0 } },
-                { type: "header", name: "Service End", color: { red: 0.545, green: 0.0, blue: 0.0, alpha: 1.0 }, insert: "closing" },
-                { type: "presentation", name: "YOUTH Announcement", uuid: "fe887688-747e-442e-a357-8b37865bdf5a", destination: "announcements" }
+                { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
+                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "fe887688-747e-442e-a357-8b37865bdf5a" },
+                { type: "header", name: "Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "header", name: "Service End", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 }, insert: "closing" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "fe887688-747e-442e-a357-8b37865bdf5a" }
             ]
         }
     },
@@ -772,27 +788,12 @@ const setlistModule = {
     async loadTemplates() {
         try {
             // First attempt to load from server API (persisted to Ichtus_SPA/data/setlist-templates.json)
-            const res = await fetch('/api/setlist/templates');
+            const res = await fetch(`/api/setlist/templates?_t=${Date.now()}`, { cache: 'no-cache' });
             if (res.ok) {
                 const data = await res.json();
                 if (data.success && data.templates && Object.keys(data.templates).length > 0) {
-                    // Check if there was an unmigrated localStorage version with custom templates
-                    const localSaved = localStorage.getItem('setlistTemplates');
-                    if (localSaved && !localStorage.getItem('setlistTemplatesMigrated')) {
-                        try {
-                            const parsedLocal = JSON.parse(localSaved);
-                            if (parsedLocal && Object.keys(parsedLocal).length > 0) {
-                                await this.saveTemplates(parsedLocal);
-                                this.SERVICE_TEMPLATES = parsedLocal;
-                                localStorage.setItem('setlistTemplatesMigrated', 'true');
-                                this.renderTemplateDropdown();
-                                this.renderSongPreview();
-                                return;
-                            }
-                        } catch (_) {}
-                    }
-
                     this.SERVICE_TEMPLATES = data.templates;
+                    try { localStorage.setItem('setlistTemplatesMigrated', 'true'); } catch (_) {}
                     this.renderTemplateDropdown();
                     this.renderSongPreview();
                     return;
@@ -804,7 +805,7 @@ const setlistModule = {
 
         // Fallback: static JSON file in data/
         try {
-            const res = await fetch('data/setlist-templates.json');
+            const res = await fetch(`data/setlist-templates.json?_t=${Date.now()}`, { cache: 'no-cache' });
             if (res.ok) {
                 const templates = await res.json();
                 if (templates && Object.keys(templates).length > 0) {
@@ -1270,10 +1271,55 @@ const setlistModule = {
         let matchedSongs = 0;
         let unmatchedSongs = [];
 
+        // Group items into header sections matching renderSongPreview
+        const sections = [];
+        let currentSection = null;
+
         template.items.forEach(tplItem => {
-            items.push(this.createItem(tplItem.name, tplItem.uuid || "", tplItem.type === "header", tplItem.color, tplItem.destination || "presentation"));
-            if (tplItem.insert) {
-                let listToInsert = (this.parsedSongs && this.parsedSongs[tplItem.insert]) || [];
+            if (tplItem.type === 'header') {
+                currentSection = {
+                    header: tplItem,
+                    presentations: [],
+                    insert: tplItem.insert || null
+                };
+                sections.push(currentSection);
+            } else if (tplItem.type === 'presentation') {
+                if (!currentSection) {
+                    currentSection = {
+                        header: { name: 'Intro', color: { red: 0.407, green: 0.572, blue: 0.686, alpha: 1.0 } },
+                        presentations: [],
+                        insert: null
+                    };
+                    sections.push(currentSection);
+                }
+                currentSection.presentations.push(tplItem);
+            }
+        });
+
+        sections.forEach(sec => {
+            // 1. Add header
+            items.push(this.createItem(
+                sec.header.name,
+                sec.header.uuid || "",
+                true,
+                sec.header.color,
+                sec.header.destination || "presentation"
+            ));
+
+            // 2. Add presentations belonging to this header (e.g. Macro Praise & Worship / Loop)
+            sec.presentations.forEach(pres => {
+                items.push(this.createItem(
+                    pres.name,
+                    pres.uuid || "",
+                    false,
+                    null,
+                    pres.destination || "presentation"
+                ));
+            });
+
+            // 3. Add songs belonging to this header (if slot is defined)
+            if (sec.insert) {
+                let listToInsert = (this.parsedSongs && this.parsedSongs[sec.insert]) || [];
                 listToInsert.forEach(s => {
                     const processedName = s.toLowerCase();
                     let uuid = libraryMap[processedName];
