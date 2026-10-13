@@ -136,8 +136,8 @@ audio/library/
 src-tauri/target/
 src-tauri/binaries/
 src-tauri/app-bundle/
-src-tauri/icons/
 src-tauri/*.key
 src-tauri/*.key.pub
 *.key
+
 
