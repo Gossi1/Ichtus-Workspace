@@ -27,9 +27,6 @@ jobs:
       - name: Install Node dependencies
         run: npm ci
 
-      - name: Stage bundle & sidecar
-        run: node scripts/tauri-stage.mjs
-
       - name: Build and Publish Tauri App
         uses: tauri-apps/tauri-action@v0
         env:
