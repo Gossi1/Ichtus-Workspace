@@ -26,8 +26,7 @@
     ],
     "resources": {
       "../Ichtus_SPA/": "app/Ichtus_SPA/",
-      "../assets/": "app/assets/",
-      "../audio/": "app/audio/"
+      "../assets/": "app/assets/"
     },
     "windows": {
       "nsis": {
