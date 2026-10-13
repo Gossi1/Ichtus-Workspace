@@ -2285,9 +2285,10 @@
                 <!-- Import -->
                 <section class="sa-card">
                     <h2>📥 Importeren</h2>
-                    <p class="sa-hint">Klik in de WorshipTools extensie op <strong>"Extract Song Library"</strong> op de
-                    liederenpagina van WorshipTools. De lijst komt hier vanzelf binnen.</p>
+                    <p class="sa-hint"><strong>☁️ Import via WorshipTools API</strong> haalt de volledige liedbibliotheek uit Planning op.
+                    Of gebruik de extensie: klik <strong>"Extract Song Library"</strong> op de liederenpagina van WorshipTools — de lijst komt hier vanzelf binnen.</p>
                     <div class="sa-row">
+                        <button id="sa-btn-wt-api" class="sa-btn sa-btn-primary">☁️ Import via WorshipTools API</button>
                         <button id="sa-btn-wait-wt" class="sa-btn sa-btn-primary">🔄 Wacht op WorshipTools-import</button>
                         <button id="sa-btn-toggle-paste" class="sa-btn sa-btn-secondary">📋 Plak lijst</button>
                         <button id="sa-btn-import-file" class="sa-btn sa-btn-secondary">📁 Importeer bestand</button>
@@ -2356,6 +2357,7 @@
                 <span>Opgeslagen naar <code id="sa-footer-file" style="color:#e7e9ee; background:rgba(255,255,255,0.07); padding:1px 6px; border-radius:5px;">library-ids.json</code> via de lokale server</span>
             </div>
         </div>
+
 
     </main>
 
@@ -2700,7 +2702,13 @@
 
 <script>
 // PWA Service Worker — update notification
-if ('serviceWorker' in navigator) {
+// In de Tauri desktop-app (window.__ICHTUS_DESKTOP__) geen service worker:
+// de app laadt altijd live van de lokale server en updatet zichzelf.
+if ('serviceWorker' in navigator && window.__ICHTUS_DESKTOP__) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    regs.forEach(function(r) { r.unregister(); });
+  }).catch(function() {});
+} else if ('serviceWorker' in navigator) {
   let swRegistration = null;
   let updateBanner = document.getElementById('pwa-update-banner');
   let updateBtn = document.getElementById('pwa-update-btn');

@@ -578,10 +578,15 @@ const songidassignerModule = (() => {
         const maybeCheckedFlags = maybeLines.map(line => line.querySelector('.sa-maybe-add-cb')?.checked === true);
 
         let maybeIdx = 0;
+        let backfilled = 0;
+        let idUpdated = 0;
         for (const p of state.pendingImport) {
             if (!p) continue;
             const cls = classifyImport(p, ctx);
             if (cls.bucket === 'dupe') {
+                // Bestaat al — maar het WorshipTools song ID kan alsnog
+                // worden bijgewerkt op de bestaande entry.
+                if (backfillWtId(p)) backfilled++;
                 skipped++;
                 skippedList.push({ id: p.id, title: p.title, artist: p.artist, reason: cls.reason });
                 continue;
@@ -590,16 +595,36 @@ const songidassignerModule = (() => {
                 // Only add if the user checked the box
                 if (maybeCheckedFlags[maybeIdx]) {
                     if (p.prefix && p.number) {
-                        const number = formatNumber(p.prefix, parseInt(p.number, 10));
-                        const song = { uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: p.artist || '' };
-                        state.songs.push(song);
-                        ctx.seenIds.set(song.id, song);
+                        const target = findSongByTitle(normalizeTitle(p.title), null, p.artist);
+                        if (target && !target.id) {
+                            // Zelfde titel bestaat al ZONDER ID → ken het ID uit
+                            // de WT-library toe op de bestaande entry (geen
+                            // tweede rij met dezelfde titel).
+                            const number = formatNumber(p.prefix, parseInt(p.number, 10));
+                            target.prefix = p.prefix;
+                            target.number = number;
+                            target.id = p.prefix + number;
+                            if (p.wtId) target.wtId = p.wtId;
+                            ctx.seenIds.set(target.id, target);
+                            idUpdated++;
+                        } else {
+                            const number = formatNumber(p.prefix, parseInt(p.number, 10));
+                            const song = { uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: p.artist || '', wtId: p.wtId };
+                            state.songs.push(song);
+                            ctx.seenIds.set(song.id, song);
+                            added++;
+                        }
+                    } else if (findSongByTitle(normalizeTitle(p.title), null, p.artist)) {
+                        // Zonder ID, maar de titel bestaat al → niets toe te voegen
+                        skipped++;
+                        skippedList.push({ id: p.id, title: p.title, artist: p.artist, reason: 'bestaat al — geen nieuw lied' });
                     } else {
-                        state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: p.artist || '' });
+                        state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: p.artist || '', wtId: p.wtId });
                         noId++;
+                        added++;
                     }
-                    added++;
                 } else {
+                    if (backfillWtId(p)) backfilled++;
                     skipped++;
                     skippedList.push({ id: p.id, title: p.title, artist: p.artist, reason: cls.reason });
                 }
@@ -607,13 +632,13 @@ const songidassignerModule = (() => {
                 continue;
             }
             if (cls.bucket === 'noId') {
-                state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: p.artist || '' });
+                state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: p.artist || '', wtId: p.wtId });
                 noId++;
                 added++;
                 continue;
             }
             const number = formatNumber(p.prefix, parseInt(p.number, 10));
-            const song = { uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: p.artist || '' };
+            const song = { uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: p.artist || '', wtId: p.wtId };
             state.songs.push(song);
             ctx.seenIds.set(song.id, song);
             added++;
@@ -625,7 +650,9 @@ const songidassignerModule = (() => {
         saveLibrary();
         showImportResult(added, noId, skippedList);
         const noIdNote = noId > 0 ? ' (' + noId + ' zonder ID — ken later een letter toe)' : '';
-        setStatus('\u2705 Import: ' + added + ' toegevoegd' + noIdNote + ', ' + skipped + ' overgeslagen', 'ok');
+        const idNote = idUpdated > 0 ? ' · ' + idUpdated + " bestaande liederen een ID gegeven" : '';
+        const backfillNote = backfilled > 0 ? ' · ' + backfilled + " WT-song-ID's gekoppeld" : '';
+        setStatus('\u2705 Import: ' + added + ' toegevoegd' + noIdNote + ', ' + skipped + ' overgeslagen' + idNote + backfillNote, 'ok');
     }
 
     function showImportResult(added, noId, skippedList) {
@@ -903,6 +930,174 @@ const songidassignerModule = (() => {
     }
 
     // ── WorshipTools bridge ────────────────────────────────────
+    // ── WorshipTools API import ─────────────────────────────────
+    // Haalt de volledige liedbibliotheek op via de server (Firestore-
+    // collectie accounts/{id}/songs — dezelfde bron die de setlist-API
+    // gebruikt). Elke regel gaat door dezelfde parse/import-pipeline als
+    // de extensie-import, inclusief dubbelcontrole. Het WorshipTools song
+    // ID (Firestore document-ID) wordt als `wtId` opgeslagen zodat lokale
+    // liederen gekoppeld blijven aan de bron in Planning.
+    async function importFromWtApi() {
+        setStatus('⏳ WorshipTools-bibliotheek ophalen…', '');
+        try {
+            const resp = await fetch('/api/worshiptools-services/library');
+            const json = await resp.json().catch(() => ({}));
+            const songs = (json && json.songs) || [];
+            if (!json.success || !songs.length) {
+                setStatus('❌ ' + (json.error || 'Geen liedbibliotheek beschikbaar van de API'), 'err');
+                return;
+            }
+            const parsed = songs.map(s => {
+                const title = String(s.title || '').trim();
+                if (!title) return null;
+                const p = parseLine(title); // "O446 Daar is kracht" → prefix/number/id
+                if (p && s.songId) p.wtId = s.songId;
+                return p;
+            }).filter(Boolean);
+            if (!parsed.length) {
+                setStatus('⚠️ API gaf een lege liedlijst', 'err');
+                return;
+            }
+            showImportPreview(parsed);
+            state.autoSyncConflicts = 0; // gebruiker beoordeelt ze nu zelf
+            setStatus('📥 ' + parsed.length + ' liederen uit de WorshipTools API — controleer en importeer', '');
+            const preview = $('import-preview');
+            if (preview) preview.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        } catch (err) {
+            setStatus('❌ API niet bereikbaar: ' + ((err && err.message) || err), 'err');
+        }
+    }
+
+    // Koppeer het WorshipTools song ID naar een bestaand bibliotheek-rijtje
+    // (bij dubbele import — de titel/ID bestaat al, maar het wtId ontbreekt).
+    function backfillWtId(p) {
+        if (!p || !p.wtId) return false;
+        const byId = (p.prefix && p.number) ? findSongById(canonicalId(p.prefix, p.number)) : null;
+        const existing = byId || findSongByTitle(normalizeTitle(p.title), null, p.artist);
+        if (existing && !existing.wtId) {
+            existing.wtId = p.wtId;
+            return true;
+        }
+        return false;
+    }
+
+    // ── Auto-sync (achtergrond, stille toevoegingen) ──────────────────
+    // Haalt periodiek de WorshipTools-bibliotheek op en voegt alleen
+    // écht nieuwe liedregels toe (geen ID- of titelbotsingen). Alles wat
+    // beoordeling vraagt blijft liggen achter de handmatige
+    // import-preview. Een localStorage-lock + jitter voorkomt dat twee
+    // tabjes tegelijk het bestand wegschrijven.
+    const AUTO_SYNC_FIRST_DELAY_MS = 25 * 1000;
+    const AUTO_SYNC_INTERVAL_MS = 30 * 60 * 1000;
+    const AUTO_SYNC_LOCK_MS = 2 * 60 * 1000;
+    let _autoSyncTimer = null;
+
+    function claimAutoSyncLock() {
+        try {
+            const KEY = 'songid_autosync_lock';
+            const now = Date.now();
+            const last = parseInt(localStorage.getItem(KEY) || '0', 10) || 0;
+            if (now - last < AUTO_SYNC_LOCK_MS) return false;
+            localStorage.setItem(KEY, String(now));
+            return true;
+        } catch (_) {
+            return true;
+        }
+    }
+
+    async function autoSyncRun(opts = {}) {
+        // Niet morren terwijl de gebruiker op de pagina bezig is
+        if (typeof router !== 'undefined' && router.isSongIdAssignerActive && router.isSongIdAssignerActive()) {
+            return { skipped: 'view-active' };
+        }
+        if (!opts.force && !claimAutoSyncLock()) return { skipped: 'locked' };
+
+        let json;
+        try {
+            const resp = await fetch('/api/worshiptools-services/library');
+            json = await resp.json().catch(() => ({}));
+        } catch (err) {
+            return { skipped: 'offline', error: String((err && err.message) || err) };
+        }
+        if (!json.success || !Array.isArray(json.songs) || !json.songs.length) {
+            return { skipped: 'no-data' };
+        }
+
+        // Verse stand vanaf schijf — OneDrive of een ander tabje kunnen
+        // intussen gewijzigd zijn; nooit een verouderde staat wegschrijven
+        try {
+            await loadLibraryConfig();
+            await loadLibrary(state.currentFile);
+        } catch (_) { /* fresh start */ }
+
+        const batchIds = new Set();
+        const batchTitles = new Set();
+        let added = 0;
+        let conflicts = 0;
+
+        for (const s of json.songs) {
+            const title = String(s.title || '').trim();
+            if (!title) continue;
+            const p = parseLine(title); // "O446 Daar is kracht" → prefix/number/id
+            if (!p) continue;
+            const norm = normalizeTitle(p.title);
+            const titleHit = findSongByTitle(norm, null, p.artist);
+
+            if (p.prefix && p.number) {
+                const id = canonicalId(p.prefix, p.number);
+                const existingById = findSongById(id);
+                if (existingById) {
+                    // ID bestaat al — botsing alleen als het een ANDERE titel is
+                    if (!songHasTitle(existingById, norm)) conflicts++;
+                    continue;
+                }
+                if (batchIds.has(id)) continue;
+                if (titleHit) { conflicts++; continue; } // dezelfde titel onder ander/geen ID
+                const number = formatNumber(p.prefix, parseInt(p.number, 10));
+                state.songs.push({ uid: newUid(), id: p.prefix + number, prefix: p.prefix, number, title: p.title, artist: '', wtId: s.songId || undefined });
+                batchIds.add(id);
+                batchTitles.add(norm);
+                added++;
+            } else {
+                if (titleHit || batchTitles.has(norm)) continue; // bestaat al
+                state.songs.push({ uid: newUid(), id: '', prefix: '', number: '', title: p.title, artist: '', wtId: s.songId || undefined });
+                batchTitles.add(norm);
+                added++;
+            }
+        }
+
+        state.autoSyncConflicts = conflicts;
+
+        if (added > 0) {
+            renderAll();
+            await saveLibrary();
+            const conflictNote = conflicts > 0 ? ' · ' + conflicts + ' conflicten via de import-preview' : '';
+            setStatus('🔄 Auto-sync: ' + added + ' nieuwe liederen toegevoegd' + conflictNote, 'ok');
+            console.log('[SongID] Auto-sync: ' + added + ' toegevoegd, ' + conflicts + ' conflicten open');
+        } else if (conflicts > 0) {
+            console.log('[SongID] Auto-sync: geen nieuwe liederen, ' + conflicts + ' conflicten open');
+        } else {
+            console.log('[SongID] Auto-sync: bibliotheek up-to-date');
+        }
+        return { added, conflicts };
+    }
+
+    function startAutoSync() {
+        if (_autoSyncTimer) return;
+        const tick = async () => {
+            try {
+                await autoSyncRun();
+            } catch (err) {
+                console.warn('[SongID] Auto-sync mislukt:', (err && err.message) || err);
+            }
+            // Jitter zodat meerdere tabjes niet synchroon starten
+            const jitter = Math.floor(Math.random() * 60 * 1000);
+            _autoSyncTimer = setTimeout(tick, AUTO_SYNC_INTERVAL_MS + jitter);
+        };
+        const firstJitter = Math.floor(Math.random() * 20 * 1000);
+        _autoSyncTimer = setTimeout(tick, AUTO_SYNC_FIRST_DELAY_MS + firstJitter);
+    }
+
     function onLibraryEvent(e) {
         const songs = e.detail?.songs || e.detail?.library || null;
         const raw = e.detail?.data || null;
@@ -1051,6 +1246,11 @@ const songidassignerModule = (() => {
 
     // ── Init (called by router) ────────────────────────────────
     function init() {
+        // Conflict-hint van de laatste auto-sync — meld ze zodra de
+        // gebruiker de pagina opent (ze wachten op de import-preview)
+        if (state.autoSyncConflicts > 0) {
+            setStatus('⚠️ ' + state.autoSyncConflicts + ' automatisch gevonden conflicten — beoordeel via ☁️ Import via WorshipTools API', '');
+        }
         if (state._initialized) {
             // Already bound — just refresh if needed
             renderAll();
@@ -1076,6 +1276,7 @@ const songidassignerModule = (() => {
             state.pendingImport = [];
             $('import-preview')?.classList.add('hidden');
         });
+        $('btn-wt-api')?.addEventListener('click', importFromWtApi);
         $('btn-wait-wt')?.addEventListener('click', () => {
             setStatus('\u23f3 Wachten op extensie — open WorshipTools en klik "Extract Song Library"', '');
         });
@@ -1114,6 +1315,10 @@ const songidassignerModule = (() => {
         // No persistent timers to stop — module is purely event-driven
     }
 
+    // Auto-sync starten zodra de module geladen is (achtergrond, stille
+    // toevoegingen; conflicten blijven achter de handmatige preview)
+    startAutoSync();
+
     // ── Public API ─────────────────────────────────────────────
     return {
         init,
@@ -1121,7 +1326,8 @@ const songidassignerModule = (() => {
         // Expose for testing / external tooling
         _parseLine: parseLine,
         _classifyImport: classifyImport,
-        _state: state
+        _state: state,
+        _autoSyncRun: autoSyncRun
     };
 })();
 

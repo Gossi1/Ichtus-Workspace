@@ -1,162 +1,52 @@
 # Ichtus Workspace
 
-Church service management Single Page Application (SPA) for coordinating worship services.
+Church service management desktop applicatie voor het coördineren van kerkdiensten, X32 mixer, microfoons, en WorshipTools diensten.
 
 ---
 
-## 🛠️ Install on a Windows PC
+## 🛠️ Installatie op Windows
 
-> **Prerequisites:** Windows 10 / 11 (64-bit). Admin PowerShell (run *Windows PowerShell* via *Run as administrator*).
+Er is **geen Node.js, Git of Windows Service (WinSW/NSSM)** meer nodig om de app te draaien.
 
-### ⚡ One-command install *(recommended)*
+### ⚡ Download & Installeren *(Aanbevolen)*
 
-Open **PowerShell as Administrator**, then paste exactly **one** line. The script handles Git + Node.js installation, cloning, `npm install`, NSSM download and Windows-service registration — no further input needed.
-
-```powershell
-irm https://raw.githubusercontent.com/Gossi1/Ichtus-Workspace/master/setup.ps1 | iex
-```
-
-No Git installed yet? That's fine — the script installs it (and Node.js LTS) automatically via `winget` on Windows 10/11.
-
-Once you see **`INSTALLATIE VOLTOOID`** at the bottom of the output, the server is live at:
-
-```
-http://localhost:8080/Ichtus_SPA/
-```
-
-The Windows service **`IchtusServer`** will now start with Windows and restart itself after crashes.
-
-> **Prefer double-clicking a file?** Right-click and save the link below as `setup.bat`, then double-click it. It does the same thing via the same GitHub-hosted script:
->
-> [⬇ setup.bat](https://raw.githubusercontent.com/Gossi1/Ichtus-Workspace/master/setup.bat)
-
-### 🪜 Manual steps (fallback)
-
-Volg deze stappen alleen als de one-liner hierboven niet werkt (bijv. winget ontbreekt, GitHub geblokkeerd op het netwerk, of je liever stap-voor-stap werkt). Alles wat hieronder staat, doet het one-liner-script ook automatisch.
+1. Ga naar [Releases op GitHub](https://github.com/Gossi1/Ichtus-Workspace/releases/latest).
+2. Download het nieuwste installatiebestand: `Ichtus Workspace_<versie>_x64-setup.exe`.
+3. Voer het installatiebestand uit (geen administratorrechten vereist).
+   > *Opmerking*: Omdat er geen betaald certificaat wordt gebruikt, kan Windows SmartScreen éénmalig vragen: klik op **Meer informatie** → **Toch uitvoeren**.
+4. Kies bij de eerste start de rol van de computer:
+   - **🖥️ Beamer PC (Host)**: Start de centrale server voor X32 mixer en microfoons.
+   - **🔗 Tweede PC (Client)**: Verbindt direct over het lokale netwerk met de Beamer PC.
+5. De app start automatisch op met Windows en werkt zichzelf via de ingebouwde updater automatisch bij!
 
 ---
 
-#### Step 1 — Install Git *(skip this step if you'll download the ZIP)*
+## 💻 Lokale ontwikkeling (voor developers)
 
-Git is needed only if you want to pull updates later instead of re-downloading the ZIP each time.
+Wil je de app zelf ontwikkelen op je laptop:
 
-```cmd
-winget install --id Git.Git -e --source winget
-```
+### Vereisten
+- **Node.js 20+**
+- **Rust toolchain** (`rustup default stable`)
+- C++ Build Tools (via Visual Studio Installer)
 
-If `winget` is missing: download the installer from <https://git-scm.com/download/win> and run it (next → next → finish, accept defaults).
-
-Verify in a fresh Command Prompt:
-```cmd
-git --version
-```
-
----
-
-#### Step 2 — Install Node.js LTS *(required)*
-
-The server runs on Node.js 18 or newer.
-
-```cmd
-winget install --id OpenJS.NodeJS.LTS -e --source winget
-```
-
-If `winget` is missing: download the LTS installer from <https://nodejs.org/> and run it (next → next → finish, **enable "Add to PATH"** which is on by default).
-
-**Open a fresh Command Prompt** (so the new PATH is picked up) and verify:
-```cmd
-node --version    :: should print v18.x.x or higher
-npm --version
-```
-
----
-
-#### Step 3 — Get the code
-
-Pick one of the two options below.
-
-#### Option A — Clone with Git *(recommended: lets you pull future updates)*
-
-```cmd
-cd C:\
-git clone https://github.com/Gossi1/Ichtus-Workspace.git C:\Ichtus_apps
-cd C:\Ichtus_apps
-```
-
-#### Option B — Download ZIP *(no Git required)*
-
-1. Open <https://github.com/Gossi1/Ichtus-Workspace> in a browser.
-2. Click **Code → Download ZIP**.
-3. Extract the ZIP contents into `C:\Ichtus_apps\` (you should see `install-service.bat`, `package.json`, `src\`, … directly inside the folder).
-4. Open a **Command Prompt** in `C:\Ichtus_apps\`: right-click the folder in Explorer → *Open in Terminal* / *Open Command Prompt here*.
-
-> Going forward, all commands assume your current directory is the project root (`C:\Ichtus_apps`).
-
----
-
-#### Step 4 — Install JavaScript dependencies
-
-```cmd
+### Starten in dev-modus
+```bash
+# Dependencies installeren
 npm install
-```
 
-This downloads Express, Firebase Admin, `ws`, etc. into `node_modules\`. Takes 1–2 minutes. You only re-run this if `package.json` changes (e.g. after `git pull`).
+# Tauri desktop app starten met hot-reload
+npm run tauri:dev
+```
+De server start in dev-modus automatisch op poort `8090` (als poort `8080` al bezet is) en herlaadt bij wijzigingen.
+
+### Installer lokaal bouwen
+```bash
+npm run tauri:build
+```
+Het `.exe` installatiebestand wordt aangemaakt in `src-tauri/target/release/bundle/nsis/`.
 
 ---
-
-#### Step 5 — Add Firebase service account *(optional, for cloud backup)*
-
-The app works fully offline if you skip this step. The browser never talks to Firebase — only the **server** does, for the debounced cloud backup (`commandCenter`, `patchbay`, `dashboard` state, `worshiptools_sync`).
-
-If you want cloud backup:
-
-1. Go to the Firebase Console → Project Settings → Service accounts.
-2. Click **Generate new private key** and save the JSON as `serviceAccountKey.json` in the project root.
-
-The file is gitignored, so the secret never accidentally leaks.
-
----
-
-#### Step 6 — Configure NSSM service
-
-Copy the example config and edit it:
-
-```cmd
-copy nssm-service.example.json nssm-service.json
-```
-
-Open `nssm-service.json` in Notepad and adjust at least these:
-
-| Key | What to put |
-|-----|-------------|
-| `stdoutLog` / `stderrLog` | Where NSSM writes server logs (default: `C:\Ichtus_apps\logs\…`) |
-| `env.PORT` | TCP port for the SPA + API (default: `8080`) |
-| `env.X32_IP` | IP of your Behringer X32 mixer on the LAN |
-| `nssmPath` | Leave empty to auto-download, or set to e.g. `C:\Program Files\nssm\win64\nssm.exe` |
-
-> `nssm-service.json` itself is gitignored — your local paths stay private.
-
----
-
-#### Step 7 — Register the Windows service
-
-```cmd
-install-service.bat
-```
-
-This single command:
-
-1. Verifies Node.js is installed.
-2. Looks for NSSM in this order: `nssm-service.json → nssmPath` → on `PATH` → previously downloaded `nssm_temp\`.
-3. **If NSSM isn't found anywhere, it offers to download NSSM 2.24 (~300 KB) into the project's `nssm_temp\` folder.** Answer `J` to accept. Internet access required.
-4. Registers the Windows service `IchtusServer` with auto-start, restart-on-crash, log rotation.
-5. Starts the service immediately.
-
-When you see **`[OK] Service gestart`**, open in a browser:
-
-```
-http://localhost:8080/Ichtus_SPA/
-```
 
 🎉 You're done. The server now starts with Windows and restarts automatically if it ever crashes.
 

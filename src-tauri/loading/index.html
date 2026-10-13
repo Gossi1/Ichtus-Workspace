@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<title>Ichtus Workspace</title>
+<style>
+  html, body { height: 100%; margin: 0; }
+  body {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #111418; color: #e6e6e6;
+    font-family: "Segoe UI", system-ui, sans-serif;
+    user-select: none;
+  }
+  .spinner {
+    width: 42px; height: 42px; border-radius: 50%;
+    border: 4px solid #2a2f36; border-top-color: #4f8cff;
+    animation: spin 0.9s linear infinite; margin-bottom: 18px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 6px; }
+  #status { font-size: 13px; color: #9aa3ad; }
+  #error {
+    display: none; max-width: 520px; margin-top: 18px; padding: 12px 16px;
+    background: #2a1416; border: 1px solid #5c2328; border-radius: 6px;
+    font-size: 13px; white-space: pre-wrap; color: #ffb4b4; text-align: center;
+  }
+  body.failed .spinner { display: none; }
+  body.failed #error { display: block; }
+
+  /* Eerste start / setup modal */
+  #setup-box {
+    display: none;
+    width: 440px;
+    background: #1a1e24;
+    border: 1px solid #2d333b;
+    border-radius: 10px;
+    padding: 24px;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    margin-top: 20px;
+  }
+  body.show-setup .spinner { display: none; }
+  body.show-setup #status { display: none; }
+  body.show-setup #setup-box { display: block; }
+
+  .mode-option {
+    display: flex;
+    flex-direction: column;
+    padding: 12px 14px;
+    background: #22272e;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    transition: all 0.15s ease;
+  }
+  .mode-option:hover {
+    background: #262c34;
+    border-color: #3b434e;
+  }
+  .mode-option.active {
+    border-color: #4f8cff;
+    background: #1e2633;
+  }
+  .mode-title { font-size: 14px; font-weight: 600; color: #fff; margin-bottom: 3px; }
+  .mode-desc { font-size: 12px; color: #8b949e; line-height: 1.4; }
+
+  #client-ip-row {
+    margin-top: 10px;
+    display: none;
+  }
+  #client-ip-row label {
+    display: block;
+    font-size: 12px;
+    color: #8b949e;
+    margin-bottom: 4px;
+  }
+  #client-ip-row input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 8px 10px;
+    background: #111418;
+    border: 1px solid #3b434e;
+    border-radius: 6px;
+    color: #fff;
+    font-size: 13px;
+  }
+  #btn-save-mode {
+    width: 100%;
+    margin-top: 14px;
+    padding: 10px;
+    background: #4f8cff;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  #btn-save-mode:hover { background: #3b74e0; }
+</style>
+</head>
+<body>
+  <div class="spinner"></div>
+  <h1>Ichtus Workspace</h1>
+  <div id="status">Laden…</div>
+  <div id="error"></div>
+
+  <div id="setup-box">
+    <div style="font-size: 15px; font-weight: 600; margin-bottom: 14px; text-align: center;">Kies rol van deze computer</div>
+    
+    <div class="mode-option active" id="opt-host" onclick="selectMode('host')">
+      <div class="mode-title">Host</div>
+      <div class="mode-desc">Draait de centrale server voor mixer, microfoons en diensten.</div>
+    </div>
+
+    <div class="mode-option" id="opt-client" onclick="selectMode('client')">
+      <div class="mode-title">Client</div>
+      <div class="mode-desc">Verbindt via het lokale netwerk met de Host.</div>
+    </div>
+
+    <div id="client-ip-row">
+      <label for="host-ip">IP-adres of computernaam van de Host:</label>
+      <input type="text" id="host-ip" placeholder="bijv. 192.168.1.50 of host-pc" value="127.0.0.1" />
+    </div>
+
+    <button id="btn-save-mode" onclick="submitMode()">Starten & Opslaan</button>
+  </div>
+
+  <script>
+    let currentSelectedMode = 'host';
+
+    window.selectMode = function(mode) {
+      currentSelectedMode = mode;
+      document.getElementById('opt-host').classList.toggle('active', mode === 'host');
+      document.getElementById('opt-client').classList.toggle('active', mode === 'client');
+      document.getElementById('client-ip-row').style.display = (mode === 'client') ? 'block' : 'none';
+    };
+
+    window.submitMode = function() {
+      const hostIp = document.getElementById('host-ip').value.trim() || '127.0.0.1';
+      document.body.classList.remove('show-setup');
+      document.getElementById('status').textContent = 'Instellingen opslaan…';
+
+      const payload = { mode: currentSelectedMode, hostAddress: hostIp };
+
+      if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+        window.__TAURI__.core.invoke('save_mode', payload).catch(err => {
+          console.error('save_mode invoke error:', err);
+        });
+      } else if (window.__TAURI_INTERNALS__ && window.__TAURI_INTERNALS__.invoke) {
+        window.__TAURI_INTERNALS__.invoke('save_mode', payload);
+      } else {
+        // Fallback via location hash polling
+        window.location.hash = 'select-mode:' + encodeURIComponent(JSON.stringify(payload));
+      }
+    };
+
+    // Called from Rust via webview.eval()
+    window.ichtusStatus = function (msg) {
+      document.getElementById('status').textContent = msg;
+    };
+    window.ichtusShowSetup = function (defaultHostIp) {
+      if (defaultHostIp) {
+        document.getElementById('host-ip').value = defaultHostIp;
+      }
+      document.body.classList.add('show-setup');
+    };
+    window.ichtusError = function (msg) {
+      document.body.classList.add('failed');
+      document.getElementById('status').textContent = 'Fout bij starten';
+      document.getElementById('error').textContent = msg;
+    };
+  </script>
+</body>
+</html>

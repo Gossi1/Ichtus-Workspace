@@ -21,17 +21,17 @@ const integrationModule = {
             managedByModal: true
         },
         {
-            id: 'worshiptools-ext',
-            name: 'WorshipTools Extensie',
+            id: 'worshiptools-api',
+            name: 'WorshipTools API',
             icon: 'WT',
             iconTheme: 'green',
-            tagline: 'Chrome Extension',
-            description: 'Extract setlists from WorshipTools Planning and sync them directly to the Setlist module.',
-            connected: false,
-            accountName: '',
-            primaryAction: true,
-            actionLabel: 'Installeer',
-            managedByModal: true
+            tagline: 'Direct Cloud Sync',
+            description: 'Directe koppeling met WorshipTools Planning & diensten via de officiële API (geen extensie nodig).',
+            connected: true,
+            accountName: 'Cloud Sync Actief',
+            primaryAction: false,
+            actionLabel: '',
+            managedByModal: false
         }
     ],
 

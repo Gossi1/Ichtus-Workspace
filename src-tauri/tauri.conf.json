@@ -1,0 +1,46 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Ichtus Workspace",
+  "version": "3.0.0",
+  "identifier": "nl.ichtus.workspace",
+  "build": {
+    "frontendDist": "loading"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "resources": {
+      "../Ichtus_SPA/": "app/Ichtus_SPA/",
+      "../assets/": "app/assets/",
+      "../audio/": "app/audio/"
+    },
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDRFMDgyQUQ2MDJEMjEzNTkKUldSWkU5SUMxaW9JVHJEaG5UdGdIV2diSXVpaHNzNWFBRDV4Q3lady83WmVvTFI2S0JJZWFYUkYK",
+      "endpoints": [
+        "https://github.com/Gossi1/Ichtus-Workspace/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}

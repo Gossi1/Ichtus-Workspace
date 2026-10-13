@@ -6,9 +6,15 @@
   "main": "src/server.js",
   "scripts": {
     "start": "node src/server.js",
-    "dev": "node --watch src/server.js"
+    "dev": "node --watch src/server.js",
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
   },
   "dependencies": {
+    "@tauri-apps/plugin-autostart": "^2.7.0",
+    "@tauri-apps/plugin-updater": "^2.13.3",
+    "@tauri-apps/plugin-window-state": "^2.5.0",
     "bonjour-service": "^1.4.4",
     "cors": "^2.8.5",
     "express": "^4.21.2",
@@ -18,5 +24,8 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.12.2"
   }
 }
