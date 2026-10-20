@@ -338,6 +338,8 @@ The WorshipTools Sync extension imports setlists from WorshipTools Planning.
 ## 📚 Documentation
 
 - [Feature Overview](Ichtus_SPA/FEATURES.md)
+- [WorshipTools API — recreation reference](docs/worshiptools-api-reference.md)
+- [WorshipTools integration & Chrome extension](docs/worshiptools-api.md)
 - Chrome Extension: See `extensions/worshiptools-sync/README.md`
 
 ---

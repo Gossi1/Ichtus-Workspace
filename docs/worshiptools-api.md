@@ -2,6 +2,10 @@
 
 Hoe de Ichtus Workspace SPA samenwerkt met WorshipTools (WT) voor setlists, rosters en liederenbibliotheken.
 
+> **Tip:** op zoek naar de complete, code-trouwe specificatie (auth-flow, Firestore-model,
+> alle response-shapes, caches) om de integratie opnieuw te bouwen? Zie
+> [`worshiptools-api-reference.md`](worshiptools-api-reference.md).
+
 ---
 
 ## Overzicht

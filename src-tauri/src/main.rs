@@ -245,6 +245,7 @@ fn main() {
                 let _ = win.set_focus();
             }
         }))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![save_mode, check_and_install_update])
         .setup(move |app| {
             let handle = app.handle().clone();
@@ -326,3 +327,150 @@ fn main() {
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{routing::get, Json, Router};
+    use serde_json::json;
+    use tauri_plugin_updater::UpdaterExt;
+
+    const TEST_PAYLOAD: &[u8] = b"ICHTUS_TEST_UPDATE_PAYLOAD_V3_1_0";
+    const VALID_SIG: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSWkU5SUMxaW9JVHUvdzUxV2hwR0JLR2pXalArN0lMd3BFSDRlOXh6b1hFTzFyNFFwNlVTMTBiT0V0ZElHRWY2bStEaFZqZzk4VHhJaE5SZTZjMzY2QmJOUGQ1UTBRN0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNTI2Mzk4CWZpbGU6dGVzdF9wYXlsb2FkLmJpbgp5em9OZGxoVkpHVjNBV0tSZUZsZGZwNkxoRHVsemxnQWYzMVFDck1QUThLNEpaYXVCQlBXcHllelR6TndNdEVhVXVGNGNiUGFHd0dsR3dSeWpNWlhBQT09Cg==";
+    const BAD_SIG: &str = "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVSWkU5SUMxaW9JVHUvdzUxV2hwR0JLR2pXalArN0lMd3BFSDRlOXh6b1hFTzFyNFFwNlVTMTBiT0V0ZElHRWY2bStEaFZqZzk4VHhJaE5SZTZjMzY2QmJOUGQ1UTBRN0FjPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzkyNTI2Mzk4CWZpbGU6dGVzdF9wYXlsb2FkLmJpbgpBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUFBQUE9Cg==";
+
+    #[tokio::test]
+    async fn test_tauri_v2_updater_workflow() {
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0")
+            .await
+            .expect("failed to bind mock server");
+        let addr = listener.local_addr().unwrap();
+
+        let router = Router::new()
+            .route(
+                "/latest.json",
+                get(move || async move {
+                    Json(json!({
+                        "version": "3.1.0",
+                        "notes": "Test release v3.1.0 for Ichtus Workspace",
+                        "pub_date": "2026-10-20T20:00:00Z",
+                        "platforms": {
+                            "windows-x86_64": {
+                                "signature": VALID_SIG,
+                                "url": format!("http://{}/download/payload.bin", addr)
+                            }
+                        }
+                    }))
+                }),
+            )
+            .route(
+                "/latest_uptodate.json",
+                get(move || async move {
+                    Json(json!({
+                        "version": "3.0.1",
+                        "notes": "Already on this version",
+                        "pub_date": "2026-10-20T20:00:00Z",
+                        "platforms": {
+                            "windows-x86_64": {
+                                "signature": VALID_SIG,
+                                "url": format!("http://{}/download/payload.bin", addr)
+                            }
+                        }
+                    }))
+                }),
+            )
+            .route(
+                "/latest_bad_sig.json",
+                get(move || async move {
+                    Json(json!({
+                        "version": "3.1.0",
+                        "notes": "Release with forged signature",
+                        "pub_date": "2026-10-20T20:00:00Z",
+                        "platforms": {
+                            "windows-x86_64": {
+                                "signature": BAD_SIG,
+                                "url": format!("http://{}/download/payload.bin", addr)
+                            }
+                        }
+                    }))
+                }),
+            )
+            .route(
+                "/download/payload.bin",
+                get(|| async { TEST_PAYLOAD }),
+            );
+
+        tokio::spawn(async move {
+            let _ = axum::serve(listener, router).await;
+        });
+
+        let app = tauri::test::mock_builder()
+            .plugin(tauri_plugin_updater::Builder::new().build())
+            .build(tauri::generate_context!())
+            .expect("failed to build mock app with updater plugin");
+
+        let handle = app.handle();
+
+        // 1. New version available -> check() succeeds & detects v3.1.0
+        let updater_v310 = handle
+            .updater_builder()
+            .endpoints(vec![format!("http://{}/latest.json", addr).parse().unwrap()])
+            .unwrap()
+            .build()
+            .expect("failed to build updater instance");
+
+        let update = updater_v310.check().await.expect("update check should succeed");
+        assert!(update.is_some(), "Update should be detected for newer version 3.1.0");
+        let update = update.unwrap();
+        assert_eq!(update.version, "3.1.0");
+        assert_eq!(update.current_version, "3.0.1");
+        println!("[TEST] Update detected: current={} -> target={}", update.current_version, update.version);
+
+        // 2. Download artifact & verify minisign signature matches pubkey
+        let downloaded_bytes = update
+            .download(|chunk_len, total| {
+                println!("[TEST] Download chunk: {} bytes (total: {:?})", chunk_len, total);
+            }, || {
+                println!("[TEST] Download completed, verifying minisign signature...");
+            })
+            .await
+            .expect("download and signature verification must succeed with valid ichtus.key signature");
+
+        assert_eq!(downloaded_bytes, TEST_PAYLOAD, "Downloaded payload must match expected bytes");
+        println!("[TEST] Minisign signature verified successfully against pubkey!");
+
+        // 3. Already up to date (version 3.0.0) -> check() returns None
+        let updater_uptodate = handle
+            .updater_builder()
+            .endpoints(vec![format!("http://{}/latest_uptodate.json", addr).parse().unwrap()])
+            .unwrap()
+            .build()
+            .expect("failed to build updater instance");
+
+        let uptodate_res = updater_uptodate.check().await.expect("check should succeed");
+        assert!(uptodate_res.is_none(), "When server version equals current version, no update should be returned");
+        println!("[TEST] Already up-to-date check verified (returns None).");
+
+        // 4. Tampered signature rejection -> download() must fail verification
+        let updater_bad_sig = handle
+            .updater_builder()
+            .endpoints(vec![format!("http://{}/latest_bad_sig.json", addr).parse().unwrap()])
+            .unwrap()
+            .build()
+            .expect("failed to build updater instance");
+
+        let bad_sig_update = updater_bad_sig
+            .check()
+            .await
+            .expect("check should succeed")
+            .expect("update should be found");
+
+        let bad_sig_res = bad_sig_update.download(|_, _| {}, || {}).await;
+        assert!(
+            bad_sig_res.is_err(),
+            "Tampered signature must be rejected by minisign verification"
+        );
+        println!("[TEST] Security check: tampered signature correctly rejected!");
+    }
+}
+
