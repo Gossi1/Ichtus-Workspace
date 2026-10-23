@@ -243,6 +243,125 @@ async fn check_and_install_update(app: AppHandle) -> Result<String, String> {
     }
 }
 
+#[tauri::command]
+async fn open_worshiptools_login(app: AppHandle) -> Result<String, String> {
+    if let Some(win) = app.get_webview_window("worshiptools_login") {
+        let _ = win.show();
+        let _ = win.unminimize();
+        let _ = win.set_focus();
+        return Ok("Venster reeds geopend".into());
+    }
+
+    let init_script = r#"
+        (function() {
+            console.log('[WT-EXTRACTOR] Token extractor injected');
+
+            function reportToken(tok, accId) {
+                if (!tok || tok.length < 40) return;
+                console.log('[WT-EXTRACTOR] Token gevonden! Doorgeven aan server...');
+                fetch('http://127.0.0.1:8080/api/worshiptools/token', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ apiToken: tok, accountId: accId })
+                }).then(function(r) {
+                    if (r.ok) {
+                        console.log('[WT-EXTRACTOR] Token succesvol opgeslagen op de server!');
+                    }
+                }).catch(function(err) {
+                    console.error('[WT-EXTRACTOR] Fout bij doorgeven:', err);
+                });
+            }
+
+            // 1. Hook window.fetch
+            var origFetch = window.fetch;
+            window.fetch = function() {
+                try {
+                    var args = arguments;
+                    var url = args[0] && typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '');
+                    var opts = args[1] || {};
+                    var headers = opts.headers || {};
+                    var auth = '';
+                    if (headers instanceof Headers) {
+                        auth = headers.get('Authorization') || headers.get('authorization') || '';
+                    } else if (typeof headers === 'object') {
+                        auth = headers['Authorization'] || headers['authorization'] || '';
+                    }
+                    if (auth && auth.indexOf('Bearer eyJ') === 0) {
+                        var token = auth.replace(/^Bearer\s+/i, '').trim();
+                        var acc = null;
+                        var m = url.match(/account\/([a-f0-9\-]+)/i);
+                        if (m) acc = m[1];
+                        reportToken(token, acc);
+                    }
+                } catch(e) {}
+                return origFetch.apply(this, arguments);
+            };
+
+            // 2. Hook XMLHttpRequest
+            var origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+            XMLHttpRequest.prototype.setRequestHeader = function(header, value) {
+                try {
+                    if (header && header.toLowerCase() === 'authorization' && value && value.indexOf('Bearer eyJ') === 0) {
+                        var token = value.replace(/^Bearer\s+/i, '').trim();
+                        reportToken(token, null);
+                    }
+                } catch(e) {}
+                return origSetHeader.apply(this, arguments);
+            };
+
+            // 3. Scan localStorage
+            setInterval(function() {
+                try {
+                    for (var i = 0; i < localStorage.length; i++) {
+                        var k = localStorage.key(i);
+                        var v = localStorage.getItem(k);
+                        if (v && v.indexOf('eyJ') !== -1 && (v.indexOf('wePlanning') !== -1 || v.indexOf('user.info.read') !== -1)) {
+                            try {
+                                var parsed = JSON.parse(v);
+                                var token = parsed.token || parsed.accessToken || parsed.idToken || parsed.jwt;
+                                if (token && typeof token === 'string' && token.indexOf('eyJ') === 0) {
+                                    reportToken(token, null);
+                                }
+                            } catch(e) {
+                                if (v.indexOf('eyJ') === 0) reportToken(v, null);
+                            }
+                        }
+                    }
+                } catch(e) {}
+            }, 1500);
+        })();
+    "#;
+
+    let target_url: tauri::Url = "https://app.worshiptools.com/login"
+        .parse()
+        .map_err(|e: <tauri::Url as std::str::FromStr>::Err| e.to_string())?;
+
+    let win = WebviewWindowBuilder::new(
+        &app,
+        "worshiptools_login",
+        WebviewUrl::External(target_url),
+    )
+    .title("WorshipTools Inloggen — Ichtus Workspace")
+    .inner_size(960.0, 720.0)
+    .initialization_script(init_script)
+    .build()
+    .map_err(|e| e.to_string())?;
+
+    let _ = win.show();
+    let _ = win.set_focus();
+
+    Ok("WorshipTools venster geopend".into())
+}
+
+#[tauri::command]
+async fn close_worshiptools_login(app: AppHandle) -> Result<String, String> {
+    if let Some(win) = app.get_webview_window("worshiptools_login") {
+        let _ = win.close();
+        return Ok("Venster gesloten".into());
+    }
+    Ok("Geen venster actief".into())
+}
+
 fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
@@ -253,7 +372,10 @@ fn main() {
             }
         }))
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![save_mode, check_and_install_update])
+        
+
+
+        .invoke_handler(tauri::generate_handler![save_mode, check_and_install_update, open_worshiptools_login, close_worshiptools_login])
         .setup(move |app| {
             let handle = app.handle().clone();
 

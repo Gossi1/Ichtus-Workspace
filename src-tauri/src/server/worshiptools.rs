@@ -1834,3 +1834,91 @@ pub async fn people_sync_handler(State(state): State<ServerState>) -> impl IntoR
         "people": people,
     }))
 }
+
+
+#[derive(Deserialize)]
+pub struct WtTokenPayload {
+    #[serde(rename = "apiToken")]
+    pub api_token: String,
+    #[serde(default, rename = "accountId")]
+    pub account_id: Option<String>,
+}
+
+pub async fn token_update_handler(
+    State(state): State<ServerState>,
+    Json(body): Json<WtTokenPayload>,
+) -> impl IntoResponse {
+    let clean_token = body.api_token.trim().to_string();
+    if clean_token.is_empty() || !clean_token.starts_with("eyJ") {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({ "success": false, "error": "Ongeldig token formaat (moet beginnen met eyJ)" })),
+        );
+    }
+
+    // Update server-config.json in both locations
+    let config_paths = [
+        state.data_dir.join("server-config.json"),
+        state.root_dir.join("server-config.json"),
+    ];
+
+    let mut saved_any = false;
+    for config_path in &config_paths {
+        let mut val = if config_path.exists() {
+            fs::read_to_string(config_path)
+                .ok()
+                .and_then(|c| serde_json::from_str::<Value>(&c).ok())
+                .unwrap_or_else(|| json!({}))
+        } else {
+            json!({})
+        };
+
+        if let Some(obj) = val.as_object_mut() {
+            let wt = obj
+                .entry("worshiptools".to_string())
+                .or_insert_with(|| json!({}))
+                .as_object_mut();
+
+            if let Some(wt_obj) = wt {
+                wt_obj.insert("apiToken".to_string(), Value::String(clean_token.clone()));
+                if let Some(ref acc) = body.account_id {
+                    if !acc.trim().is_empty() {
+                        wt_obj.insert("accountId".to_string(), Value::String(acc.trim().to_string()));
+                    }
+                }
+                if let Ok(pretty) = serde_json::to_string_pretty(&val) {
+                    if fs::write(config_path, pretty).is_ok() {
+                        saved_any = true;
+                        println!("  [WT-SVC] apiToken bijgewerkt in {:?}", config_path);
+                    }
+                }
+            }
+        }
+    }
+
+    // Immediately trigger sync_people_cache to download all names
+    let people = state.worshiptools_manager.sync_people_cache(true).await;
+    let count = people.len();
+
+    // Broadcast to all connected clients over WebSocket
+    state.ws_hub.broadcast(
+        "worshiptools:token_updated",
+        json!({
+            "success": true,
+            "count": count,
+            "message": format!("WorshipTools gekoppeld! {} namen gesynchroniseerd.", count)
+        }),
+    );
+
+    println!("  [WT-SVC] WorshipTools login succesvol! Token opgeslagen, {} mensen in people_cache.", count);
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "success": true,
+            "saved_config": saved_any,
+            "people_count": count,
+            "message": format!("Token succesvol opgeslagen! {} namen gesynchroniseerd.", count),
+        })),
+    )
+}

@@ -621,6 +621,20 @@ const stagebuilderModule = {
             }
         };
         document.addEventListener('ws:wt:roster', this.__wsRosterHandler);
+
+        this.__wsTokenUpdatedHandler = (e) => {
+            const d = (e && e.detail) || {};
+            const count = d.count || 0;
+            this.showToast('✅ WorshipTools succesvol gekoppeld! ' + count + ' namen gesynchroniseerd.', 'success', 6000);
+            if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+                window.__TAURI__.core.invoke('close_worshiptools_login').catch(() => {});
+            }
+            const sel = document.getElementById('sb-service-select');
+            if (sel && sel.value) {
+                this.loadRoster(true);
+            }
+        };
+        document.addEventListener('ws:worshiptools:token_updated', this.__wsTokenUpdatedHandler);
     },
 
     _tearDownRosterListener() {
@@ -630,6 +644,10 @@ const stagebuilderModule = {
         }
         if (this.__wsRosterHandler) {
             document.removeEventListener('ws:wt:roster', this.__wsRosterHandler);
+        }
+        if (this.__wsTokenUpdatedHandler) {
+            document.removeEventListener('ws:worshiptools:token_updated', this.__wsTokenUpdatedHandler);
+            this.__wsTokenUpdatedHandler = null;
         }
         this.__sbRosterBound = false;
         this.__rosterHandler = null;
@@ -2939,6 +2957,20 @@ const stagebuilderModule = {
             console.groupEnd();
         } catch (_) { /* no console */ }
         return grouped;
+    },
+
+
+    openWorshipToolsLogin() {
+        if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
+            this.showToast('WorshipTools inlogvenster wordt geopend…', 'info');
+            window.__TAURI__.core.invoke('open_worshiptools_login').catch(err => {
+                console.error('[SB] Open login window mislukt:', err);
+                this.showToast('Kon inlogvenster niet openen: ' + err, 'error');
+            });
+        } else {
+            window.open('https://app.worshiptools.com/login', '_blank');
+            this.showToast('Open WorshipTools inlogpagina in de browser.', 'info');
+        }
     },
 
     async promptEditPersonName(rowId) {
