@@ -440,7 +440,7 @@ const integrationModule = {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-    }
+    },
 
     // ── Modal: WorshipTools API Configuration ────────────────────────────
 
