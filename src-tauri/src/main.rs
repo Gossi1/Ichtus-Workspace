@@ -121,7 +121,8 @@ fn start_app_workflow(
                 let work_dir = find_app_dir(&handle);
                 let data_dir = get_data_dir();
                 tauri::async_runtime::spawn(async move {
-                    if let Err(err) = server::start_axum_server(work_dir, data_dir, public_port).await {
+                    let handle_clone = handle.clone();
+                    if let Err(err) = server::start_axum_server(work_dir, data_dir, public_port, Some(handle_clone)).await {
                         eprintln!("[AXUM] Fout bij starten Rust HTTP server: {}", err);
                     }
                 });

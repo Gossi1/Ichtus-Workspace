@@ -2960,16 +2960,18 @@ const stagebuilderModule = {
     },
 
 
-    openWorshipToolsLogin() {
-        if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-            this.showToast('WorshipTools inlogvenster wordt geopend…', 'info');
-            window.__TAURI__.core.invoke('open_worshiptools_login').catch(err => {
-                console.error('[SB] Open login window mislukt:', err);
-                this.showToast('Kon inlogvenster niet openen: ' + err, 'error');
-            });
-        } else {
+    async openWorshipToolsLogin() {
+        this.showToast('WorshipTools inlogvenster wordt geopend…', 'info');
+        try {
+            const resp = await fetch('/api/worshiptools/open-login', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                window.open('https://app.worshiptools.com/login', '_blank');
+                this.showToast(data.error || 'Inlogvenster geopend in browser.', 'info');
+            }
+        } catch (err) {
             window.open('https://app.worshiptools.com/login', '_blank');
-            this.showToast('Open WorshipTools inlogpagina in de browser.', 'info');
+            this.showToast('Inlogvenster geopend in browser.', 'info');
         }
     },
 

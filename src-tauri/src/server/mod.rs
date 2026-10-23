@@ -49,6 +49,7 @@ pub struct ServerState {
     pub iem_manager: iem::IemManager,
     pub worshiptools_manager: worshiptools::WorshipToolsManager,
     pub system_manager: system::SystemManager,
+    pub app_handle: Option<tauri::AppHandle>,
 }
 
 #[derive(Serialize)]
@@ -177,6 +178,7 @@ pub async fn start_axum_server(
     root_dir: PathBuf,
     data_dir: PathBuf,
     public_port: u16,
+    app_handle: Option<tauri::AppHandle>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let _ = rustls::crypto::ring::default_provider().install_default();
 
@@ -210,6 +212,7 @@ pub async fn start_axum_server(
         iem_manager,
         worshiptools_manager,
         system_manager,
+        app_handle,
     };
 
     #[cfg(debug_assertions)]
@@ -370,6 +373,14 @@ pub async fn start_axum_server(
         .route(
             "/api/worshiptools/token",
             post(worshiptools::token_update_handler),
+        )
+        .route(
+            "/api/worshiptools/open-login",
+            post(worshiptools::open_login_handler),
+        )
+        .route(
+            "/api/worshiptools/close-login",
+            post(worshiptools::close_login_handler),
         )
         // Fase 4.9: Native Rust Tockify ICS proxy (/api/tockify/ics)
         .route("/api/tockify/ics", get(system::tockify_ics_handler))
