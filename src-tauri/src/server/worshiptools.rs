@@ -2034,7 +2034,7 @@ pub async fn open_login_handler(State(state): State<ServerState>) -> impl IntoRe
         })();
     "#;
 
-    let target_url: tauri::Url = match "https://app.worshiptools.com/login".parse() {
+    let target_url: tauri::Url = match "https://planning.worshiptools.com/app/".parse() {
         Ok(u) => u,
         Err(e) => {
             return (

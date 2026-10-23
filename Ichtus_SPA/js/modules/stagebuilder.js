@@ -2966,11 +2966,11 @@ const stagebuilderModule = {
             const resp = await fetch('/api/worshiptools/open-login', { method: 'POST' });
             const data = await resp.json();
             if (!resp.ok || !data.success) {
-                window.open('https://app.worshiptools.com/login', '_blank');
+                window.open('https://planning.worshiptools.com/app/', '_blank');
                 this.showToast(data.error || 'Inlogvenster geopend in browser.', 'info');
             }
         } catch (err) {
-            window.open('https://app.worshiptools.com/login', '_blank');
+            window.open('https://planning.worshiptools.com/app/', '_blank');
             this.showToast('Inlogvenster geopend in browser.', 'info');
         }
     },

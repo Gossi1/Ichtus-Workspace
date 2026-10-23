@@ -333,7 +333,7 @@ async fn open_worshiptools_login(app: AppHandle) -> Result<String, String> {
         })();
     "#;
 
-    let target_url: tauri::Url = "https://app.worshiptools.com/login"
+    let target_url: tauri::Url = "https://planning.worshiptools.com/app/"
         .parse()
         .map_err(|e: <tauri::Url as std::str::FromStr>::Err| e.to_string())?;
 
