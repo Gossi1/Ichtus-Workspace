@@ -510,7 +510,7 @@ const stagebuilderModule = {
             const unknownCount = entries.filter(e => !e.name || e.name.startsWith('Onbekend')).length;
             if (unknownCount > 0) {
                 setTimeout(() => {
-                    this.showToast('💡 ' + unknownCount + ' teamlid' + (unknownCount === 1 ? '' : 'en') + ' nog zonder naam. Klik op \"✏️ Instellen\" om de naam eenmalig te koppelen.', 'info', 6000);
+                    this.showToast('💡 ' + unknownCount + ' teamlid' + (unknownCount === 1 ? '' : 'en') + ' nog zonder naam. Klik op \"🔑 WorshipTools Inloggen\" om namen op te halen.', 'info', 6000);
                 }, 1200);
             }
         } catch (err) {
@@ -1981,17 +1981,8 @@ const stagebuilderModule = {
                 : '');
 
         const isUnknown = !row.name || row.name.startsWith('Onbekend');
-        const editBtn = '<button type="button" class="sb-rename-btn' + (isUnknown ? ' sb-rename-btn--highlight' : '') + '"' +
-            ' onclick="stagebuilderModule.promptEditPersonName(\'' + this.escapeAttr(row.id) + '\')"' +
-            ' title="' + (isUnknown ? 'Koppel een naam aan deze persoon (wordt opgeslagen in people_cache.json)' : 'Naam aanpassen (wordt opgeslagen in people_cache.json)') + '">' +
-            (isUnknown ? '✏️ Instellen' : '✏️') +
-            '</button>';
-
         const nameCell = '<td>' +
-            '<div class="sb-row-name-wrap">' +
-                '<span class="sb-row-name' + (isUnknown ? ' sb-row-name--unknown' : '') + '">' + this.escapeHtml(row.name) + '</span> ' +
-                editBtn +
-            '</div>' +
+            '<div class="sb-row-name' + (isUnknown ? ' sb-row-name--unknown' : '') + '">' + this.escapeHtml(row.name) + '</div>' +
             hintHtml +
             '</td>';
 

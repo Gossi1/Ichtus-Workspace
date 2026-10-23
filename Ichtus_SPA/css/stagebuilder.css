@@ -797,46 +797,10 @@
     line-height: 1.2;
 }
 
-#view-stagebuilder .sb-row-name-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    max-width: 100%;
-}
-
 #view-stagebuilder .sb-row-name--unknown {
     color: #fca5a5 !important;
     font-style: italic;
     opacity: 0.9;
-}
-
-#view-stagebuilder .sb-rename-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.08);
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    color: #94a3b8;
-    padding: 2px 7px;
-    border-radius: 4px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    line-height: 1.2;
-    transition: all 0.15s ease;
-    white-space: nowrap;
-}
-
-#view-stagebuilder .sb-rename-btn:hover {
-    background: rgba(244, 121, 32, 0.25);
-    border-color: #f47920;
-    color: #fff;
-}
-
-#view-stagebuilder .sb-rename-btn--highlight {
-    background: rgba(244, 121, 32, 0.2);
-    border-color: rgba(244, 121, 32, 0.6);
-    color: #ffedd5;
 }
 
 
