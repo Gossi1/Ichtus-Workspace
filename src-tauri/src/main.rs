@@ -503,7 +503,7 @@ mod tests {
                 "/latest_uptodate.json",
                 get(move || async move {
                     Json(json!({
-                        "version": "3.0.1",
+                        "version": "3.0.2",
                         "notes": "Already on this version",
                         "pub_date": "2026-10-20T20:00:00Z",
                         "platforms": {
@@ -559,7 +559,7 @@ mod tests {
         assert!(update.is_some(), "Update should be detected for newer version 3.1.0");
         let update = update.unwrap();
         assert_eq!(update.version, "3.1.0");
-        assert_eq!(update.current_version, "3.0.1");
+        assert_eq!(update.current_version, "3.0.2");
         println!("[TEST] Update detected: current={} -> target={}", update.current_version, update.version);
 
         // 2. Download artifact & verify minisign signature matches pubkey
