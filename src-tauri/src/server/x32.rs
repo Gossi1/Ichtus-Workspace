@@ -25,7 +25,7 @@ use tokio::{
 
 use super::{ws::WsHub, ServerState};
 
-const DEFAULT_X32_IP: &str = "192.168.1.50";
+const DEFAULT_X32_IP: &str = "192.168.180.198";
 const X32_OSC_PORT: u16 = 10023;
 const FULL_STRIP_SCOPE_MASK: i32 = 63;
 
@@ -184,6 +184,9 @@ pub struct X32Session {
     pub presets: Arc<Mutex<BTreeMap<String, PresetSlotInfo>>>,
     pub last_polled: Arc<Mutex<Option<String>>>,
     pub connection_error: Arc<Mutex<Option<String>>>,
+    pub console_name: Arc<Mutex<Option<String>>>,
+    pub console_model: Arc<Mutex<Option<String>>>,
+    pub firmware_version: Arc<Mutex<Option<String>>>,
     pending: Arc<Mutex<HashMap<String, oneshot::Sender<Vec<OscType>>>>>,
     tasks: Mutex<Vec<JoinHandle<()>>>,
     ws_hub: WsHub,
@@ -204,17 +207,15 @@ impl X32Session {
             presets: Arc::new(Mutex::new(BTreeMap::new())),
             last_polled: Arc::new(Mutex::new(None)),
             connection_error: Arc::new(Mutex::new(None)),
+            console_name: Arc::new(Mutex::new(None)),
+            console_model: Arc::new(Mutex::new(None)),
+            firmware_version: Arc::new(Mutex::new(None)),
             pending: Arc::new(Mutex::new(HashMap::new())),
             tasks: Mutex::new(Vec::new()),
             ws_hub: ws_hub.clone(),
         });
 
-        println!("  [X32 SESSION] Connected to {}:{}", ip, X32_OSC_PORT);
-
-        // Stuur /xinfo bij connect
-        let _ = session.send_osc("/xinfo", Vec::new()).await;
-
-        // Background UDP receiver task
+        // 1. Spawn background UDP receiver task FIRST so it catches responses immediately
         let recv_session = session.clone();
         let recv_task = tokio::spawn(async move {
             let mut buf = [0u8; 4096];
@@ -226,9 +227,20 @@ impl X32Session {
                         }
                     }
                     Err(err) => {
+                        // On Windows, ICMP port unreachable generates WSAECONNRESET (10054).
+                        // In UDP, we must NEVER terminate the receive loop on connection reset!
+                        let is_reset = err.kind() == std::io::ErrorKind::ConnectionReset
+                            || err.raw_os_error() == Some(10054);
+                        if is_reset {
+                            tokio::time::sleep(Duration::from_millis(50)).await;
+                            continue;
+                        }
                         if recv_session.connected.load(Ordering::Relaxed) {
+                            eprintln!("  [X32 SESSION] UDP recv error: {}", err);
                             let mut err_lock = recv_session.connection_error.lock().await;
                             *err_lock = Some(err.to_string());
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                            continue;
                         }
                         break;
                     }
@@ -236,7 +248,42 @@ impl X32Session {
             }
         });
 
-        // Background /xremote heartbeat task (elke 1500ms)
+        // 2. Perform connection handshake with /xremote and /xinfo
+        let mut handshake_ok = false;
+        for attempt in 1..=2 {
+            let _ = session.send_osc("/xremote", Vec::new()).await;
+            match session.query_osc("/xinfo".to_string(), 1500).await {
+                Ok(args) => {
+                    handshake_ok = true;
+                    if let Some(OscType::String(s)) = args.get(1) {
+                        *session.console_name.lock().await = Some(s.clone());
+                    }
+                    if let Some(OscType::String(s)) = args.get(2) {
+                        *session.console_model.lock().await = Some(s.clone());
+                    }
+                    if let Some(OscType::String(s)) = args.get(3) {
+                        *session.firmware_version.lock().await = Some(s.clone());
+                    }
+                    break;
+                }
+                Err(_) => {
+                    println!("  [X32 SESSION] /xinfo attempt {}/2 on {} timed out", attempt, ip);
+                }
+            }
+        }
+
+        if !handshake_ok {
+            session.connected.store(false, Ordering::SeqCst);
+            recv_task.abort();
+            return Err(format!(
+                "Geen reactie van X32 mixer op {}:10023. Controleer of de mixer aan staat, op hetzelfde netwerk zit en het IP-adres ({}) klopt.",
+                ip, ip
+            ));
+        }
+
+        println!("  [X32 SESSION] Connected to {}:{}", ip, X32_OSC_PORT);
+
+        // 3. Background /xremote heartbeat task (every 1500ms)
         let hb_session = session.clone();
         let hb_task = tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_millis(1500));
@@ -300,6 +347,18 @@ impl X32Session {
             }
         }
 
+        if addr == "/xinfo" {
+            if let Some(OscType::String(s)) = args.get(1) {
+                *self.console_name.lock().await = Some(s.clone());
+            }
+            if let Some(OscType::String(s)) = args.get(2) {
+                *self.console_model.lock().await = Some(s.clone());
+            }
+            if let Some(OscType::String(s)) = args.get(3) {
+                *self.firmware_version.lock().await = Some(s.clone());
+            }
+        }
+
         // 2. Check /-libs/ch/<slot>/(hasdata|name)
         if let Some(rest) = addr.strip_prefix("/-libs/ch/") {
             let parts: Vec<&str> = rest.split('/').collect();
@@ -358,8 +417,9 @@ impl X32Session {
 
         let slots: Vec<String> = (1..=100).map(|i| format!("{:03}", i)).collect();
         let mut results = BTreeMap::new();
-        let concurrency = 20;
-        let timeout_ms = 1000;
+        let concurrency = 10;
+        let timeout_ms = 800;
+        let mut timeouts_count = 0;
 
         for chunk in slots.chunks(concurrency) {
             let mut futures = Vec::with_capacity(chunk.len());
@@ -404,8 +464,17 @@ impl X32Session {
 
             let batch_results = join_all(futures).await;
             for (slot, info) in batch_results {
+                if info.error.is_some() {
+                    timeouts_count += 1;
+                }
                 results.insert(slot, info);
             }
+            tokio::time::sleep(Duration::from_millis(20)).await;
+        }
+
+        if timeouts_count == 100 {
+            self.poll_in_progress.store(false, Ordering::SeqCst);
+            return Err("Mixer reageert niet meer tijdens het pollen van de library (alle 100 slots gaven een timeout).".to_string());
         }
 
         let now_iso = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true);
@@ -459,6 +528,9 @@ impl X32Session {
             let mut last = self.last_polled.lock().await;
             *last = None;
         }
+        *self.console_name.lock().await = None;
+        *self.console_model.lock().await = None;
+        *self.firmware_version.lock().await = None;
 
         println!("  [X32 SESSION] Disconnected from {}", self.ip);
         let status = self.get_status().await;
@@ -472,6 +544,9 @@ impl X32Session {
         };
         let last_polled = self.last_polled.lock().await.clone();
         let connection_error = self.connection_error.lock().await.clone();
+        let console_name = self.console_name.lock().await.clone();
+        let console_model = self.console_model.lock().await.clone();
+        let firmware = self.firmware_version.lock().await.clone();
 
         json!({
             "connected": self.connected.load(Ordering::Relaxed),
@@ -481,6 +556,9 @@ impl X32Session {
             "pollInProgress": self.poll_in_progress.load(Ordering::Relaxed),
             "occupiedSlots": occupied,
             "totalSlots": 100,
+            "consoleName": console_name,
+            "model": console_model,
+            "firmware": firmware,
         })
     }
 
@@ -861,5 +939,28 @@ pub async fn x32_presets_status_handler(State(state): State<ServerState>) -> imp
     match state.x32_manager.get_active_session().await {
         Some(session) => Json(session.get_status().await),
         None => Json(json!({ "connected": false })),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_target_ip() {
+        assert_eq!(resolve_target_ip(None), DEFAULT_X32_IP);
+        assert_eq!(resolve_target_ip(Some(&json!(""))), DEFAULT_X32_IP);
+        assert_eq!(resolve_target_ip(Some(&json!("   "))), DEFAULT_X32_IP);
+        assert_eq!(resolve_target_ip(Some(&json!("192.168.1.100"))), "192.168.1.100");
+    }
+
+    #[test]
+    fn test_parse_valid_int() {
+        assert_eq!(parse_valid_int(Some(&json!(1)), 1, 32), Some(1));
+        assert_eq!(parse_valid_int(Some(&json!(32)), 1, 32), Some(32));
+        assert_eq!(parse_valid_int(Some(&json!(0)), 1, 32), None);
+        assert_eq!(parse_valid_int(Some(&json!(33)), 1, 32), None);
+        assert_eq!(parse_valid_int(Some(&json!("15")), 1, 32), Some(15));
+        assert_eq!(parse_valid_int(Some(&json!("invalid")), 1, 32), None);
     }
 }

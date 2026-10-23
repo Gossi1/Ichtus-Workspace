@@ -1624,13 +1624,19 @@ const stagebuilderModule = {
             }
             const data = await r.json();
             this._x32SessionConnected = true;
+            this._x32ConsoleInfo = {
+                model: (data && data.model) || (data && data.consoleName) || 'X32',
+                firmware: data && data.firmware,
+                consoleName: data && data.consoleName
+            };
+            const modelLabel = this._x32ConsoleInfo.model + (this._x32ConsoleInfo.firmware ? ' (v' + this._x32ConsoleInfo.firmware + ')' : '');
             const occ = (data && data.occupiedSlots != null) ? data.occupiedSlots : '?';
-            this._setStatus('✓ Verbonden met ' + ip + ' (' + occ + '/100 slots bezet) — presets worden geladen…');
+            this._setStatus('✓ Verbonden met ' + modelLabel + ' op ' + ip + ' — presets worden geladen…');
             this._renderConnectionBadge();
             this._renderRosterOrEmpty();
-            this._sbDebugLog('connectToX32 OK: ip=' + ip + ', occupied=' + occ + ', silent=' + silent);
+            this._sbDebugLog('connectToX32 OK: ip=' + ip + ', model=' + modelLabel + ', occupied=' + occ + ', silent=' + silent);
             if (!silent) {
-                this.showToast('Verbonden met X32 (' + ip + ')', 'success');
+                this.showToast('Verbonden met ' + modelLabel + ' (' + ip + ')', 'success');
             }
             await this.pollX32Presets();
         } catch (err) {
@@ -1841,10 +1847,16 @@ const stagebuilderModule = {
         const badge = document.getElementById('sb-x32-connection-badge');
         const text = document.getElementById('sb-x32-connection-text');
         const meta = document.getElementById('sb-x32-connection-meta');
+        const connectBtn = document.getElementById('sb-x32-connect');
         if (!badge || !text) return;
         if (this._x32SessionConnected) {
             badge.className = 'sb-conn-badge connected';
             text.textContent = 'Verbonden';
+            if (connectBtn) {
+                connectBtn.textContent = 'Disconnect';
+                connectBtn.title = 'Verbreek verbinding met de X32';
+                connectBtn.onclick = () => this.disconnectFromX32();
+            }
             const occ = (this._x32DiscoveredPresets
                 ? Object.values(this._x32DiscoveredPresets).filter(function (p) { return p && p.hasdata; }).length
                 : 0);
@@ -1852,10 +1864,16 @@ const stagebuilderModule = {
                 ? 'laatst: ' + new Date(this._x32LastPolled).toLocaleTimeString('nl-NL')
                 : '';
             const occStr = occ + '/' + 100 + ' slots';
-            if (meta) meta.textContent = ts ? (occStr + ' · ' + ts) : occStr;
+            const modelStr = (this._x32ConsoleInfo && this._x32ConsoleInfo.model) ? (this._x32ConsoleInfo.model + ' · ') : '';
+            if (meta) meta.textContent = modelStr + (ts ? (occStr + ' · ' + ts) : occStr);
         } else {
             badge.className = 'sb-conn-badge disconnected';
             text.textContent = 'Niet verbonden';
+            if (connectBtn) {
+                connectBtn.textContent = 'Connect';
+                connectBtn.title = 'Open OSC-verbinding met de X32 console';
+                connectBtn.onclick = () => this.connectToX32();
+            }
             if (meta) meta.textContent = 'klik Connect om te koppelen';
         }
     },
