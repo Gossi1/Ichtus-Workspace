@@ -1956,21 +1956,41 @@ pub async fn open_login_handler(State(state): State<ServerState>) -> impl IntoRe
 
     let init_script = r#"
         (function() {
-            console.log('[WT-EXTRACTOR] Token extractor injected');
+            console.log('[WT-EXTRACTOR] Advanced WorshipTools Extractor active');
 
-            function reportToken(tok, accId) {
-                if (!tok || tok.length < 40) return;
-                console.log('[WT-EXTRACTOR] Token gevonden! Doorgeven aan server...');
-                fetch('http://127.0.0.1:8080/api/worshiptools/token', {
+            var state = {
+                apiKey: null,
+                refreshToken: null,
+                accountId: null,
+                apiToken: null
+            };
+
+            var lastSyncPayload = '';
+
+            function syncToServer() {
+                if (!state.apiKey && !state.refreshToken && !state.accountId && !state.apiToken) return;
+                var payloadStr = JSON.stringify(state);
+                if (payloadStr === lastSyncPayload) return;
+                lastSyncPayload = payloadStr;
+
+                console.log('[WT-EXTRACTOR] Auto-extracted credentials, reporting to server...', {
+                    hasApiKey: !!state.apiKey,
+                    hasRefreshToken: !!state.refreshToken,
+                    accountId: state.accountId,
+                    hasApiToken: !!state.apiToken
+                });
+
+                fetch('http://127.0.0.1:8080/api/worshiptools/config', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiToken: tok, accountId: accId })
-                }).then(function(r) {
-                    if (r.ok) {
-                        console.log('[WT-EXTRACTOR] Token succesvol opgeslagen op de server!');
+                    body: payloadStr
+                }).then(function(r) { return r.json(); })
+                .then(function(res) {
+                    if (res && res.success) {
+                        console.log('[WT-EXTRACTOR] Server successfully updated config!');
                     }
                 }).catch(function(err) {
-                    console.error('[WT-EXTRACTOR] Fout bij doorgeven:', err);
+                    console.error('[WT-EXTRACTOR] Sync failed:', err);
                 });
             }
 
@@ -1988,12 +2008,26 @@ pub async fn open_login_handler(State(state): State<ServerState>) -> impl IntoRe
                     } else if (typeof headers === 'object') {
                         auth = headers['Authorization'] || headers['authorization'] || '';
                     }
+
                     if (auth && auth.indexOf('Bearer eyJ') === 0) {
                         var token = auth.replace(/^Bearer\s+/i, '').trim();
-                        var acc = null;
-                        var m = url.match(/account\/([a-f0-9\-]+)/i);
-                        if (m) acc = m[1];
-                        reportToken(token, acc);
+                        if (state.apiToken !== token) {
+                            state.apiToken = token;
+                            syncToServer();
+                        }
+                    }
+
+                    if (url) {
+                        var m = url.match(/account[s]?\/([a-f0-9\-]{36})/i);
+                        if (m && state.accountId !== m[1]) {
+                            state.accountId = m[1];
+                            syncToServer();
+                        }
+                        var k = url.match(/[?&]key=([A-Za-z0-9_\-]{39})/);
+                        if (k && state.apiKey !== k[1]) {
+                            state.apiKey = k[1];
+                            syncToServer();
+                        }
                     }
                 } catch(e) {}
                 return origFetch.apply(this, arguments);
@@ -2005,32 +2039,67 @@ pub async fn open_login_handler(State(state): State<ServerState>) -> impl IntoRe
                 try {
                     if (header && header.toLowerCase() === 'authorization' && value && value.indexOf('Bearer eyJ') === 0) {
                         var token = value.replace(/^Bearer\s+/i, '').trim();
-                        reportToken(token, null);
+                        if (state.apiToken !== token) {
+                            state.apiToken = token;
+                            syncToServer();
+                        }
                     }
                 } catch(e) {}
                 return origSetHeader.apply(this, arguments);
             };
 
-            // 3. Scan storage
-            setInterval(function() {
+            // 3. Scan storage & current location
+            function scanStorage() {
                 try {
+                    var urlM = window.location.href.match(/account[s]?\/([a-f0-9\-]{36})/i);
+                    if (urlM && state.accountId !== urlM[1]) {
+                        state.accountId = urlM[1];
+                        syncToServer();
+                    }
+
                     for (var i = 0; i < localStorage.length; i++) {
                         var k = localStorage.key(i);
                         var v = localStorage.getItem(k);
-                        if (v && v.indexOf('eyJ') !== -1 && (v.indexOf('wePlanning') !== -1 || v.indexOf('user.info.read') !== -1)) {
+                        if (!v) continue;
+
+                        if (k.indexOf('firebase:authUser:') === 0 || v.indexOf('stsTokenManager') !== -1) {
                             try {
                                 var parsed = JSON.parse(v);
-                                var token = parsed.token || parsed.accessToken || parsed.idToken || parsed.jwt;
-                                if (token && typeof token === 'string' && token.indexOf('eyJ') === 0) {
-                                    reportToken(token, null);
+                                if (parsed.apiKey && state.apiKey !== parsed.apiKey) {
+                                    state.apiKey = parsed.apiKey;
+                                    syncToServer();
+                                }
+                                if (parsed.stsTokenManager && parsed.stsTokenManager.refreshToken) {
+                                    var rt = parsed.stsTokenManager.refreshToken;
+                                    if (state.refreshToken !== rt) {
+                                        state.refreshToken = rt;
+                                        syncToServer();
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
+                        if (v.indexOf('eyJ') !== -1 && (v.indexOf('wePlanning') !== -1 || v.indexOf('user.info.read') !== -1)) {
+                            try {
+                                var parsed = JSON.parse(v);
+                                var tok = parsed.token || parsed.accessToken || parsed.idToken || parsed.jwt;
+                                if (tok && typeof tok === 'string' && tok.indexOf('eyJ') === 0 && state.apiToken !== tok) {
+                                    state.apiToken = tok;
+                                    syncToServer();
                                 }
                             } catch(e) {
-                                if (v.indexOf('eyJ') === 0) reportToken(v, null);
+                                if (v.indexOf('eyJ') === 0 && state.apiToken !== v) {
+                                    state.apiToken = v;
+                                    syncToServer();
+                                }
                             }
                         }
                     }
                 } catch(e) {}
-            }, 1500);
+            }
+
+            setInterval(scanStorage, 1200);
+            scanStorage();
         })();
     "#;
 
@@ -2078,4 +2147,206 @@ pub async fn close_login_handler(State(state): State<ServerState>) -> impl IntoR
         }
     }
     Json(json!({ "success": true, "message": "Geen venster actief." }))
+}
+
+
+pub async fn config_get_handler(State(state): State<ServerState>) -> impl IntoResponse {
+    let cfg = state.worshiptools_manager.get_config().ok();
+    let account_id = cfg.as_ref().map(|c| c.account_id.clone()).unwrap_or_default();
+    let api_key = cfg.as_ref().map(|c| c.api_key.clone()).unwrap_or_default();
+    let refresh_token = cfg.as_ref().map(|c| c.refresh_token.clone()).unwrap_or_default();
+    let api_token = cfg.as_ref().map(|c| c.api_token.clone()).unwrap_or_default();
+
+    let configured = !account_id.is_empty() && !api_key.is_empty() && !refresh_token.is_empty();
+
+    Json(json!({
+        "success": true,
+        "configured": configured,
+        "accountId": account_id,
+        "apiKey": api_key,
+        "refreshToken": refresh_token,
+        "apiToken": api_token,
+        "hasRefreshToken": !refresh_token.is_empty(),
+        "hasApiToken": !api_token.is_empty(),
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct WtFullConfigPayload {
+    #[serde(default, rename = "accountId")]
+    pub account_id: Option<String>,
+    #[serde(default, rename = "apiKey")]
+    pub api_key: Option<String>,
+    #[serde(default, rename = "refreshToken")]
+    pub refresh_token: Option<String>,
+    #[serde(default, rename = "apiToken")]
+    pub api_token: Option<String>,
+}
+
+pub async fn config_post_handler(
+    State(state): State<ServerState>,
+    Json(body): Json<WtFullConfigPayload>,
+) -> impl IntoResponse {
+    let config_paths = [
+        state.data_dir.join("server-config.json"),
+        state.root_dir.join("server-config.json"),
+    ];
+
+    let mut saved_any = false;
+    for config_path in &config_paths {
+        let mut val = if config_path.exists() {
+            fs::read_to_string(config_path)
+                .ok()
+                .and_then(|c| serde_json::from_str::<Value>(&c).ok())
+                .unwrap_or_else(|| json!({}))
+        } else {
+            json!({})
+        };
+
+        if let Some(obj) = val.as_object_mut() {
+            let wt = obj
+                .entry("worshiptools".to_string())
+                .or_insert_with(|| json!({}))
+                .as_object_mut();
+
+            if let Some(wt_obj) = wt {
+                if let Some(ref acc) = body.account_id {
+                    let s = acc.trim();
+                    if !s.is_empty() {
+                        wt_obj.insert("accountId".to_string(), Value::String(s.to_string()));
+                    }
+                }
+                if let Some(ref key) = body.api_key {
+                    let s = key.trim();
+                    if !s.is_empty() {
+                        wt_obj.insert("apiKey".to_string(), Value::String(s.to_string()));
+                    }
+                }
+                if let Some(ref rt) = body.refresh_token {
+                    let s = rt.trim();
+                    if !s.is_empty() {
+                        wt_obj.insert("refreshToken".to_string(), Value::String(s.to_string()));
+                    }
+                }
+                if let Some(ref tok) = body.api_token {
+                    let s = tok.trim();
+                    if !s.is_empty() {
+                        wt_obj.insert("apiToken".to_string(), Value::String(s.to_string()));
+                    }
+                }
+
+                if let Ok(pretty) = serde_json::to_string_pretty(&val) {
+                    if fs::write(config_path, pretty).is_ok() {
+                        saved_any = true;
+                        println!("  [WT-SVC] server-config.json bijgewerkt in {:?}", config_path);
+                    }
+                }
+            }
+        }
+    }
+
+    // Trigger sync_people_cache if apiToken was set
+    let people_count = if body.api_token.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false) {
+        let p = state.worshiptools_manager.sync_people_cache(true).await;
+        p.len()
+    } else {
+        state.worshiptools_manager.load_people_cache(false)
+    };
+
+    // Check if fully configured
+    let cfg = state.worshiptools_manager.get_config().ok();
+    let is_complete = cfg.as_ref().map(|c| !c.account_id.is_empty() && !c.api_key.is_empty() && !c.refresh_token.is_empty()).unwrap_or(false);
+
+    // If complete and we have a window open, close it!
+    if is_complete && body.api_token.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false) {
+        use tauri::Manager;
+        if let Some(ref handle) = state.app_handle {
+            if let Some(win) = handle.get_webview_window("worshiptools_login") {
+                let _ = win.close();
+            }
+        }
+    }
+
+    // Broadcast config update
+    state.ws_hub.broadcast(
+        "worshiptools:config_updated",
+        json!({
+            "success": true,
+            "configured": is_complete,
+            "peopleCount": people_count,
+            "message": "WorshipTools configuratie bijgewerkt."
+        }),
+    );
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "success": true,
+            "saved": saved_any,
+            "configured": is_complete,
+            "people_count": people_count,
+            "message": "WorshipTools instellingen succesvol opgeslagen."
+        })),
+    )
+}
+
+pub async fn config_test_handler(State(state): State<ServerState>) -> impl IntoResponse {
+    let cfg = match state.worshiptools_manager.get_config() {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({
+                    "success": false,
+                    "error": format!("Configuratie incompleet: {}", e)
+                })),
+            );
+        }
+    };
+
+    // 1. Test token exchange
+    let token = match state.worshiptools_manager.get_access_token(true).await {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "success": false,
+                    "error": format!("Firebase authenticatie mislukt: {}. Controleer apiKey en refreshToken.", e)
+                })),
+            );
+        }
+    };
+
+    // 2. Test Firestore cuelists query
+    let docs = match state.worshiptools_manager.fetch_cuelist_documents(&token, &cfg.account_id).await {
+        Ok(d) => d,
+        Err((_, e)) => {
+            return (
+                StatusCode::BAD_GATEWAY,
+                Json(json!({
+                    "success": false,
+                    "error": format!("Firestore cuelists ophalen mislukt: {}. Klopt accountId?", e)
+                })),
+            );
+        }
+    };
+
+    // 3. Test people sync
+    let people = state.worshiptools_manager.sync_people_cache(true).await;
+
+    (
+        StatusCode::OK,
+        Json(json!({
+            "success": true,
+            "services_count": docs.len(),
+            "people_count": people.len(),
+            "has_people_token": !cfg.api_token.is_empty(),
+            "message": format!(
+                "Verbinding succesvol! {} diensten gevonden in Firestore, {} teamleden in people cache.",
+                docs.len(),
+                people.len()
+            ),
+        })),
+    )
 }

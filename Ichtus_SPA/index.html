@@ -936,6 +936,78 @@
             </div>
         </div>
 
+
+        <!-- WORSHIPTOOLS API CONNECT MODAL -->
+        <div id='integration-wt-modal' class='overlay-screen overlay-task-modal hidden'>
+            <div class='task-modal-dialog' role='dialog' aria-labelledby='integration-wt-title'>
+                <div class='modal-header-row'>
+                    <h3 id='integration-wt-title' class='modal-dialog-title heading-font'>WorshipTools Integratie</h3>
+                    <button type='button' class='btn-close-modal' onclick='integrationModule.closeWorshipToolsModal()' aria-label='Sluiten'>✕</button>
+                </div>
+
+                <div class='modal-content-scroll'>
+                    <!-- One-Click Auto Extract Banner -->
+                    <div class='wt-auto-card'>
+                        <div class='wt-auto-header'>
+                            <span class='wt-auto-badge'>⚡ Aanbevolen</span>
+                            <h4 class='wt-auto-title'>Automatische Login & Synchronisatie</h4>
+                        </div>
+                        <p class='wt-auto-desc'>
+                            Klik hieronder om in te loggen via WorshipTools Planning. Alle benodigde instellingen (API-sleutel, Account ID, Refresh Token en Team Token) worden automatisch uitgelezen en veilig opgeslagen in de serverconfiguratie.
+                        </p>
+                        <button type='button' id='btn-wt-auto-login' class='wt-btn-login' onclick='integrationModule.openWorshipToolsLogin()'>
+                            <span class='wt-btn-icon'>🔑</span> Inloggen bij WorshipTools
+                        </button>
+                    </div>
+
+                    <div class='wt-divider'><span>of handmatig configureren</span></div>
+
+                    <div class='form-group'>
+                        <label for='integration-wt-account-id'>Account ID (UUID)</label>
+                        <input id='integration-wt-account-id' type='text' class='form-input' placeholder='bijv. 5e709a32-1cb6-4c75-b654-e91b61c83c31' autocomplete='off'>
+                    </div>
+
+                    <div class='form-group'>
+                        <label for='integration-wt-api-key'>Firebase API Key</label>
+                        <input id='integration-wt-api-key' type='text' class='form-input' placeholder='AIzaSy...' autocomplete='off'>
+                    </div>
+
+                    <div class='form-group'>
+                        <label for='integration-wt-refresh-token'>Firebase Refresh Token</label>
+                        <div class='integration-pp-pwd-wrapper'>
+                            <input id='integration-wt-refresh-token' type='password' class='form-input' placeholder='AMf-v...' autocomplete='off'>
+                            <button type='button' class='integration-pp-pwd-toggle' onclick='integrationModule.toggleWtPasswordVisibility("integration-wt-refresh-token", this)' title='Toon / verberg token'>👁</button>
+                        </div>
+                    </div>
+
+                    <div class='form-group'>
+                        <label for='integration-wt-api-token'>
+                            WorshipTools Team / People Token
+                            <span class='control-desc'>(voor namen synchronisatie)</span>
+                        </label>
+                        <div class='integration-pp-pwd-wrapper'>
+                            <input id='integration-wt-api-token' type='password' class='form-input' placeholder='eyJhbGci...' autocomplete='off'>
+                            <button type='button' class='integration-pp-pwd-toggle' onclick='integrationModule.toggleWtPasswordVisibility("integration-wt-api-token", this)' title='Toon / verberg token'>👁</button>
+                        </div>
+                    </div>
+
+                    <div id='integration-wt-status' class='integration-pp-status'></div>
+                </div>
+
+                <div class='modal-footer-row' style='display:flex; justify-content:space-between; align-items:center;'>
+                    <button type='button' id='btn-wt-test' class='btn-secondary' onclick='integrationModule.testWorshipToolsConnection()'>
+                        🔄 Test Verbinding
+                    </button>
+                    <div class='footer-right' style='display:flex; gap:8px;'>
+                        <button type='button' class='btn-secondary' onclick='integrationModule.closeWorshipToolsModal()'>Annuleren</button>
+                        <button id='btn-wt-save' type='button' class='btn-load' onclick='integrationModule.saveWorshipToolsConfig()'>
+                            💾 Opslaan
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- WORSHIPTOOLS EXTENSION INSTALL MODAL -->
         <div id='integration-wt-ext-modal' class='overlay-screen overlay-task-modal hidden'>
             <div class='task-modal-dialog' role='dialog' aria-labelledby='integration-wt-ext-title'>

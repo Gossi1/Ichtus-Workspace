@@ -382,6 +382,14 @@ pub async fn start_axum_server(
             "/api/worshiptools/close-login",
             post(worshiptools::close_login_handler),
         )
+        .route(
+            "/api/worshiptools/config",
+            get(worshiptools::config_get_handler).post(worshiptools::config_post_handler),
+        )
+        .route(
+            "/api/worshiptools/test",
+            post(worshiptools::config_test_handler),
+        )
         // Fase 4.9: Native Rust Tockify ICS proxy (/api/tockify/ics)
         .route("/api/tockify/ics", get(system::tockify_ics_handler))
         // Fase 4.9: Native Rust Song ID Assigner Library (/api/library/*)

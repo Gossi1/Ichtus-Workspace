@@ -413,7 +413,6 @@
     border: 1px solid rgba(237, 28, 36, 0.30);
     color: #ff6b6b;
 }
-}
 
 /* ---------- Green icon theme for WorshipTools ---------- */
 #view-integration .int-icon-green { background: rgba(0, 166, 81, 0.18); color: #00a651; }
@@ -531,3 +530,120 @@
     background: rgba(0, 166, 81, 0.22);
 }
 
+
+
+/* ---------- WorshipTools API Modal Styling ---------- */
+#integration-wt-modal .task-modal-dialog {
+    max-width: 540px;
+}
+#integration-wt-modal .form-group {
+    margin-bottom: 16px;
+    text-align: left;
+}
+#integration-wt-modal .form-group label {
+    display: block;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted, #9ca3af);
+    font-weight: 700;
+    margin-bottom: 6px;
+}
+#integration-wt-modal .form-group .control-desc {
+    display: inline;
+    margin-left: 6px;
+    color: #6b7280;
+    text-transform: none;
+    letter-spacing: normal;
+    font-weight: 500;
+}
+#integration-wt-modal .form-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.4);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    padding: 9px 12px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-family: 'PMN Caecilia', serif;
+    font-weight: 600;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    box-sizing: border-box;
+}
+#integration-wt-modal .form-input:focus {
+    outline: none;
+    border-color: #00a651;
+    box-shadow: 0 0 0 2px rgba(0, 166, 81, 0.25);
+}
+.wt-auto-card {
+    background: linear-gradient(135deg, rgba(0, 166, 81, 0.15), rgba(0, 166, 81, 0.04));
+    border: 1px solid rgba(0, 166, 81, 0.4);
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 16px;
+    text-align: left;
+}
+.wt-auto-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+.wt-auto-badge {
+    background: #00a651;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+}
+.wt-auto-title {
+    margin: 0;
+    font-size: 0.95rem;
+    color: #f9f9f7;
+    font-weight: 700;
+}
+.wt-auto-desc {
+    font-size: 0.8rem;
+    color: #d1d5db;
+    margin: 0 0 12px 0;
+    line-height: 1.4;
+}
+.wt-btn-login {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #00a651;
+    color: #ffffff;
+    border: none;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+}
+.wt-btn-login:hover {
+    background: #008f45;
+    transform: translateY(-1px);
+}
+.wt-divider {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    margin: 16px 0;
+    color: #6b7280;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.wt-divider::before, .wt-divider::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+.wt-divider span {
+    padding: 0 10px;
+}

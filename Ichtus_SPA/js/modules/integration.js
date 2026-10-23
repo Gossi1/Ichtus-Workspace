@@ -27,11 +27,11 @@ const integrationModule = {
             iconTheme: 'green',
             tagline: 'Direct Cloud Sync',
             description: 'Directe koppeling met WorshipTools Planning & diensten via de officiële API (geen extensie nodig).',
-            connected: true,
-            accountName: 'Cloud Sync Actief',
-            primaryAction: false,
-            actionLabel: '',
-            managedByModal: false
+            connected: false,
+            accountName: '',
+            primaryAction: true,
+            actionLabel: 'Beheren',
+            managedByModal: true
         }
     ],
 
@@ -49,11 +49,24 @@ const integrationModule = {
                 const result = orig(view, updateHash);
                 if (view === 'integration') {
                     this._applyProPresenterState();
+                    this.loadWorshipToolsConfig();
                     this.render();
                 }
                 return result;
             };
         }
+
+        // WorshipTools config live sync listener
+        document.addEventListener('ws:worshiptools:config_updated', (e) => {
+            console.log('[integrationModule] WorshipTools config updated via WS:', e.detail);
+            this.loadWorshipToolsConfig();
+            if (this._isWtModalOpen()) {
+                this._showWtModalStatus('✓ Gegevens succesvol automatisch gesynchroniseerd!', 'success');
+            }
+        });
+
+        // Initial config load
+        this.loadWorshipToolsConfig();
     },
 
     // ── Card event delegation ──────────────────────────────────────────
@@ -69,6 +82,8 @@ const integrationModule = {
                 this.openProPresenterModal();
             } else if (id === 'worshiptools-ext') {
                 this.openWorshipToolsExtModal();
+            } else if (id === 'worshiptools-api') {
+                this.openWorshipToolsModal();
             }
         });
     },
@@ -182,6 +197,13 @@ const integrationModule = {
                 if (e.target === modal) this.closeProPresenterModal();
             });
         }
+        const wtModal = document.getElementById('integration-wt-modal');
+        if (wtModal && !wtModal._integrationDelegated) {
+            wtModal._integrationDelegated = true;
+            wtModal.addEventListener('click', (e) => {
+                if (e.target === wtModal) this.closeWorshipToolsModal();
+            });
+        }
         // Persist as you type so a reload doesn't lose what was typed.
         // Using input (not change) means we capture every keystroke.
         const fieldMap = {
@@ -207,8 +229,10 @@ const integrationModule = {
             if (e.key === 'Escape') {
                 const pp = document.getElementById('integration-pp-modal');
                 const wt = document.getElementById('integration-wt-ext-modal');
+                const wtm = document.getElementById('integration-wt-modal');
                 if (pp && !pp.classList.contains('hidden')) this.closeProPresenterModal();
                 if (wt && !wt.classList.contains('hidden')) this.closeWorshipToolsExtModal();
+                if (wtm && !wtm.classList.contains('hidden')) this.closeWorshipToolsModal();
             }
         });
     },
@@ -417,4 +441,155 @@ const integrationModule = {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
     }
+
+    // ── Modal: WorshipTools API Configuration ────────────────────────────
+
+    _isWtModalOpen() {
+        const modal = document.getElementById('integration-wt-modal');
+        return modal && !modal.classList.contains('hidden');
+    },
+
+    async openWorshipToolsModal() {
+        const modal = document.getElementById('integration-wt-modal');
+        if (!modal) return;
+
+        // Reset status banner
+        const banner = document.getElementById('integration-wt-status');
+        if (banner) {
+            banner.className = 'integration-pp-status';
+            banner.style.display = 'none';
+            banner.textContent = '';
+        }
+
+        modal.classList.remove('hidden');
+        await this.loadWorshipToolsConfig();
+    },
+
+    closeWorshipToolsModal() {
+        const modal = document.getElementById('integration-wt-modal');
+        if (modal) modal.classList.add('hidden');
+    },
+
+    toggleWtPasswordVisibility(fieldId, btn) {
+        const field = document.getElementById(fieldId);
+        if (!field) return;
+        if (field.type === 'password') {
+            field.type = 'text';
+            if (btn) btn.textContent = '🙈';
+        } else {
+            field.type = 'password';
+            if (btn) btn.textContent = '👁';
+        }
+    },
+
+    async loadWorshipToolsConfig() {
+        try {
+            const res = await fetch('/api/worshiptools/config');
+            if (!res.ok) return;
+            const data = await res.json();
+
+            const card = this.INTEGRATIONS.find(i => i.id === 'worshiptools-api');
+            if (card) {
+                card.connected = !!data.configured;
+                card.accountName = data.configured
+                    ? (data.accountId ? 'Account: ' + data.accountId.slice(0, 8) + '...' : 'Cloud Sync Actief')
+                    : 'Niet geconfigureerd';
+                card.actionLabel = data.configured ? 'Beheren' : 'Verbinden';
+                this.render();
+            }
+
+            // Fill inputs if modal is present
+            if (document.getElementById('integration-wt-account-id')) {
+                this._setModalField('integration-wt-account-id', data.accountId || '');
+                this._setModalField('integration-wt-api-key', data.apiKey || '');
+                this._setModalField('integration-wt-refresh-token', data.refreshToken || '');
+                this._setModalField('integration-wt-api-token', data.apiToken || '');
+            }
+
+            return data;
+        } catch (err) {
+            console.error('[integrationModule] loadWorshipToolsConfig fout:', err);
+        }
+    },
+
+    async openWorshipToolsLogin() {
+        this._showWtModalStatus('Inlogvenster openen... Log in bij WorshipTools om alle sleutels automatisch op te halen.', 'pending');
+        try {
+            const resp = await fetch('/api/worshiptools/open-login', { method: 'POST' });
+            if (!resp.ok) {
+                throw new Error('Server gaf status ' + resp.status);
+            }
+        } catch (err) {
+            this._showWtModalStatus('Kon inlogvenster niet openen: ' + err.message, 'error');
+        }
+    },
+
+    async saveWorshipToolsConfig() {
+        const accountId = (document.getElementById('integration-wt-account-id')?.value || '').trim();
+        const apiKey = (document.getElementById('integration-wt-api-key')?.value || '').trim();
+        const refreshToken = (document.getElementById('integration-wt-refresh-token')?.value || '').trim();
+        const apiToken = (document.getElementById('integration-wt-api-token')?.value || '').trim();
+
+        const saveBtn = document.getElementById('btn-wt-save');
+        if (saveBtn) saveBtn.disabled = true;
+
+        this._showWtModalStatus('Instellingen opslaan op de server...', 'pending');
+
+        try {
+            const res = await fetch('/api/worshiptools/config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    accountId: accountId || null,
+                    apiKey: apiKey || null,
+                    refreshToken: refreshToken || null,
+                    apiToken: apiToken || null
+                })
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                this._showWtModalStatus('✓ WorshipTools configuratie succesvol opgeslagen!', 'success');
+                await this.loadWorshipToolsConfig();
+            } else {
+                this._showWtModalStatus('✗ Fout bij opslaan: ' + (data.error || 'Onbekende fout'), 'error');
+            }
+        } catch (err) {
+            this._showWtModalStatus('✗ Netwerkfout bij opslaan: ' + err.message, 'error');
+        } finally {
+            if (saveBtn) saveBtn.disabled = false;
+        }
+    },
+
+    async testWorshipToolsConnection() {
+        const testBtn = document.getElementById('btn-wt-test');
+        if (testBtn) testBtn.disabled = true;
+
+        this._showWtModalStatus('Verbinding met WorshipTools & Firestore testen...', 'pending');
+
+        try {
+            const res = await fetch('/api/worshiptools/test', { method: 'POST' });
+            const data = await res.json();
+
+            if (res.ok && data.success) {
+                this._showWtModalStatus('✓ ' + data.message, 'success');
+                await this.loadWorshipToolsConfig();
+            } else {
+                this._showWtModalStatus('✗ ' + (data.error || 'Verbinding mislukt'), 'error');
+            }
+        } catch (err) {
+            this._showWtModalStatus('✗ Fout bij testen: ' + err.message, 'error');
+        } finally {
+            if (testBtn) testBtn.disabled = false;
+        }
+    },
+
+    _showWtModalStatus(message, type) {
+        const el = document.getElementById('integration-wt-status');
+        if (!el) return;
+        el.style.display = 'block';
+        el.textContent = message;
+        el.className = 'integration-pp-status status-' + type;
+    },
+
 };
