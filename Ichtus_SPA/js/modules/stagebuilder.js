@@ -506,6 +506,13 @@ const stagebuilderModule = {
                 (pending > 0 ? ' (' + pending + ' in afwachting)' : '');
             if (declined > 0) msg += ' · ' + declined + ' afgewezen overgeslagen';
             this.showToast(msg, 'success');
+
+            const unknownCount = entries.filter(e => !e.name || e.name.startsWith('Onbekend')).length;
+            if (unknownCount > 0) {
+                setTimeout(() => {
+                    this.showToast('💡 ' + unknownCount + ' teamlid' + (unknownCount === 1 ? '' : 'en') + ' nog zonder naam. Klik op \"✏️ Instellen\" om de naam eenmalig te koppelen.', 'info', 6000);
+                }, 1200);
+            }
         } catch (err) {
             console.warn('[SB] Roster ophalen mislukt:', err.message);
             this.showToast('Roster laden mislukt: ' + (err.message || 'onbekende fout'), 'error');
@@ -804,6 +811,7 @@ const stagebuilderModule = {
                 id: 'row-' + idx + '-' + safeSlug.slice(0, 32),
                 name: String(entry.name).trim(),
                 role: String(entry.role || '').trim(),
+                userId: entry.userId || entry.user_id || entry.user || '',
                 avatar: entry.avatar_url || '',
                 slug: slug,
                 slot: restored.slot,
@@ -1954,8 +1962,18 @@ const stagebuilderModule = {
                 ? '<div class="sb-row-auto-hint sb-auto-override">handmatig (auto was #' + String(row.autoSlot + 1).padStart(3, '0') + ')</div>'
                 : '');
 
+        const isUnknown = !row.name || row.name.startsWith('Onbekend');
+        const editBtn = '<button type="button" class="sb-rename-btn' + (isUnknown ? ' sb-rename-btn--highlight' : '') + '"' +
+            ' onclick="stagebuilderModule.promptEditPersonName(\'' + this.escapeAttr(row.id) + '\')"' +
+            ' title="' + (isUnknown ? 'Koppel een naam aan deze persoon (wordt opgeslagen in people_cache.json)' : 'Naam aanpassen (wordt opgeslagen in people_cache.json)') + '">' +
+            (isUnknown ? '✏️ Instellen' : '✏️') +
+            '</button>';
+
         const nameCell = '<td>' +
-            '<div class="sb-row-name">' + this.escapeHtml(row.name) + '</div>' +
+            '<div class="sb-row-name-wrap">' +
+                '<span class="sb-row-name' + (isUnknown ? ' sb-row-name--unknown' : '') + '">' + this.escapeHtml(row.name) + '</span> ' +
+                editBtn +
+            '</div>' +
             hintHtml +
             '</td>';
 
@@ -2921,7 +2939,50 @@ const stagebuilderModule = {
             console.groupEnd();
         } catch (_) { /* no console */ }
         return grouped;
-    }
+    },
+
+    async promptEditPersonName(rowId) {
+        const row = this.rosterRows.find(r => r.id === rowId);
+        if (!row) return;
+
+        const currentName = row.name.startsWith('Onbekend') ? '' : row.name;
+        const promptLabel = 'Voer de echte naam in voor ' + (row.role ? row.role + ' ' : '') + (currentName ? '(' + currentName + ')' : '') + ':';
+        const entered = window.prompt(promptLabel, currentName);
+        if (entered === null) return;
+        const newName = entered.trim();
+        if (!newName) return;
+
+        const oldName = row.name;
+        const userId = row.userId;
+
+        // 1. Update in-memory row & roster
+        row.name = newName;
+        const entry = (this.roster || []).find(r => (userId && (r.userId === userId || r.user_id === userId)) || r.name === oldName);
+        if (entry) {
+            entry.name = newName;
+        }
+
+        // 2. Rebuild rows to immediately trigger auto-suggest / preset matching with the new name!
+        this._rebuildRows();
+        this._renderRosterOrEmpty();
+        this.showToast('✓ Naam bijgewerkt naar: ' + newName, 'success');
+
+        // 3. Persist to server people_cache.json if userId is known
+        if (userId) {
+            try {
+                const resp = await fetch('/api/worshiptools-services/people', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: userId, name: newName })
+                });
+                if (resp.ok) {
+                    this._sbDebugLog('Persoon opgeslagen in people_cache.json: ' + userId + ' -> ' + newName);
+                }
+            } catch (err) {
+                console.warn('[SB] Opslaan in people_cache.json mislukt:', err);
+            }
+        }
+    },
 };
 
 // Expose for inline onclick handlers in the rendered HTML above.

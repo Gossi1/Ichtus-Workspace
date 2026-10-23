@@ -323,6 +323,14 @@ pub async fn start_axum_server(
         )
         // Fase 4.8: Native Rust WorshipTools Services API (/api/worshiptools-services/*)
         .route(
+            "/api/worshiptools-services/people",
+            get(worshiptools::people_list_handler).post(worshiptools::people_save_handler),
+        )
+        .route(
+            "/api/worshiptools-services/people/sync",
+            post(worshiptools::people_sync_handler),
+        )
+        .route(
             "/api/worshiptools-services/people/reload",
             any(worshiptools::people_reload_handler),
         )

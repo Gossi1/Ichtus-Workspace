@@ -212,14 +212,20 @@ impl WorshipToolsManager {
     }
 
     pub fn get_config(&self) -> Result<WtConfig, String> {
-        let config_path = self.data_dir.join("server-config.json");
+        let config_paths = [
+            self.data_dir.join("server-config.json"),
+            PathBuf::from("server-config.json"),
+        ];
         let mut from_file = serde_json::Map::new();
 
-        if config_path.exists() {
-            if let Ok(content) = fs::read_to_string(&config_path) {
-                if let Ok(Value::Object(map)) = serde_json::from_str(&content) {
-                    if let Some(Value::Object(wt)) = map.get("worshiptools") {
-                        from_file = wt.clone();
+        for config_path in &config_paths {
+            if config_path.exists() {
+                if let Ok(content) = fs::read_to_string(config_path) {
+                    if let Ok(Value::Object(map)) = serde_json::from_str(&content) {
+                        if let Some(Value::Object(wt)) = map.get("worshiptools") {
+                            from_file = wt.clone();
+                            break;
+                        }
                     }
                 }
             }
@@ -258,16 +264,21 @@ impl WorshipToolsManager {
     }
 
     fn update_persisted_refresh_token(&self, new_token: &str) {
-        let config_path = self.data_dir.join("server-config.json");
-        if config_path.exists() {
-            if let Ok(content) = fs::read_to_string(&config_path) {
-                if let Ok(mut val) = serde_json::from_str::<Value>(&content) {
-                    if let Some(obj) = val.as_object_mut() {
-                        if let Some(wt) = obj.get_mut("worshiptools").and_then(|w| w.as_object_mut()) {
-                            wt.insert("refreshToken".to_string(), Value::String(new_token.to_string()));
-                            if let Ok(pretty) = serde_json::to_string_pretty(&val) {
-                                let _ = fs::write(&config_path, pretty);
-                                println!("  [WT-SVC] Refresh token geroteerd — bijgewerkt in server-config.json");
+        let config_paths = [
+            self.data_dir.join("server-config.json"),
+            PathBuf::from("server-config.json"),
+        ];
+        for config_path in &config_paths {
+            if config_path.exists() {
+                if let Ok(content) = fs::read_to_string(config_path) {
+                    if let Ok(mut val) = serde_json::from_str::<Value>(&content) {
+                        if let Some(obj) = val.as_object_mut() {
+                            if let Some(wt) = obj.get_mut("worshiptools").and_then(|w| w.as_object_mut()) {
+                                wt.insert("refreshToken".to_string(), Value::String(new_token.to_string()));
+                                if let Ok(pretty) = serde_json::to_string_pretty(&val) {
+                                    let _ = fs::write(config_path, pretty);
+                                    println!("  [WT-SVC] Refresh token geroteerd — bijgewerkt in {:?}", config_path);
+                                }
                             }
                         }
                     }
@@ -506,18 +517,56 @@ impl WorshipToolsManager {
             return cache.len();
         }
 
-        let cache_file = self.data_dir.join("people_cache.json");
-        if cache_file.exists() {
-            if let Ok(content) = fs::read_to_string(&cache_file) {
-                if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
-                    *cache = map;
-                    println!("  [WT-SVC] people_cache.json geladen: {} personen", cache.len());
-                    return cache.len();
+        let cache_files = [
+            self.data_dir.join("people_cache.json"),
+            PathBuf::from("people_cache.json"),
+        ];
+        for cache_file in &cache_files {
+            if cache_file.exists() {
+                if let Ok(content) = fs::read_to_string(cache_file) {
+                    if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
+                        *cache = map;
+                        println!("  [WT-SVC] people_cache.json geladen: {} personen", cache.len());
+                        return cache.len();
+                    }
                 }
             }
         }
 
         cache.len()
+    }
+
+    pub fn save_person(&self, user_id: &str, name: &str) -> usize {
+        let mut cache = self.people_cache.lock().unwrap();
+        cache.insert(user_id.to_string(), name.to_string());
+        let count = cache.len();
+        let cache_file = self.data_dir.join("people_cache.json");
+        if let Ok(pretty) = serde_json::to_string_pretty(&*cache) {
+            let _ = fs::write(&cache_file, pretty);
+            println!("  [WT-SVC] Persoon opgeslagen in people_cache.json: {} -> {}", user_id, name);
+        }
+        count
+    }
+
+    pub fn save_people_batch(&self, map: &HashMap<String, String>) -> usize {
+        let mut cache = self.people_cache.lock().unwrap();
+        for (k, v) in map {
+            if !k.is_empty() && !v.is_empty() {
+                cache.insert(k.clone(), v.clone());
+            }
+        }
+        let count = cache.len();
+        let cache_file = self.data_dir.join("people_cache.json");
+        if let Ok(pretty) = serde_json::to_string_pretty(&*cache) {
+            let _ = fs::write(&cache_file, pretty);
+            println!("  [WT-SVC] {} personen opgeslagen in people_cache.json", count);
+        }
+        count
+    }
+
+    pub fn get_people(&self) -> HashMap<String, String> {
+        self.load_people_cache(false);
+        self.people_cache.lock().unwrap().clone()
     }
 
     pub async fn sync_people_cache(&self, force: bool) -> HashMap<String, String> {
@@ -565,16 +614,30 @@ impl WorshipToolsManager {
         };
 
         if !resp.status().is_success() {
-            println!("  [WT-SVC] People API HTTP {} — cache behouden", resp.status());
+            if resp.status() == reqwest::StatusCode::UNAUTHORIZED {
+                println!("  [WT-SVC] People API HTTP 401 — WT_API_TOKEN is verlopen of ongeldig. Genereer een permanent token via WorshipTools Integraties of sla namen direct op.");
+            } else {
+                println!("  [WT-SVC] People API HTTP {} — cache behouden", resp.status());
+            }
             return self.people_cache.lock().unwrap().clone();
         }
 
-        let new_people: Vec<Value> = match resp.json().await {
+        let json_val: Value = match resp.json().await {
             Ok(v) => v,
             Err(e) => {
                 println!("  [WT-SVC] People JSON parse mislukt: {}", e);
                 return self.people_cache.lock().unwrap().clone();
             }
+        };
+
+        let new_people: Vec<Value> = if let Some(arr) = json_val.as_array() {
+            arr.clone()
+        } else if let Some(arr) = json_val.get("data").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else if let Some(arr) = json_val.get("people").and_then(|v| v.as_array()) {
+            arr.clone()
+        } else {
+            Vec::new()
         };
 
         let mut updated = 0;
@@ -1580,6 +1643,42 @@ pub async fn legacy_post_roster_handler(
     let teams_scanned = body.get("teams_scanned").cloned().unwrap_or(json!(0));
     let len = roster.len();
 
+    // Auto-populate people cache from incoming roster
+    let mut extracted_people = HashMap::new();
+    for entry in &roster {
+        let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
+        let user_id = entry.get("userId")
+            .or_else(|| entry.get("user_id"))
+            .or_else(|| entry.get("id"))
+            .or_else(|| entry.get("user"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
+
+        let id = if user_id.is_empty() {
+            if let Some(avatar) = entry.get("avatar_url").or_else(|| entry.get("avatar")).and_then(|v| v.as_str()) {
+                if let Some(pos) = avatar.find("/users/") {
+                    let sub = &avatar[pos + 7..];
+                    sub.split('/').next().unwrap_or("").trim()
+                } else {
+                    ""
+                }
+            } else {
+                ""
+            }
+        } else {
+            user_id
+        };
+
+        if !name.is_empty() && !id.is_empty() && !name.starts_with("Onbekend") {
+            extracted_people.insert(id.to_string(), name.to_string());
+        }
+    }
+
+    if !extracted_people.is_empty() {
+        state.worshiptools_manager.save_people_batch(&extracted_people);
+    }
+
     let payload = json!({
         "roster": roster,
         "teams_scanned": teams_scanned,
@@ -1587,7 +1686,7 @@ pub async fn legacy_post_roster_handler(
     });
 
     state.worshiptools_manager.set_legacy_roster(payload);
-    (StatusCode::OK, Json(json!({ "success": true, "received": len })))
+    (StatusCode::OK, Json(json!({ "success": true, "received": len, "people_cached": extracted_people.len() })))
 }
 
 pub async fn legacy_get_roster_handler(State(state): State<ServerState>) -> impl IntoResponse {
@@ -1686,5 +1785,52 @@ pub async fn legacy_get_status_handler(State(state): State<ServerState>) -> impl
             "songCount": library.as_ref().and_then(|(d, _)| d.get("songs").and_then(|v| v.as_array()).map(|a| a.len())).unwrap_or(0),
             "updatedAt": library.as_ref().map(|(_, ts)| ts.as_str()),
         }
+    }))
+}
+
+#[derive(Deserialize)]
+pub struct PeopleSaveRequest {
+    #[serde(default, rename = "userId")]
+    pub user_id: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub people: Option<HashMap<String, String>>,
+}
+
+pub async fn people_list_handler(State(state): State<ServerState>) -> impl IntoResponse {
+    let people = state.worshiptools_manager.get_people();
+    Json(json!({
+        "success": true,
+        "count": people.len(),
+        "people": people,
+    }))
+}
+
+pub async fn people_save_handler(
+    State(state): State<ServerState>,
+    Json(body): Json<PeopleSaveRequest>,
+) -> impl IntoResponse {
+    if let Some(map) = body.people {
+        let count = state.worshiptools_manager.save_people_batch(&map);
+        return Json(json!({ "success": true, "count": count }));
+    }
+
+    if let (Some(uid), Some(name)) = (body.user_id, body.name) {
+        if !uid.trim().is_empty() && !name.trim().is_empty() {
+            let count = state.worshiptools_manager.save_person(uid.trim(), name.trim());
+            return Json(json!({ "success": true, "count": count }));
+        }
+    }
+
+    Json(json!({ "success": false, "error": "Geen geldige userId/name of people map meegegeven." }))
+}
+
+pub async fn people_sync_handler(State(state): State<ServerState>) -> impl IntoResponse {
+    let people = state.worshiptools_manager.sync_people_cache(true).await;
+    Json(json!({
+        "success": true,
+        "count": people.len(),
+        "people": people,
     }))
 }
