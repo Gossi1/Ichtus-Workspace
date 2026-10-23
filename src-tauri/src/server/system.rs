@@ -15,6 +15,16 @@ use std::{
 
 use super::ServerState;
 
+fn silent_git_cmd() -> tokio::process::Command {
+    let mut cmd = tokio::process::Command::new("git");
+    #[cfg(windows)]
+    {
+        // 0x08000000 = CREATE_NO_WINDOW prevents Windows console popup windows
+        cmd.creation_flags(0x08000000);
+    }
+    cmd
+}
+
 // ── Tockify ICS Proxy ───────────────────────────────────────────────────
 
 pub async fn tockify_ics_handler(State(state): State<ServerState>) -> impl IntoResponse {
@@ -513,29 +523,31 @@ pub async fn status_handler(State(state): State<ServerState>) -> impl IntoRespon
     let count = state.request_count.load(std::sync::atomic::Ordering::Relaxed);
 
     // Git update check
-    let mut update = json!({ "update_available": false, "behind_count": 0, "branch": "tauri" });
+    let mut update = json!({ "update_available": false, "behind_count": 0, "branch": "master" });
     let root = state.root_dir.clone();
-    if let Ok(branch_out) = tokio::process::Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&root)
-        .output()
-        .await
-    {
-        let branch = String::from_utf8_lossy(&branch_out.stdout).trim().to_string();
-        if !branch.is_empty() {
-            if let Ok(count_out) = tokio::process::Command::new("git")
-                .args(["rev-list", "--count", &format!("HEAD..origin/{}", branch)])
-                .current_dir(&root)
-                .output()
-                .await
-            {
-                let count_str = String::from_utf8_lossy(&count_out.stdout).trim().to_string();
-                let behind_count: u64 = count_str.parse().unwrap_or(0);
-                update = json!({
-                    "update_available": behind_count > 0,
-                    "behind_count": behind_count,
-                    "branch": branch,
-                });
+    if root.join(".git").exists() {
+        if let Ok(branch_out) = silent_git_cmd()
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&root)
+            .output()
+            .await
+        {
+            let branch = String::from_utf8_lossy(&branch_out.stdout).trim().to_string();
+            if !branch.is_empty() {
+                if let Ok(count_out) = silent_git_cmd()
+                    .args(["rev-list", "--count", &format!("HEAD..origin/{}", branch)])
+                    .current_dir(&root)
+                    .output()
+                    .await
+                {
+                    let count_str = String::from_utf8_lossy(&count_out.stdout).trim().to_string();
+                    let behind_count: u64 = count_str.parse().unwrap_or(0);
+                    update = json!({
+                        "update_available": behind_count > 0,
+                        "behind_count": behind_count,
+                        "branch": branch,
+                    });
+                }
             }
         }
     }
@@ -564,7 +576,7 @@ pub async fn status_handler(State(state): State<ServerState>) -> impl IntoRespon
         "started_at": state.system_manager.started_at(),
         "requests_served": count,
         "hostname": hostname,
-        "version": "3.0.0",
+        "version": env!("CARGO_PKG_VERSION"),
         "services": services,
         "update": update,
         "log_tail": logs,
@@ -616,39 +628,41 @@ pub async fn check_update_handler(State(state): State<ServerState>) -> impl Into
     let mut branch = "master".to_string();
     let mut behind_count = 0;
 
-    if let Ok(branch_out) = tokio::process::Command::new("git")
-        .args(["rev-parse", "--abbrev-ref", "HEAD"])
-        .current_dir(&root)
-        .output()
-        .await
-    {
-        let b = String::from_utf8_lossy(&branch_out.stdout).trim().to_string();
-        if !b.is_empty() {
-            branch = b;
+    if root.join(".git").exists() {
+        if let Ok(branch_out) = silent_git_cmd()
+            .args(["rev-parse", "--abbrev-ref", "HEAD"])
+            .current_dir(&root)
+            .output()
+            .await
+        {
+            let b = String::from_utf8_lossy(&branch_out.stdout).trim().to_string();
+            if !b.is_empty() {
+                branch = b;
+            }
         }
-    }
 
-    let _ = tokio::process::Command::new("git")
-        .args(["fetch", "origin"])
-        .current_dir(&root)
-        .output()
-        .await;
+        let _ = silent_git_cmd()
+            .args(["fetch", "origin"])
+            .current_dir(&root)
+            .output()
+            .await;
 
-    if let Ok(count_out) = tokio::process::Command::new("git")
-        .args(["rev-list", "--count", &format!("HEAD..origin/{}", branch)])
-        .current_dir(&root)
-        .output()
-        .await
-    {
-        let count_str = String::from_utf8_lossy(&count_out.stdout).trim().to_string();
-        behind_count = count_str.parse().unwrap_or(0);
+        if let Ok(count_out) = silent_git_cmd()
+            .args(["rev-list", "--count", &format!("HEAD..origin/{}", branch)])
+            .current_dir(&root)
+            .output()
+            .await
+        {
+            let count_str = String::from_utf8_lossy(&count_out.stdout).trim().to_string();
+            behind_count = count_str.parse().unwrap_or(0);
+        }
     }
 
     Json(json!({
         "update_available": behind_count > 0,
         "behind_count": behind_count,
         "branch": branch,
-        "current_version": "3.0.0",
+        "current_version": env!("CARGO_PKG_VERSION"),
         "version_name": "Ichtus Workspace",
         "latest_tag": Value::Null,
         "head_remote": Value::Null,
@@ -665,13 +679,13 @@ pub async fn update_git_handler(State(state): State<ServerState>) -> impl IntoRe
     state.system_manager.log("git pull aangevraagd");
     let root = state.root_dir.clone();
 
-    let fetch_out = tokio::process::Command::new("git")
+    let fetch_out = silent_git_cmd()
         .args(["fetch", "origin"])
         .current_dir(&root)
         .output()
         .await;
 
-    let pull_out = tokio::process::Command::new("git")
+    let pull_out = silent_git_cmd()
         .args(["pull"])
         .current_dir(&root)
         .output()
