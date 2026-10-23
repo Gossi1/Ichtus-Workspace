@@ -61,6 +61,25 @@ const stagebuilderModule = {
     _x32DiscoveredPresets: null,
     _x32LastPolled: null,
 
+    // -------- Doopdienst (CH 08) & Channel Routing System --------
+    isDoopdienst: false,
+    DEFAULT_CHANNEL_ROUTING: {
+        1:  { name: 'WL Zang', short: 'WL VOX', icon: 1 },
+        2:  { name: 'Zang 2', short: 'VOX 2', icon: 1 },
+        3:  { name: 'Zang 3', short: 'VOX 3', icon: 1 },
+        4:  { name: 'WL Inst', short: 'WL INST', icon: 17 },
+        5:  { name: 'Zang 4', short: 'VOX 4', icon: 1 },
+        6:  { name: 'Zang 5', short: 'VOX 5', icon: 1 },
+        7:  { name: 'Doop Mic', short: 'DOOP', icon: 1, isBaptism: true },
+        8:  { name: 'Basgitaar', short: 'BASS', icon: 20 },
+        9:  { name: 'Elek Gitaar', short: 'E-GTR', icon: 19 },
+        10: { name: 'Akoust Gitaar', short: 'A-GTR', icon: 18 },
+        11: { name: 'Piano L', short: 'PIANO L', icon: 16, isFixed: true },
+        12: { name: 'Piano R', short: 'PIANO R', icon: 16, isFixed: true },
+        13: { name: 'Drums L', short: 'DRUMS L', icon: 24, isFixed: true },
+        14: { name: 'Drums R', short: 'DRUMS R', icon: 24, isFixed: true }
+    },
+
     // -------- Roster listener bookkeeping --------
     __sbRosterBound: false,
     __rosterHandler: null,
@@ -83,8 +102,8 @@ const stagebuilderModule = {
     // the dropdown is replaced with a label block. Edit this list to
     // expand/contract the locked set; the diagnose dump reflects it.
     _lockedRoleKeywords: [
-        'drum', 'drums',
-        'piano', 'key', 'keys', 'keyboard', 'keyboards', 'synth', 'synthesizer', 'organ'
+        'drum', 'drums', 'drummer', 'drumstel', 'percussion', 'percussie', 'cajon',
+        'piano', 'pianist', 'key', 'keys', 'keyboard', 'keyboards', 'synth', 'synthesizer', 'organ', 'orgel', 'toets', 'toetsen', 'toetsenist', 'vleugel', 'rhodes', 'nord'
     ],
 
     // -------- Role-keyword heuristics --------
@@ -100,9 +119,11 @@ const stagebuilderModule = {
         'zang':      ['vox', 'vocal', 'zang'],
         'sing':      ['vox', 'vocal', 'zang'],
         'lead':      ['lead'],
-        'keys':      ['keys', 'piano', 'keyboard'],
-        'piano':     ['keys', 'piano', 'keyboard'],
-        'keyboard':  ['keys', 'piano', 'keyboard'],
+        'keys':      ['keys', 'piano', 'keyboard', 'toets'],
+        'piano':     ['keys', 'piano', 'keyboard', 'toets'],
+        'toetsen':   ['keys', 'piano', 'keyboard', 'toets'],
+        'toets':     ['keys', 'piano', 'keyboard', 'toets'],
+        'keyboard':  ['keys', 'piano', 'keyboard', 'toets'],
         'drum':      ['drum', 'drums', 'kick'],
         'drums':     ['drum', 'drums', 'kick'],
         'gtr':       ['gtr', 'guitar', 'git', 'acc'],
@@ -147,6 +168,11 @@ const stagebuilderModule = {
         // field (keep slot) the first time the new code runs.
         this._migrateChannelOverrides();
         this._migrateSingingGuitaristDual();
+        try {
+            this.isDoopdienst = localStorage.getItem('ichtus.sb.isDoopdienst') === '1';
+        } catch (_) {
+            this.isDoopdienst = false;
+        }
         this._sbDebugLog('init() re-entry=' + this.initialized +
             ', rosterStatus=' + this.rosterStatus +
             ', userDisconnected=' + this._isUserDisconnected() +
@@ -272,6 +298,10 @@ const stagebuilderModule = {
         this._updateServicePickerState();
         this._updateCustomServiceTriggerText();
         this._updateCustomServiceActiveItem();
+        const sel = document.getElementById('sb-service-select');
+        if (sel && sel.value) {
+            this.loadRosterForService();
+        }
     },
 
     _updateServicePickerState() {
@@ -336,17 +366,17 @@ const stagebuilderModule = {
         }
     },
 
-    selectService(serviceId, immediateLoad) {
+    selectService(serviceId) {
         const sel = document.getElementById('sb-service-select');
         if (sel) {
             sel.value = serviceId || '';
-            this.onServiceSelectChange();
         }
+        this._updateServicePickerState();
         this._updateCustomServiceTriggerText();
         this._updateCustomServiceActiveItem();
         this.closeServiceDropdown();
 
-        if (immediateLoad && serviceId) {
+        if (serviceId) {
             this.loadRosterForService();
         }
     },
@@ -419,7 +449,6 @@ const stagebuilderModule = {
 
             return '<div class="sb-service-item' + isSel + '" data-service-id="' + idAttr + '"' +
                 ' onclick="stagebuilderModule.selectService(\'' + idAttr + '\')"' +
-                ' ondblclick="stagebuilderModule.selectService(\'' + idAttr + '\', true)"' +
                 ' title="' + dateStr + ' · ' + nameStr + '">' +
                 '<div class="sb-service-item-main">' +
                     '<span class="sb-service-item-date">' + dateStr + '</span>' +
@@ -474,6 +503,12 @@ const stagebuilderModule = {
 
         const serviceId = sel.value;
         const service = this.services.find(s => s.id === serviceId);
+        if (service && service.name) {
+            const sNameLow = String(service.name).toLowerCase();
+            if (sNameLow.includes('doop') || sNameLow.includes('baptism')) {
+                this.toggleDoopdienst(true);
+            }
+        }
 
         try {
             const resp = await fetch('/api/worshiptools-services/services/' + encodeURIComponent(serviceId) + '/roster');
@@ -803,8 +838,10 @@ const stagebuilderModule = {
         if (!this.roster || this.roster.length === 0) {
             this.rosterRows = [];
             this._allFirstNames = null;
+            this.channelStates = {};
             return;
         }
+        this.channelStates = {};
         // Channel defaulting:
         //  - If the operator has manually set one (localStorage), use it.
         //  - Otherwise leave the channel null and let _assignChannelsByRole
@@ -956,14 +993,41 @@ const stagebuilderModule = {
         return {
             isWL:        this._matchesAny(norm, ['worship leader', 'worshipleider', 'worship leider', 'wl']),
             isVocalist:  this._matchesAny(norm, ['vocal', 'vox', 'zang', 'singer', 'sing']),
-            isPianist:   this._matchesAny(norm, ['piano', 'key', 'keys', 'keyboard', 'synth', 'organ']),
-            // 'gitar' (prefix of the Dutch role words Gitarist / Gitaristen /
-            // Gitariste) alongside 'guitar'/'gtr'/'gitaar' — WorshipTools
-            // roles arrive verbatim, and the operator's planning is Dutch.
-            isGuitarist: this._matchesAny(norm, ['guitar', 'gtr', 'gitaar', 'gitar']),
-            isBassist:   this._matchesAny(norm, ['bass']),
-            isDrummer:   this._matchesAny(norm, ['drum', 'drums'])
+            isPianist:   this._matchesAny(norm, ['piano', 'pianist', 'key', 'keys', 'keyboard', 'keyboards', 'synth', 'synthesizer', 'organ', 'orgel', 'toets', 'toetsen', 'toetsenist', 'vleugel', 'rhodes', 'nord']),
+            isGuitarist: this._matchesAny(norm, ['guitar', 'gtr', 'gitaar', 'gitar', 'gitarist']),
+            isBassist:   this._matchesAny(norm, ['bass', 'bas', 'bassist', 'basgitaar']),
+            isDrummer:   this._matchesAny(norm, ['drum', 'drums', 'drummer', 'drumstel', 'percussion', 'percussie', 'cajon'])
         };
+    },
+
+    _isPianistRow(row) {
+        if (!row) return false;
+        if (row.channel === 11 || row.channel === 12) return true;
+        const roleDr = this._detectRoles(row.role);
+        if (roleDr.isPianist) return true;
+        const nameDr = this._detectRoles(row.name);
+        if (nameDr.isPianist) return true;
+        if (row.slot != null && this._x32DiscoveredPresets) {
+            const slotKey = String(row.slot + 1).padStart(3, '0');
+            const p = this._x32DiscoveredPresets[slotKey];
+            if (p && p.name && this._detectRoles(p.name).isPianist) return true;
+        }
+        return false;
+    },
+
+    _isDrummerRow(row) {
+        if (!row) return false;
+        if (row.channel === 13 || row.channel === 14) return true;
+        const roleDr = this._detectRoles(row.role);
+        if (roleDr.isDrummer) return true;
+        const nameDr = this._detectRoles(row.name);
+        if (nameDr.isDrummer) return true;
+        if (row.slot != null && this._x32DiscoveredPresets) {
+            const slotKey = String(row.slot + 1).padStart(3, '0');
+            const p = this._x32DiscoveredPresets[slotKey];
+            if (p && p.name && this._detectRoles(p.name).isDrummer) return true;
+        }
+        return false;
     },
 
     _assignChannelsByRole() {
@@ -1001,6 +1065,8 @@ const stagebuilderModule = {
         // Mark channels already taken (by operator overrides on
         // the first pass — they have row.channel set from localStorage).
         const taken = new Set();
+        // CH 7 is permanently reserved for Doop Microfoon so no band role steals it
+        taken.add(7);
         for (const row of this.rosterRows) {
             // Both the main channel and (for singing guitarists) the
             // vocal-mic channel occupy the shared 1..32 pool — a mic
@@ -1076,34 +1142,25 @@ const stagebuilderModule = {
                 tryAssign(row, 1);
             }
         }
-        // Pass 2: Guitarist → CH 10 (per the operator's spec
-        // "the guitar channel should be 10"). Applies to ALL
-        // guitarists regardless of vocalist status — including
-        // singing guitarists: with dual recall they KEEP the
-        // guitar channel for their guitar and get a separate
-        // vocal-mic channel in Pass 3 (row.voxChannel). If CH 10
-        // is already taken (e.g. by a prior pass or operator
-        // override), tryAssign returns false and the row falls
-        // through to Pass 3 / Pass 4.
-        // Piano/drum rows are still skipped — they get a blank
-        // channel per the operator's spec ("disable the channel
-        // selection for piano and drum. i dont want a channel
-        // selected there").
+        // Pass 2: Guitarists → CH 9 (E-GTR) or CH 10 (A-GTR).
+        // If role indicates electric, assign CH 9 first (fallback 10).
+        // Otherwise assign acoustic CH 10 first (fallback 9).
         for (const row of this.rosterRows) {
             if (row.channel != null) continue;
             const r = self._detectRoles(row.role);
             if (r.isPianist || r.isDrummer) continue; // blank per spec
             if (r.isBassist) continue; // handled by Pass 2b (CH 8)
-            if (r.isGuitarist) tryAssign(row, 10);
+            if (r.isGuitarist) {
+                const normRole = self._normalizeName(row.role);
+                const isElectric = self._matchesAny(normRole, ['elec', 'elek', 'electric', 'elektrisch', 'eg', 'lead']);
+                if (isElectric) {
+                    if (!tryAssign(row, 9)) tryAssign(row, 10);
+                } else {
+                    if (!tryAssign(row, 10)) tryAssign(row, 9);
+                }
+            }
         }
-        // Pass 2b: Bassist → CH 8 (per the operator's spec
-        // "the Bass guitar is always on ch 8"). Applies to ALL
-        // bassists regardless of vocalist status — a
-        // bassist-only row and a bassist+vocalist row both
-        // land on CH 8. If CH 8 is already taken (e.g. by a
-        // prior pass or operator override), tryAssign returns
-        // false and the row falls through to Pass 3 / Pass 4.
-        // Piano/drum rows are still skipped (blank per spec).
+        // Pass 2b: Bassist → CH 8 (per operator spec: "ch 8 is bass").
         for (const row of this.rosterRows) {
             if (row.channel != null) continue;
             const r = self._detectRoles(row.role);
@@ -1890,6 +1947,7 @@ const stagebuilderModule = {
     _renderRosterOrEmpty() {
         const body = document.getElementById('sb-roster-table-body');
         const empty = document.getElementById('sb-roster-empty');
+        this._renderChannelStrip();
         if (!body || !empty) return;
         this._updateRosterMeta();
 
@@ -2524,6 +2582,13 @@ const stagebuilderModule = {
                 await new Promise(function (resolve) { setTimeout(resolve, 80); });
             }
         }
+        // After all presets are recalled, load Preset 100 onto any unassigned
+        // CH 1-14, engage their console MUTE buttons (/mix/on 0), and pull their
+        // faders to -inf. Operators expect one-click "prep for service": recall everything,
+        // reset & silence what's left.
+        if (btn) btn.textContent = 'Muting ongebruikt…';
+        const muteResult = await this.muteUnassignedChannels();
+
         const elapsed = ((Date.now() - startTs) / 1000).toFixed(1);
         this._pushAllInFlight = false;
         this._refreshRecallAllButton();
@@ -2531,6 +2596,9 @@ const stagebuilderModule = {
         parts.push(summary.ok + '/' + summary.total + ' ok');
         if (summary.err > 0) parts.push(summary.err + ' mislukt');
         if (summary.skipped > 0) parts.push(summary.skipped + ' overgeslagen');
+        if (muteResult && muteResult.count > 0) {
+            parts.push(muteResult.count + ' gemute + P100');
+        }
         parts.push(elapsed + 's');
         const variant = summary.err > 0 ? 'error' : 'success';
         this.showToast('Recall All klaar: ' + parts.join(' · '), variant);
@@ -2545,25 +2613,22 @@ const stagebuilderModule = {
             err: summary.err,
             skipped: summary.skipped,
             total: summary.total,
+            unassignedMuted: muteResult ? muteResult.count : 0,
             rows: ready.map(function (r) { return r.name + ' / ' + r.role + ' → ' + r.status; })
         });
-        // After all presets are recalled, drop any CH 1-14 fader
-        // that nobody in the roster is using to -inf. Operators
-        // expect one-click "prep for service": recall everything,
-        // then silence what's left.
-        await this.muteUnassignedChannels();
     },
 
     /**
      * Mute unassigned channels (CH 1-14) by setting their main-mix
-     * fader to -inf via OSC. Channels that ARE assigned to a roster
-     * row (main channel or singing-guitarist vox channel) are left
-     * untouched. Used before a service to silence unused inputs.
+     * fader to -inf via OSC and engaging the channel MUTE button (/mix/on 0),
+     * and load Preset 100 onto each unassigned channel. Channels that ARE
+     * assigned to a roster row (main channel or singing-guitarist vox channel)
+     * are left untouched. Used before a service to reset and silence unused inputs.
      */
     async muteUnassignedChannels() {
         if (!this._x32DiscoveredPresets) {
             this.showToast('X32 niet gepolld — klik Poll.', 'error');
-            return;
+            return { count: 0, channels: [] };
         }
         // Collect every channel that a roster row currently owns.
         const assigned = new Set();
@@ -2584,28 +2649,74 @@ const stagebuilderModule = {
         // skip them here when the corresponding role is present.
         const unassigned = [];
         for (let ch = 1; ch <= 14; ch++) {
-            if (assigned.has(ch)) continue;
-            if (hasPianist && (ch === 11 || ch === 12)) continue;
-            if (hasDrummer && (ch === 13 || ch === 14)) continue;
+            if (this.isChannelActive(ch)) continue;
             unassigned.push(ch);
         }
         if (unassigned.length === 0) {
-            this.showToast('Alle kanalen 1-14 zijn toegewezen — niets te muten.', 'success');
-            return;
+            return { count: 0, channels: [] };
         }
         const ip = this._getX32Ip();
         const ctrl = this._x32AddPending('mute-unassigned');
         try {
-            // Build all OSC messages up front, then fire them in
-            // one batch through the active session (which has
-            // /xremote running — the X32 only accepts fader
-            // commands on a subscribed port).
-            const messages = unassigned.map(function (ch) {
-                return {
-                    address: '/ch/' + String(ch).padStart(2, '0') + '/mix/fader',
+            // 1. Recall Preset 100 (slot 99, 0-indexed) to each unassigned channel.
+            // Throttle 80ms between calls to avoid OSC drop.
+            let preset100Ok = 0;
+            for (let i = 0; i < unassigned.length; i++) {
+                const ch = unassigned[i];
+                try {
+                    const rPreset = await fetch(this._x32BridgeEndpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ip: ip, channel: ch, slot: 99 }),
+                        signal: ctrl ? ctrl.signal : undefined
+                    });
+                    if (rPreset.ok) preset100Ok++;
+                } catch (pEx) {
+                    if (pEx && pEx.name === 'AbortError') return { count: 0, channels: [] };
+                    console.warn('[SB] Preset 100 recall failed for CH ' + ch, pEx);
+                }
+                if (i < unassigned.length - 1) {
+                    await new Promise(function (resolve) { setTimeout(resolve, 80); });
+                }
+            }
+
+            // 2. Mute channels: pull faders to -inf (0.0), engage console MUTE button (/mix/on = 0),
+            // and send Ghost scribble strip labels (black backlight, bracketed routing name).
+            const messages = [];
+            for (const ch of unassigned) {
+                const chStr = String(ch).padStart(2, '0');
+                const routing = this.DEFAULT_CHANNEL_ROUTING[ch];
+                const ghostName = routing ? '[' + routing.short + ']' : '[CH ' + chStr + ']';
+                const ghostIcon = (routing && routing.icon) || 0;
+
+                messages.push({
+                    address: '/ch/' + chStr + '/mix/fader',
                     args: [{ type: 'f', value: 0.0 }]
-                };
-            });
+                });
+                messages.push({
+                    address: '/ch/' + chStr + '/mix/on',
+                    args: [{ type: 'i', value: 0 }]
+                });
+                messages.push({
+                    address: '/ch/' + chStr + '/config/name',
+                    args: [{ type: 's', value: ghostName }]
+                });
+                messages.push({
+                    address: '/ch/' + chStr + '/config/color',
+                    args: [{ type: 'i', value: 0 }] // Backlight off / black
+                });
+                messages.push({
+                    address: '/ch/' + chStr + '/config/icon',
+                    args: [{ type: 'i', value: ghostIcon }]
+                });
+            }
+
+            // Activate any channels that are manually active or role-fixed but not assigned via roster rows
+            for (let ch = 1; ch <= 14; ch++) {
+                if (this.isChannelActive(ch) && !assigned.has(ch)) {
+                    await this._activateChannelOnX32(ch);
+                }
+            }
             const r = await fetch('/api/x32/session/send', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -2619,11 +2730,17 @@ const stagebuilderModule = {
             const label = unassigned.map(function (c) {
                 return 'CH ' + String(c).padStart(2, '0');
             }).join(', ');
-            this.showToast('\u2713 ' + unassigned.length + ' kanaal(en) op -inf gezet (' + label + ')', 'success');
-            console.log('[SB] muteUnassignedChannels:', { channels: unassigned, ip: ip });
+            console.log('[SB] muteUnassignedChannels complete:', {
+                channels: unassigned,
+                ip: ip,
+                preset100Recalled: preset100Ok,
+                muted: true
+            });
+            return { count: unassigned.length, channels: unassigned, label: label, preset100Ok: preset100Ok };
         } catch (ex) {
-            if (ex && ex.name === 'AbortError') return;
-            this.showToast('\u2717 Mute mislukt: ' + ex.message, 'error');
+            if (ex && ex.name === 'AbortError') return { count: 0, channels: [] };
+            this.showToast('\u2717 Mute ongebruikt mislukt: ' + ex.message, 'error');
+            return { count: 0, channels: [], error: ex.message };
         } finally {
             this._x32RemovePending(ctrl);
         }
@@ -3026,6 +3143,355 @@ const stagebuilderModule = {
             }
         }
     },
+
+    // ------------------------------------------------------------------
+    //  CHANNEL STRIP BAR & MANUAL CHANNEL TOGGLE CONTROLS (CH 01 - 14)
+    // ------------------------------------------------------------------
+
+    channelStates: {},
+
+    isChannelActive(ch) {
+        if (this.channelStates && this.channelStates[ch] !== undefined) {
+            return Boolean(this.channelStates[ch]);
+        }
+        // Default logic when not explicitly overridden by operator click:
+        if (ch === 7) return Boolean(this.isDoopdienst);
+
+        // Check if assigned in roster
+        for (const row of (this.rosterRows || [])) {
+            if (row.channel === ch || row.voxChannel === ch) return true;
+        }
+
+        // Fixed channels (Piano 11-12, Drums 13-14) if role or instrument detected in roster
+        if (ch === 11 || ch === 12) {
+            return (this.rosterRows || []).some(r => this._isPianistRow(r));
+        }
+        if (ch === 13 || ch === 14) {
+            return (this.rosterRows || []).some(r => this._isDrummerRow(r));
+        }
+
+        return false;
+    },
+
+    async toggleChannel(ch) {
+        if (ch < 1 || ch > 14) return;
+        const curActive = this.isChannelActive(ch);
+        const nextActive = !curActive;
+
+        if (!this.channelStates) this.channelStates = {};
+        this.channelStates[ch] = nextActive;
+
+        if (ch === 7) {
+            this.isDoopdienst = nextActive;
+            try {
+                localStorage.setItem('ichtus.sb.isDoopdienst', this.isDoopdienst ? '1' : '0');
+            } catch (_) {}
+            this._updateDoopdienstButton();
+        }
+
+        // Re-render UI immediately
+        this._renderChannelStrip();
+
+        const chStr = String(ch).padStart(2, '0');
+        const routing = this.DEFAULT_CHANNEL_ROUTING[ch] || { name: 'CH ' + chStr, short: 'CH ' + chStr };
+        const label = routing.short || ('CH ' + chStr);
+
+        if (nextActive) {
+            this.showToast('🟢 CH ' + chStr + ' (' + label + ') ingeschakeld (LIVE)', 'success');
+            if (this._x32SessionConnected || this._getX32Ip()) {
+                await this._activateChannelOnX32(ch);
+            }
+        } else {
+            this.showToast('⚪ CH ' + chStr + ' (' + label + ') uitgeschakeld (STANDBY / GEMUTE)', 'info');
+            if (this._x32SessionConnected || this._getX32Ip()) {
+                await this._standbyChannelOnX32(ch);
+            }
+        }
+    },
+
+    toggleDoopdienst(forceVal) {
+        const nextVal = (typeof forceVal === 'boolean') ? forceVal : !this.isChannelActive(7);
+        if (!this.channelStates) this.channelStates = {};
+        this.channelStates[7] = nextVal;
+        this.isDoopdienst = nextVal;
+        try {
+            localStorage.setItem('ichtus.sb.isDoopdienst', this.isDoopdienst ? '1' : '0');
+        } catch (_) {}
+
+        this._updateDoopdienstButton();
+        this._renderChannelStrip();
+
+        if (nextVal) {
+            this.showToast('💧 Doopdienst actief — CH 07 (Doop Mic) staat aan!', 'success');
+            if (this._x32SessionConnected || this._getX32Ip()) {
+                this._activateChannelOnX32(7);
+            }
+        } else {
+            this.showToast('💧 Doopdienst standby — CH 07 gemute op [DOOP].', 'info');
+            if (this._x32SessionConnected || this._getX32Ip()) {
+                this._standbyChannelOnX32(7);
+            }
+        }
+    },
+
+    _updateDoopdienstButton() {
+        const btn = document.getElementById('sb-doop-toggle-btn');
+        const statusText = document.getElementById('sb-doop-status-text');
+        if (!btn || !statusText) return;
+        const active = this.isChannelActive(7);
+        if (active) {
+            btn.classList.add('active');
+            statusText.textContent = 'ACTIEF (CH 07 OPEN)';
+            statusText.className = 'sb-doop-status on';
+        } else {
+            btn.classList.remove('active');
+            statusText.textContent = 'STANDBY (CH 07 GEMUTE)';
+            statusText.className = 'sb-doop-status off';
+        }
+    },
+
+    async _activateChannelOnX32(ch) {
+        const ip = this._getX32Ip();
+        const chStr = String(ch).padStart(2, '0');
+        const routing = this.DEFAULT_CHANNEL_ROUTING[ch] || { name: 'CH ' + chStr, short: 'CH ' + chStr, icon: 1 };
+
+        let liveName = routing.short;
+        let color = 2; // Default green
+        let icon = routing.icon || 1;
+        let targetSlot = null;
+
+        // Check if roster row owns this channel
+        const owner = (this.rosterRows || []).find(r => r.channel === ch || r.voxChannel === ch);
+        if (owner) {
+            const isVox = (owner.voxChannel === ch);
+            liveName = isVox ? (owner.name.substring(0, 8) + ' VOX') : owner.name.substring(0, 12);
+            targetSlot = isVox ? owner.voxSlot : owner.slot;
+            color = isVox ? 2 : 5; // Vox: green (2), Instrument: cyan/teal (5)
+            icon = isVox ? 1 : (routing.icon || 1);
+        } else if (ch === 7) {
+            liveName = 'DOOP';
+            color = 4; // Blue
+            icon = 1;
+        } else if (ch === 8) {
+            color = 5; // Teal/Cyan for Bass
+            icon = 20;
+        } else if (ch === 9) {
+            color = 6; // Magenta for Elec Guitar
+            icon = 19;
+        } else if (ch === 10) {
+            color = 3; // Yellow for Acoustic Guitar
+            icon = 18;
+        } else if (ch === 11 || ch === 12) {
+            color = 3; // Yellow for Piano
+            icon = 16;
+        } else if (ch === 13 || ch === 14) {
+            color = 1; // Red for Drums
+            icon = 24;
+        }
+
+        // If targetSlot wasn't found from an owner, search discovered presets for a keyword match
+        if (targetSlot == null && this._x32DiscoveredPresets) {
+            const searchTerms = [routing.short.toLowerCase(), routing.name.toLowerCase()];
+            if (ch === 7) searchTerms.push('doop', 'baptism');
+            if (ch === 8) searchTerms.push('bass', 'bas');
+            if (ch === 9) searchTerms.push('elec', 'electric', 'egtr', 'lead');
+            if (ch === 10) searchTerms.push('acoust', 'acoustic', 'agtr');
+            if (ch >= 1 && ch <= 6) searchTerms.push('vox', 'zang', 'vocal');
+            if (ch === 11 || ch === 12) searchTerms.push('piano', 'keys');
+            if (ch === 13 || ch === 14) searchTerms.push('drum');
+
+            for (let s = 0; s < 100; s++) {
+                const k = String(s + 1).padStart(3, '0');
+                const info = this._x32DiscoveredPresets[k];
+                if (info && info.hasdata && info.name) {
+                    const norm = String(info.name).toLowerCase();
+                    if (searchTerms.some(term => norm.includes(term))) {
+                        targetSlot = s;
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 1. Recall preset if available and IP present
+        if (targetSlot != null && ip) {
+            try {
+                await fetch(this._x32BridgeEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, channel: ch, slot: targetSlot })
+                });
+            } catch (_) {}
+        }
+
+        // 2. Fader to unity (0.75 = 0 dB), unmute (/mix/on = 1), scribble strip config
+        const messages = [
+            { address: '/ch/' + chStr + '/mix/fader',    args: [{ type: 'f', value: 0.75 }] },
+            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 1 }] },
+            { address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: liveName }] },
+            { address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: color }] },
+            { address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: icon }] }
+        ];
+
+        fetch('/api/x32/session/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: messages })
+        }).catch(function (e) {
+            console.warn('[SB] Failed to activate CH ' + chStr + ' on X32:', e);
+        });
+    },
+
+    async _standbyChannelOnX32(ch) {
+        const ip = this._getX32Ip();
+        const chStr = String(ch).padStart(2, '0');
+        const routing = this.DEFAULT_CHANNEL_ROUTING[ch] || { name: 'CH ' + chStr, short: 'CH ' + chStr, icon: 0 };
+
+        // 1. Reset channel with Preset 100 (slot 99)
+        if (ip) {
+            try {
+                await fetch(this._x32BridgeEndpoint, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ ip: ip, channel: ch, slot: 99 })
+                });
+            } catch (_) {}
+        }
+
+        const owner = (this.rosterRows || []).find(r => r.channel === ch || r.voxChannel === ch);
+        const ghostLabel = owner ? ('[' + owner.name.substring(0, 10) + ']') : ('[' + routing.short + ']');
+
+        // 2. Fader to -inf, mute on, ghost name, backlight off
+        const messages = [
+            { address: '/ch/' + chStr + '/mix/fader',    args: [{ type: 'f', value: 0.0 }] },
+            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 0 }] },
+            { address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: ghostLabel }] },
+            { address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: 0 }] },
+            { address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: routing.icon || 0 }] }
+        ];
+
+        fetch('/api/x32/session/send', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messages: messages })
+        }).catch(function (e) {
+            console.warn('[SB] Failed to standby CH ' + chStr + ' on X32:', e);
+        });
+    },
+
+    async _activateDoopChannelOnX32() {
+        return this._activateChannelOnX32(7);
+    },
+
+    async _standbyDoopChannelOnX32() {
+        return this._standbyChannelOnX32(7);
+    },
+
+    _renderChannelStrip() {
+        const grid = document.getElementById('sb-channel-strip-grid');
+        if (!grid) return;
+        this._updateDoopdienstButton();
+
+        const pianistRow = (this.rosterRows || []).find(r => this._isPianistRow(r));
+        const drummerRow = (this.rosterRows || []).find(r => this._isDrummerRow(r));
+        const channelOwners = {};
+        for (const row of this.rosterRows) {
+            if (row.channel != null) {
+                channelOwners[row.channel] = {
+                    name: row.name,
+                    role: row.role,
+                    slot: row.slot,
+                    isVox: false
+                };
+            }
+            if (row.voxChannel != null) {
+                channelOwners[row.voxChannel] = {
+                    name: row.name + ' (Zang)',
+                    role: 'Zang',
+                    slot: row.voxSlot,
+                    isVox: true
+                };
+            }
+        }
+
+        let html = '';
+        for (let ch = 1; ch <= 14; ch++) {
+            const chStr = String(ch).padStart(2, '0');
+            const routing = this.DEFAULT_CHANNEL_ROUTING[ch] || { name: 'CH ' + chStr, short: 'CH ' + chStr };
+            const owner = channelOwners[ch];
+            const isActive = this.isChannelActive(ch);
+            const isDoop = (ch === 7);
+
+            let tileClass = 'sb-strip-tile' + (isActive ? ' live' : ' standby');
+            if (isDoop && isActive) tileClass += ' doop-active';
+
+            let statusBadge = '';
+            let displayName = '';
+            let subText = '';
+
+            if (isActive) {
+                if (isDoop) {
+                    statusBadge = '<span class="sb-tile-badge doop">DOOP LIVE</span>';
+                    displayName = 'DOOP';
+                    subText = 'Doopmicrofoon';
+                } else if (owner) {
+                    statusBadge = '<span class="sb-tile-badge live">LIVE</span>';
+                    displayName = owner.name;
+                    subText = owner.role;
+                } else if (ch === 11 || ch === 12) {
+                    statusBadge = '<span class="sb-tile-badge fixed">PIANO</span>';
+                    displayName = routing.short;
+                    subText = pianistRow ? pianistRow.name : 'Vaste patch';
+                } else if (ch === 13 || ch === 14) {
+                    statusBadge = '<span class="sb-tile-badge fixed">DRUMS</span>';
+                    displayName = routing.short;
+                    subText = drummerRow ? drummerRow.name : 'Vaste patch';
+                } else {
+                    statusBadge = '<span class="sb-tile-badge live">LIVE</span>';
+                    displayName = routing.short;
+                    subText = routing.name + ' (Aan)';
+                }
+            } else {
+                if (isDoop) {
+                    statusBadge = '<span class="sb-tile-badge doop-off">DOOP MUTE</span>';
+                    displayName = '[DOOP]';
+                    subText = 'Alleen bij doop';
+                } else if (owner) {
+                    statusBadge = '<span class="sb-tile-badge standby">MUTED</span>';
+                    displayName = '[' + owner.name + ']';
+                    subText = owner.role + ' (Gedempt)';
+                } else if (ch === 11 || ch === 12) {
+                    statusBadge = '<span class="sb-tile-badge standby">STANDBY</span>';
+                    displayName = '[' + routing.short + ']';
+                    subText = pianistRow ? pianistRow.name : routing.name;
+                } else if (ch === 13 || ch === 14) {
+                    statusBadge = '<span class="sb-tile-badge standby">STANDBY</span>';
+                    displayName = '[' + routing.short + ']';
+                    subText = drummerRow ? drummerRow.name : routing.name;
+                } else {
+                    statusBadge = '<span class="sb-tile-badge standby">STANDBY</span>';
+                    displayName = '[' + routing.short + ']';
+                    subText = routing.name;
+                }
+            }
+
+            const actionHint = isActive ? 'uitschakelen (standby / mute)' : 'inschakelen (live)';
+            const clickAttr = ' onclick="stagebuilderModule.toggleChannel(' + ch + ')" style="cursor:pointer;" title="Klik om CH ' + chStr + ' (' + stagebuilderModule.escapeAttr(routing.short) + ') ' + actionHint + '"';
+
+            html += '<div class="' + tileClass + '"' + clickAttr + '>' +
+                '<div class="sb-tile-top">' +
+                    '<span class="sb-tile-ch">CH ' + chStr + '</span>' +
+                    statusBadge +
+                '</div>' +
+                '<div class="sb-tile-screen">' +
+                    '<span class="sb-tile-name" title="' + stagebuilderModule.escapeAttr(displayName) + '">' + stagebuilderModule.escapeHtml(displayName) + '</span>' +
+                    '<span class="sb-tile-sub">' + stagebuilderModule.escapeHtml(subText) + '</span>' +
+                '</div>' +
+                '<div class="sb-tile-indicator"></div>' +
+            '</div>';
+        }
+        grid.innerHTML = html;
+    }
 };
 
 // Expose for inline onclick handlers in the rendered HTML above.

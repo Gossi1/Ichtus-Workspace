@@ -1088,38 +1088,6 @@
                 </div>
 
 
-                <!-- ==========================================
-                     SECTION 2: NETWORK & SYNCHRONIZATION
-                     ========================================== -->
-                <div class="action-bar settings-panel-block blue-edge">
-                    <strong class="section-title blue-text">🌐 Netwerk &amp; Sync</strong>
-                    <div class="settings-control-grid">
-
-                        <!-- Offline Modus Toggle Switch -->
-                        <div class="settings-control-item">
-                            <div class="settings-control-info">
-                                <label>Offline Modus</label>
-                                <span class="control-desc">Sta toe dat de app werkt zonder internet verbinding</span>
-                            </div>
-                            <label class="toggle-item-switch">
-                                <input id="settings-offline-mode" type="checkbox" onchange="settingsModule.setSetting('offlineMode', this.checked)">
-                                <span class="toggle-slider-engine"></span>
-                            </label>
-                        </div>
-
-                        <!-- Debug Mode Toggle Switch -->
-                        <div class="settings-control-item">
-                            <div class="settings-control-info">
-                                <label>Toon Debug Panel</label>
-                                <span class="control-desc">Toon Firebase status en sync logs</span>
-                            </div>
-                            <label class="toggle-item-switch">
-                                <input id="settings-debug-panel" type="checkbox" onchange="settingsModule.setSetting('showDebugPanel', this.checked)">
-                                <span class="toggle-slider-engine"></span>
-                            </label>
-                        </div>
-                    </div>
-                </div>
 
                 <!-- ==========================================
                      SECTION 3: NDI STREAM OVERLAYS
@@ -1286,26 +1254,6 @@
                             </div>
                         </div>
 
-                        <!-- WorshipTools Connection Capsule -->
-                        <div class="action-bar sidebar-card">
-                            <div class="card-header-row">
-                                <strong class="section-title">WorshipTools</strong>
-                                <div class="connection-status-row">
-                                    <span id="setlist-status-dot" class="status-dot online"></span>
-                                    <span id="setlist-connection-status">Setlist ontvangen</span>
-                                </div>
-                            </div>
-                            <p id="setlist-received-time" class="received-time">Ontvangen: 13:49:05</p>
-
-                            <!-- Bridge status indicator: shows whether the Chrome extension content script is injected -->
-                            <div class="bridge-status-row" id="bridge-status-row">
-                                <span id="bridge-status-dot" class="status-dot offline"></span>
-                                <span id="bridge-status-text">Extensie status controleren...</span>
-                            </div>
-
-                            <p class="connection-hint">Open Planning in WorshipTools, klik op "Extract Setlist" in de Chrome extensie. De data verschijnt automatisch hier.</p>
-                            <button id="btn-open-worshiptools" class="btn-nav style-fullwidth">Open WorshipTools ↗</button>
-                        </div>
 
                         <!-- ProPresenter Remote Link Capsule -->
                         <div class="action-bar sidebar-card blue-edge">
@@ -2214,6 +2162,27 @@
                     </div>
                 </div>
 
+                <!-- Channel Strip / Stage Patch Overview (CH 01 - CH 14) -->
+                <div id='sb-channel-strip-bar' class='sb-channel-strip-bar'>
+                    <div class='sb-strip-header'>
+                        <div class='sb-strip-title-row'>
+                            <span class='sb-strip-icon'>🎛️</span>
+                            <span class='sb-strip-title'>X32 Console Patch (CH 01–14)</span>
+                            <span class='sb-strip-hint'>Klik op een kanaal om direct in/uit te schakelen (Live ↔ Standby)</span>
+                        </div>
+                        <div class='sb-strip-actions'>
+                            <button id='sb-doop-toggle-btn' class='sb-doop-badge-btn' onclick='stagebuilderModule.toggleDoopdienst()' title='Klik om Doopdienst modus in of uit te schakelen (activeert CH 07 Doop Microfoon)'>
+                                <span class='sb-doop-icon'>💧</span>
+                                <span class='sb-doop-label'>Doopdienst:</span>
+                                <span id='sb-doop-status-text' class='sb-doop-status off'>STANDBY (CH 07 GEMUTE)</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div id='sb-channel-strip-grid' class='sb-channel-strip-grid'>
+                        <!-- Dynamisch gevuld door stagebuilderModule._renderChannelStrip() -->
+                    </div>
+                </div>
+
                 <!-- Roster table card -->
                 <section id='sb-roster-card' class='sb-roster-card' aria-label='WorshipTools roster naar X32 preset recall'>
                     <header class='sb-roster-header'>
@@ -2245,12 +2214,6 @@
                                     <option value=''>— Kies dienst —</option>
                                 </select>
                             </div>
-                            <button id='sb-load-roster' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.loadRosterForService()' title='Laad het roster van de geselecteerde dienst direct uit WorshipTools' disabled>
-                                Laad roster
-                            </button>
-                            <button id='sb-wt-login-btn' class='sb-btn sb-btn-secondary' onclick='stagebuilderModule.openWorshipToolsLogin()' title='Log in bij WorshipTools om automatisch de API-token en alle teamnamen op te halen'>
-                                🔑 WorshipTools Inloggen
-                            </button>
                         </div>
                         <span id='sb-roster-meta' class='sb-roster-meta'>wachten op roster uit WorshipTools…</span>
                     </header>
