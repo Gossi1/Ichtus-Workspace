@@ -2702,12 +2702,17 @@
 
 <script>
 // PWA Service Worker — update notification
-// In de Tauri desktop-app (window.__ICHTUS_DESKTOP__) geen service worker:
+// In de Tauri desktop-app (window.__ICHTUS_DESKTOP__) of dev-modus geen service worker:
 // de app laadt altijd live van de lokale server en updatet zichzelf.
-if ('serviceWorker' in navigator && window.__ICHTUS_DESKTOP__) {
+if ('serviceWorker' in navigator && (window.__ICHTUS_DESKTOP__ || window.__ICHTUS_DEV__)) {
   navigator.serviceWorker.getRegistrations().then(function(regs) {
     regs.forEach(function(r) { r.unregister(); });
   }).catch(function() {});
+  if ('caches' in window) {
+    caches.keys().then(function(keys) {
+      keys.forEach(function(k) { caches.delete(k); });
+    }).catch(function() {});
+  }
 } else if ('serviceWorker' in navigator) {
   let swRegistration = null;
   let updateBanner = document.getElementById('pwa-update-banner');

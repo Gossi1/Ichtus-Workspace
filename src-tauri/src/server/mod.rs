@@ -56,6 +56,7 @@ struct HealthResponse {
     status: &'static str,
     service: &'static str,
     engine: &'static str,
+    dev_mode: bool,
     pid: u32,
     uptime_sec: u64,
     requests_served: u64,
@@ -72,11 +73,103 @@ async fn health_handler(State(state): State<ServerState>) -> impl IntoResponse {
         status: "ok",
         service: "ichtus-spa",
         engine: "rust-axum",
+        dev_mode: cfg!(debug_assertions),
         pid: std::process::id(),
         uptime_sec: uptime,
         requests_served: count,
         timestamp: Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
     })
+}
+
+#[cfg(debug_assertions)]
+fn collect_watched_files(
+    dir: &std::path::Path,
+    out: &mut std::collections::HashMap<PathBuf, std::time::SystemTime>,
+) {
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let name = entry.file_name();
+        let name_str = name.to_string_lossy();
+        if name_str.starts_with('.') || name_str == "data" || name_str == "node_modules" {
+            continue;
+        }
+        if let Ok(meta) = entry.metadata() {
+            if meta.is_dir() {
+                collect_watched_files(&path, out);
+            } else if meta.is_file() {
+                let ext = path
+                    .extension()
+                    .and_then(|e| e.to_str())
+                    .unwrap_or("")
+                    .to_ascii_lowercase();
+                if matches!(ext.as_str(), "js" | "css" | "html" | "svg") {
+                    if let Ok(mtime) = meta.modified() {
+                        out.insert(path, mtime);
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[cfg(debug_assertions)]
+fn spawn_dev_file_watcher(root_dir: PathBuf, ws_hub: ws::WsHub) {
+    tokio::spawn(async move {
+        let watch_dirs = [root_dir.join("Ichtus_SPA"), root_dir.join("assets")];
+        let mut known = std::collections::HashMap::new();
+        for d in &watch_dirs {
+            collect_watched_files(d, &mut known);
+        }
+        println!(
+            "  [DEV-WATCH] Live-reload actief voor Ichtus_SPA/ en assets/ ({} bestanden gevolgd)",
+            known.len()
+        );
+
+        let mut interval = tokio::time::interval(Duration::from_millis(350));
+        loop {
+            interval.tick().await;
+            let mut current = std::collections::HashMap::with_capacity(known.len());
+            for d in &watch_dirs {
+                collect_watched_files(d, &mut current);
+            }
+
+            let mut changed_files = Vec::new();
+            for (path, mtime) in &current {
+                match known.get(path) {
+                    Some(prev) if prev == mtime => {}
+                    _ => {
+                        let rel = path
+                            .strip_prefix(&root_dir)
+                            .unwrap_or(path)
+                            .to_string_lossy()
+                            .replace('\\', "/");
+                        changed_files.push(rel);
+                    }
+                }
+            }
+
+            if !changed_files.is_empty() {
+                known = current;
+                let all_css = changed_files.iter().all(|f| f.ends_with(".css"));
+                let reload_type = if all_css { "css" } else { "full" };
+                println!(
+                    "  [DEV-WATCH] Wijziging gedetecteerd ({}) -> {:?}",
+                    reload_type, changed_files
+                );
+                ws_hub.broadcast(
+                    "dev:reload",
+                    serde_json::json!({
+                        "type": reload_type,
+                        "files": changed_files,
+                    }),
+                );
+            }
+        }
+    });
 }
 
 /// Start de Rust Axum server op `0.0.0.0:{public_port}` (100% Native Rust)
@@ -118,6 +211,9 @@ pub async fn start_axum_server(
         worshiptools_manager,
         system_manager,
     };
+
+    #[cfg(debug_assertions)]
+    spawn_dev_file_watcher(root_dir.clone(), state.ws_hub.clone());
 
     // Static file services:
     // 1. /Ichtus_SPA/* -> serveert vanuit root_dir/Ichtus_SPA met index.html fallback

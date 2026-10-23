@@ -4,8 +4,9 @@
   "description": "Ichtus Workspace — Native Rust & Tauri desktop application",
   "type": "module",
   "scripts": {
+    "dev": "node scripts/dev.mjs",
     "tauri": "tauri",
-    "tauri:dev": "tauri dev",
+    "tauri:dev": "node scripts/dev.mjs",
     "tauri:build": "tauri build"
   },
   "dependencies": {

@@ -141,7 +141,7 @@
       document.body.classList.remove('show-setup');
       document.getElementById('status').textContent = 'Instellingen opslaan…';
 
-      const payload = { mode: currentSelectedMode, hostAddress: hostIp };
+      const payload = { mode: currentSelectedMode, hostAddress: hostIp, host_address: hostIp };
 
       if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
         window.__TAURI__.core.invoke('save_mode', payload).catch(err => {

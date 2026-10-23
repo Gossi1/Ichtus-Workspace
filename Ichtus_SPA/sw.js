@@ -116,12 +116,34 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // Local development (localhost / 127.0.0.1) → network-first for static assets
+  // so code changes appear immediately on first refresh without serving stale cache.
+  if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+    event.respondWith(networkFirstAsset(event.request));
+    return;
+  }
+
   // Static assets → stale-while-revalidate
   // Serveert gecached eerst, update op achtergrond — geen handmatige version bumps nodig
   event.respondWith(staleWhileRevalidate(event.request));
 });
 
 // ——— STRATEGIES ———
+
+async function networkFirstAsset(request) {
+  try {
+    const networkResponse = await fetch(request, { cache: 'no-store' });
+    if (networkResponse && networkResponse.status === 200) {
+      const cache = await caches.open(CACHE_NAME);
+      cache.put(request, networkResponse.clone());
+    }
+    return networkResponse;
+  } catch (error) {
+    const cachedResponse = await caches.match(request);
+    if (cachedResponse) return cachedResponse;
+    throw error;
+  }
+}
 
 async function staleWhileRevalidate(request) {
   // Probeer cache first (direct antwoord, supersnel)

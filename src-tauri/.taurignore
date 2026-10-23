@@ -1,0 +1,6 @@
+# Ignore frontend assets in Tauri's Rust watcher so editing JS/CSS/HTML
+# triggers instant WebSocket live-reload instead of restarting the Rust process.
+../Ichtus_SPA/**
+../assets/**
+Ichtus_SPA/**
+assets/**

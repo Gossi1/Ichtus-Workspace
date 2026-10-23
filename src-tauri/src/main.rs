@@ -197,14 +197,21 @@ fn start_app_workflow(
 }
 
 #[tauri::command]
-fn save_mode(mode: String, host_address: Option<String>, handle: AppHandle) -> Result<(), String> {
+fn save_mode(
+    mode: String,
+    host_address: Option<String>,
+    #[allow(non_snake_case)]
+    hostAddress: Option<String>,
+    handle: AppHandle,
+) -> Result<(), String> {
+    let resolved_host = host_address.or(hostAddress).unwrap_or_else(default_host_address);
     println!(
         "[TAURI] Modus opslaan: mode={}, host={:?}",
-        mode, host_address
+        mode, resolved_host
     );
     let cfg = AppConfig {
         mode,
-        host_address: host_address.unwrap_or_else(default_host_address),
+        host_address: resolved_host,
     };
     save_app_config(&cfg);
     start_app_workflow(handle, cfg);
@@ -271,7 +278,7 @@ fn main() {
                     }
                     "reload" => {
                         if let Some(win) = app.get_webview_window("main") {
-                            let _ = win.eval("window.location.reload();");
+                            let _ = win.eval("if (window.ichtusDevReload) { window.ichtusDevReload(); } else { window.location.reload(); }");
                         }
                     }
                     "quit" => {
@@ -289,12 +296,18 @@ fn main() {
                 })
                 .build(&handle)?;
 
+            let init_script = if cfg!(debug_assertions) {
+                "window.__ICHTUS_DESKTOP__ = true; window.__ICHTUS_DEV__ = true;"
+            } else {
+                "window.__ICHTUS_DESKTOP__ = true;"
+            };
+
             let window =
                 WebviewWindowBuilder::new(&handle, "main", WebviewUrl::App("index.html".into()))
-                    .title("Ichtus Workspace")
+                    .title(if cfg!(debug_assertions) { "Ichtus Workspace [DEV]" } else { "Ichtus Workspace" })
                     .inner_size(1280.0, 800.0)
                     .min_inner_size(900.0, 600.0)
-                    .initialization_script("window.__ICHTUS_DESKTOP__ = true;")
+                    .initialization_script(init_script)
                     .build()?;
 
             let handle_for_init = handle.clone();
