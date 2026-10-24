@@ -769,7 +769,9 @@ pub async fn restart_all_handler(State(state): State<ServerState>) -> impl IntoR
 pub async fn check_update_handler(State(state): State<ServerState>) -> impl IntoResponse {
     let root = state.root_dir.clone();
     let mut branch = "master".to_string();
-    let mut behind_count = 0;
+    let mut behind_count: u64 = 0;
+    let mut latest_tag = Value::Null;
+    let mut commits: Vec<Value> = Vec::new();
 
     if root.join(".git").exists() {
         if let Ok(branch_out) = silent_git_cmd()
@@ -785,7 +787,7 @@ pub async fn check_update_handler(State(state): State<ServerState>) -> impl Into
         }
 
         let _ = silent_git_cmd()
-            .args(["fetch", "origin"])
+            .args(["fetch", "origin", "--tags"])
             .current_dir(&root)
             .output()
             .await;
@@ -799,6 +801,70 @@ pub async fn check_update_handler(State(state): State<ServerState>) -> impl Into
             let count_str = String::from_utf8_lossy(&count_out.stdout).trim().to_string();
             behind_count = count_str.parse().unwrap_or(0);
         }
+
+        if behind_count > 0 {
+            if let Ok(log_out) = silent_git_cmd()
+                .args([
+                    "log",
+                    &format!("HEAD..origin/{}", branch),
+                    "--pretty=format:%h|%s|%an",
+                    "-n",
+                    "15",
+                ])
+                .current_dir(&root)
+                .output()
+                .await
+            {
+                let log_str = String::from_utf8_lossy(&log_out.stdout);
+                for line in log_str.lines() {
+                    let parts: Vec<&str> = line.splitn(3, '|').collect();
+                    if parts.len() == 3 {
+                        commits.push(json!({
+                            "short": parts[0],
+                            "subject": parts[1],
+                            "author": parts[2],
+                        }));
+                    }
+                }
+            }
+
+            if let Ok(tag_out) = silent_git_cmd()
+                .args(["describe", "--tags", "--abbrev=0", &format!("origin/{}", branch)])
+                .current_dir(&root)
+                .output()
+                .await
+            {
+                if tag_out.status.success() {
+                    let t = String::from_utf8_lossy(&tag_out.stdout).trim().to_string();
+                    if !t.is_empty() {
+                        latest_tag = json!(t);
+                    }
+                }
+            }
+        }
+    }
+
+    // Fallback / Desktop Release Check via Tauri Updater plugin
+    if behind_count == 0 {
+        if let Some(ref app) = state.app_handle {
+            use tauri_plugin_updater::UpdaterExt;
+            if let Ok(updater) = app.updater() {
+                if let Ok(Some(update)) = updater.check().await {
+                    behind_count = 1;
+                    let tag = format!("v{}", update.version);
+                    latest_tag = json!(tag);
+                    let notes = update
+                        .body
+                        .clone()
+                        .unwrap_or_else(|| format!("Nieuwe release {} beschikbaar", tag));
+                    commits.push(json!({
+                        "short": tag,
+                        "subject": notes,
+                        "author": "GitHub Release"
+                    }));
+                }
+            }
+        }
     }
 
     Json(json!({
@@ -807,9 +873,9 @@ pub async fn check_update_handler(State(state): State<ServerState>) -> impl Into
         "branch": branch,
         "current_version": env!("CARGO_PKG_VERSION"),
         "version_name": "Ichtus Workspace",
-        "latest_tag": Value::Null,
+        "latest_tag": latest_tag,
         "head_remote": Value::Null,
-        "commits": [],
+        "commits": commits,
         "checked_at": Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true),
     }))
 }
@@ -819,8 +885,51 @@ pub async fn check_update_now_handler() -> impl IntoResponse {
 }
 
 pub async fn update_git_handler(State(state): State<ServerState>) -> impl IntoResponse {
-    state.system_manager.log("git pull aangevraagd");
+    state.system_manager.log("update aangevraagd");
     let root = state.root_dir.clone();
+
+    // Als er een Tauri desktop release update klaarstaat (of geen .git map bestaat), gebruik de Tauri updater
+    if let Some(ref app) = state.app_handle {
+        use tauri_plugin_updater::UpdaterExt;
+        if let Ok(updater) = app.updater() {
+            if let Ok(Some(update)) = updater.check().await {
+                let ver = update.version.clone();
+                state.system_manager.log(&format!("Tauri update v{} downloaden en installeren...", ver));
+                match update.download_and_install(|_, _| {}, || {}).await {
+                    Ok(()) => {
+                        let msg = format!("Update v{} geïnstalleerd. App wordt herstart...", ver);
+                        state.ws_hub.broadcast("app:update", json!({ "state": "pulled", "success": true }));
+                        return Json(json!({
+                            "success": true,
+                            "exit_code": 0,
+                            "output": msg,
+                            "message": msg,
+                        }));
+                    }
+                    Err(e) => {
+                        let err_msg = format!("Fout bij installeren Tauri update: {}", e);
+                        state.ws_hub.broadcast("app:update", json!({ "state": "failed", "success": false, "message": err_msg }));
+                        return Json(json!({
+                            "success": false,
+                            "exit_code": 1,
+                            "output": err_msg,
+                            "message": err_msg,
+                        }));
+                    }
+                }
+            }
+        }
+    }
+
+    if !root.join(".git").exists() {
+        let msg = "Geen nieuwe installer-update gevonden en geen lokale Git-repository aanwezig.";
+        return Json(json!({
+            "success": false,
+            "exit_code": 1,
+            "output": msg,
+            "message": msg,
+        }));
+    }
 
     let fetch_out = silent_git_cmd()
         .args(["fetch", "origin"])
@@ -838,7 +947,11 @@ pub async fn update_git_handler(State(state): State<ServerState>) -> impl IntoRe
         && pull_out.as_ref().map(|o| o.status.success()).unwrap_or(false);
 
     let output = match pull_out {
-        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+        Ok(o) => {
+            let stdout = String::from_utf8_lossy(&o.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&o.stderr).to_string();
+            if stdout.trim().is_empty() { stderr } else { stdout }
+        }
         Err(e) => e.to_string(),
     };
 

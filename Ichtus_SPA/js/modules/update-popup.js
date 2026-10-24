@@ -19,7 +19,7 @@ const updatePopup = {
      * Called by updateChecker when a fresh /api/check-update payload lands.
      * Surfaces the modal if the running version has changed since last dismissal.
      */
-    show(payload) {
+    show(payload, force = false) {
         if (!payload || !payload.update_available) return;
         if (this._pulling) return;
 
@@ -27,8 +27,8 @@ const updatePopup = {
         // otherwise the latest reachable commit hash.
         const badge = payload.latest_tag || (payload.commits && payload.commits[0] && payload.commits[0].short) || 'nieuw';
 
-        // User dismissed this exact version recently — don't pester them.
-        if (this._seenVersion === badge && this._wasDismissedRecently()) return;
+        // User dismissed this exact version recently — don't pester them unless forced by manual user click.
+        if (!force && this._seenVersion === badge && this._wasDismissedRecently()) return;
 
         this._render(payload, badge);
     },

@@ -213,11 +213,17 @@ const settingsModule = {
     },
 
     loadAppVersion() {
-        fetch('../Ichtus_SPA/version.json')
+        fetch('../Ichtus_SPA/version.json?t=' + Date.now(), { cache: 'no-store' })
             .then(response => response.json())
             .then(data => {
                 this.appVersion = data.version || '1.0.0';
                 this.render(); // Re-render when version loaded
+                if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0) {
+                    if (window.updateChecker) window.updateChecker._updateBadges(true, 1);
+                    if (window.updatePopup && window.updatePopup.show) {
+                        window.updatePopup.show(this._buildGitHubUpdatePayload(), false);
+                    }
+                }
             })
             .catch(error => {
                 console.warn('Could not load version.json:', error);
@@ -235,13 +241,59 @@ const settingsModule = {
             .then(data => {
                 if (data.tag_name) {
                     this.latestGitHubVersion = data.tag_name.replace(/^v/, '');
+                    this.latestGitHubReleaseNotes = data.body || '';
                 }
                 this.render(); // Re-render when GitHub version loaded
+                if (this.latestGitHubVersion && this.appVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0) {
+                    if (window.updateChecker) window.updateChecker._updateBadges(true, 1);
+                    if (window.updatePopup && window.updatePopup.show) {
+                        window.updatePopup.show(this._buildGitHubUpdatePayload(), false);
+                    }
+                }
             })
             .catch(error => {
                 console.warn('Could not fetch latest GitHub release:', error);
                 this.versionError = __('settings_version_github_error');
                 this.render(); // Re-render even on error
+            });
+    },
+
+    _buildGitHubUpdatePayload() {
+        const tag = 'v' + (this.latestGitHubVersion || '');
+        return {
+            update_available: true,
+            behind_count: 1,
+            branch: 'release',
+            current_version: this.appVersion || '1.0.0',
+            latest_tag: tag,
+            commits: [
+                {
+                    short: tag,
+                    subject: this.latestGitHubReleaseNotes || ('Nieuwe release ' + tag + ' beschikbaar op GitHub'),
+                    author: 'GitHub Release'
+                }
+            ]
+        };
+    },
+
+    openUpdateScreen(customPayload) {
+        if (customPayload && customPayload.update_available && window.updatePopup && window.updatePopup.show) {
+            window.updatePopup.show(customPayload, true);
+            return;
+        }
+        fetch('/api/check-update')
+            .then(r => r.ok ? r.json() : null)
+            .then(data => {
+                if (data && data.update_available && window.updatePopup && window.updatePopup.show) {
+                    window.updatePopup.show(data, true);
+                } else if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0 && window.updatePopup && window.updatePopup.show) {
+                    window.updatePopup.show(this._buildGitHubUpdatePayload(), true);
+                }
+            })
+            .catch(() => {
+                if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0 && window.updatePopup && window.updatePopup.show) {
+                    window.updatePopup.show(this._buildGitHubUpdatePayload(), true);
+                }
             });
     },
 
@@ -268,12 +320,25 @@ const settingsModule = {
                 if (data.update_available) {
                     btn.textContent = '🔄 Check voor updates';
                     statusEl.className = 'update-notification-tag';
-                    statusEl.textContent = '⬆️ Update beschikbaar (' + data.behind_count + ' commits achter)';
+                    statusEl.textContent = '⬆️ Update beschikbaar (' + data.behind_count + ' commits achter) — Klik om te updaten';
+                    statusEl.style.cursor = 'pointer';
+                    statusEl.onclick = () => this.openUpdateScreen(data);
                     statusEl.style.display = 'inline-block';
+                    this.openUpdateScreen(data);
+                } else if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0) {
+                    btn.textContent = '🔄 Check voor updates';
+                    statusEl.className = 'update-notification-tag';
+                    statusEl.textContent = '⬆️ Release v' + this.latestGitHubVersion + ' beschikbaar — Klik om te updaten';
+                    statusEl.style.cursor = 'pointer';
+                    statusEl.onclick = () => this.openUpdateScreen(this._buildGitHubUpdatePayload());
+                    statusEl.style.display = 'inline-block';
+                    this.openUpdateScreen(this._buildGitHubUpdatePayload());
                 } else {
                     btn.textContent = '🔄 Check voor updates';
                     statusEl.className = 'update-notification-tag';
                     statusEl.textContent = '✓ Up-to-date';
+                    statusEl.style.cursor = '';
+                    statusEl.onclick = null;
                     statusEl.style.display = 'inline-block';
                 }
                 btn.disabled = false;
@@ -363,9 +428,15 @@ const settingsModule = {
         if (updateEl && updateText) {
             if (this.latestGitHubVersion && this.compareVersions(this.latestGitHubVersion, this.appVersion) > 0) {
                 updateEl.style.display = '';
-                updateText.textContent = '⬆️ ' + __('settings_version_update_available') + ': ' + this.latestGitHubVersion;
+                updateEl.style.cursor = 'pointer';
+                updateEl.title = 'Klik om het update-scherm te openen';
+                updateEl.onclick = () => this.openUpdateScreen(this._buildGitHubUpdatePayload());
+                updateText.textContent = '⬆️ ' + __('settings_version_update_available') + ': ' + this.latestGitHubVersion + ' (Nu updaten)';
             } else if (this.latestGitHubVersion) {
                 updateEl.style.display = '';
+                updateEl.style.cursor = '';
+                updateEl.title = '';
+                updateEl.onclick = null;
                 updateText.textContent = '✓ ' + __('settings_version_latest');
             } else {
                 updateEl.style.display = 'none';
