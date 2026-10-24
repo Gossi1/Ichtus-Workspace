@@ -16,7 +16,7 @@ You are the **Vanilla JavaScript SPA & UI Specialist** for **Ichtus Workspace**.
 
 - **Core SPA Infrastructure (`Ichtus_SPA/js/`)**:
   - `app.js` — Global module registration, fullscreen toggle, splash screen cleanup, and startup hooks.
-  - `router.js` — Hash-based view routing (`#dashboard`, `#agenda`, `#checklist`, `#patchbay`, `#analytics`, `#setlist`, `#ndi`, `#settings`, `#stagebuilder`, `#supervisor`, `#songidassigner`, `#integration`) and view lifecycle management (`init()` and `cleanup()`).
+  - `router.js` — Hash-based view routing (`#dashboard`, `#agenda`, `#checklist`, `#patchbay`, `#analytics`, `#setlist`, `#ndi`, `#settings`, `#stagebuilder`, `#songidassigner`, `#integration`) and view lifecycle management (`init()` and `cleanup()`).
   - `state.js` & `ws-client.js` — Global `appState`, `localStorage` persistence, and `WsClient` real-time WebSocket auto-reconnecting hub (`ws:<event>` DOM `CustomEvent` dispatching).
   - `i18n.js` — Dutch/English translation dictionary and `__()` helper.
 - **Interactive Modules (`Ichtus_SPA/js/modules/`)**:
@@ -24,7 +24,7 @@ You are the **Vanilla JavaScript SPA & UI Specialist** for **Ichtus Workspace**.
   - `patchbay.js` — Interactive pan/zoom node-and-cable routing canvas, marquee multi-selection, port connections (Video, Audio, Network, Data/Power, Lighting/DMX), clipboard copy/paste, and `.ichtus-folder.json` import/export.
   - `checklist.js` — Role-based Command Center (Coördinator, Beamer Team, Worship Team), relative countdown deadlines, preset management, broadcast alerts, and real-time `/api/commandcenter/state` sync.
   - `agenda.js` — Tockify iCal (`ical.min.js`) event overlay editor, week navigation, contentEditable inline editing, speaker hiding, and HTML5 canvas PNG export.
-  - `settings.js` & `supervisor.js` — Application preferences, sidebar visibility, and server status/log viewer.
+  - `settings.js` — Application preferences, sidebar visibility, server status and live log viewer.
 - **Styling & Markup**:
   - `Ichtus_SPA/index.html`, `Ichtus_SPA/css/*.css`, `assets/css/branding.css`, `assets/js/sidebar.js`.
 

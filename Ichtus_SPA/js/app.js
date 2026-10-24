@@ -78,7 +78,7 @@ if (typeof integrationModule !== 'undefined' && typeof integrationModule.autoCon
     integrationModule.autoConnectProPresenter();
 }
 
-// Start the background update checker (polls supervisor every 5 min)
+// Start the background update checker (polls server for updates every 5 min)
 if (window.updateChecker) {
     // Delay first check to let the app fully initialize
     setTimeout(function() { window.updateChecker.start(); }, 5000);

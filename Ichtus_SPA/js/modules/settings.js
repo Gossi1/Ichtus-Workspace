@@ -1,6 +1,63 @@
+// ── Global update checker ──
+// Periodically polls the server for git updates and shows a badge on the Settings nav item.
+const updateChecker = {
+    _interval: null,
+    _checkIntervalMs: 5 * 60 * 1000, // 5 minutes
+
+    start() {
+        if (this._interval) return;
+        setTimeout(() => this._check(), 3000);
+        this._interval = setInterval(() => this._check(), this._checkIntervalMs);
+    },
+
+    stop() {
+        if (this._interval) {
+            clearInterval(this._interval);
+            this._interval = null;
+        }
+    },
+
+    async _check() {
+        try {
+            const resp = await fetch('/api/check-update');
+            if (!resp.ok) return;
+            const data = await resp.json();
+            this._updateBadges(data.update_available, data.behind_count);
+
+            if (data.update_available && window.updatePopup && window.updatePopup.show) {
+                window.updatePopup.show(data);
+            }
+        } catch (err) {
+            this._updateBadges(false);
+        }
+    },
+
+    _updateBadges(available, count) {
+        const badge = document.getElementById('badge-settings');
+        if (!badge) return;
+        if (available) {
+            badge.classList.remove('hidden');
+            badge.textContent = (count > 0) ? '⬆' + count : '⬆';
+        } else {
+            badge.classList.add('hidden');
+        }
+    },
+
+    forceCheck() {
+        this._check();
+    },
+
+    clearBadges() {
+        this._updateBadges(false);
+    }
+};
+
+window.updateChecker = updateChecker;
+
 // Settings Module for Ichtus Workspace
 const settingsModule = {
     initialized: false,
+    _statusPollInterval: null,
     
     // Version information
     appVersion: null,
@@ -30,7 +87,6 @@ const settingsModule = {
             ndi: true,
             stagebuilder: true,
             songidassigner: true,
-            supervisor: true,
             settings: true
         }
     },
@@ -44,13 +100,27 @@ const settingsModule = {
         this.fetchLatestGitHubVersion();
         this.render();
         this.applySettings();
+        this.fetchServerStatus();
 
-        // The X32 Library configuration lived here in earlier revisions;
-        // it was relocated into the Stage Builder view (open via the
-        // 🎚️ button next to the gear icon) so a single workspace
-        // owns the operator-chosen name + library-slot ID pairs.
+        if (this._statusPollInterval) clearInterval(this._statusPollInterval);
+        this._statusPollInterval = setInterval(() => {
+            if (typeof router !== 'undefined' && router.isSettingsActive && router.isSettingsActive()) {
+                this.fetchServerStatus();
+            }
+        }, 5000);
     },
-    
+
+    cleanup() {
+        if (this._statusPollInterval) {
+            clearInterval(this._statusPollInterval);
+            this._statusPollInterval = null;
+        }
+    },
+
+    // The X32 Library configuration lived here in earlier revisions;
+    // it was relocated into the Stage Builder view (open via the
+    // 🎚️ button next to the gear icon) so a single workspace
+    // owns the operator-chosen name + library-slot ID pairs.
     loadSettings() {
         const saved = localStorage.getItem('ichtus_settings');
         if (saved) {
@@ -211,7 +281,7 @@ const settingsModule = {
                 console.warn('Update check failed:', error);
                 btn.textContent = '🔄 Check voor updates';
                 statusEl.className = 'update-notification-tag';
-                statusEl.textContent = '⚠️ Kon supervisor niet bereiken';
+                statusEl.textContent = '⚠️ Kon server niet bereiken';
                 statusEl.style.display = 'inline-block';
                 btn.disabled = false;
             });
@@ -365,8 +435,7 @@ const settingsModule = {
             { key: 'setlist', label: __('nav_setlist'), icon: '🎵' },
             { key: 'ndi', label: __('nav_ndi'), icon: '📡' },
             { key: 'stagebuilder', label: __('nav_stagebuilder'), icon: '🎭' },
-            { key: 'songidassigner', label: __('nav_songids'), icon: '🎹' },
-            { key: 'supervisor', label: __('nav_supervisor'), icon: '🖥️' }
+            { key: 'songidassigner', label: __('nav_songids'), icon: '🎹' }
             // Settings intentionally excluded — always visible, not user-configurable
         ];
 
@@ -470,7 +539,122 @@ const settingsModule = {
         }
     },
 
+    async fetchServerStatus() {
+        try {
+            const resp = await fetch('/api/status');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            
+            const badgeEl = document.getElementById('settings-server-badge');
+            const uptimeEl = document.getElementById('settings-server-uptime');
+            const pidEl = document.getElementById('settings-server-pid');
+            const portEl = document.getElementById('settings-server-port');
+
+            if (badgeEl) {
+                badgeEl.className = 'status-badge status-ok';
+                badgeEl.textContent = '🟢 ' + (__('settings_server_running') || 'Actief');
+            }
+            if (uptimeEl) {
+                uptimeEl.textContent = this.formatUptime(data.uptime_sec || 0);
+            }
+            if (pidEl) {
+                pidEl.textContent = data.pid || '—';
+            }
+            if (portEl) {
+                const defaultPort = (data.services && data.services[0] && data.services[0].default_port) || window.location.port || '8080';
+                portEl.textContent = defaultPort;
+            }
+        } catch (err) {
+            const badgeEl = document.getElementById('settings-server-badge');
+            if (badgeEl) {
+                badgeEl.className = 'status-badge status-off';
+                badgeEl.textContent = '🔴 ' + (__('settings_server_stopped') || 'Offline / Fout');
+            }
+        }
+    },
+
+    formatUptime(sec) {
+        if (sec < 60) return `${sec}s`;
+        if (sec < 3600) return `${Math.floor(sec / 60)}m ${sec % 60}s`;
+        const h = Math.floor(sec / 3600);
+        const m = Math.floor((sec % 3600) / 60);
+        return `${h}u ${m}m`;
+    },
+
+    async viewServerLogs() {
+        const modal = document.getElementById('settings-log-modal');
+        const content = document.getElementById('settings-log-content');
+        if (!modal || !content) return;
+
+        modal.classList.remove('hidden');
+        content.innerHTML = '<div class="settings-log-loading">' + (__('settings_logs_loading') || 'Logs laden…') + '</div>';
+
+        try {
+            const resp = await fetch('/api/logs/server');
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const data = await resp.json();
+            const tail = data.tail || [];
+
+            if (tail.length === 0) {
+                content.innerHTML = '<div class="settings-log-empty">' + (__('settings_logs_empty') || 'Geen log entries') + '</div>';
+            } else {
+                content.innerHTML = '<div class="settings-log-list">' +
+                    tail.map(entry => {
+                        const lineText = typeof entry === 'string' ? entry : (entry.line || '');
+                        const tsText = entry.ts || '';
+                        const div = document.createElement('div');
+                        div.textContent = lineText;
+                        const safeLine = div.innerHTML;
+                        return `<div class="settings-log-line">
+                            ${tsText ? `<span class="settings-log-ts">${tsText}</span>` : ''}
+                            <span class="settings-log-msg">${safeLine}</span>
+                        </div>`;
+                    }).join('') +
+                    '</div>';
+                content.scrollTop = content.scrollHeight;
+            }
+        } catch (err) {
+            content.innerHTML = `<div class="settings-log-error">Fout bij laden: ${err.message}</div>`;
+        }
+    },
+
+    closeLogModal() {
+        const modal = document.getElementById('settings-log-modal');
+        if (modal) modal.classList.add('hidden');
+    },
+
+    async restartServer() {
+        const confirmMsg = __('settings_confirm_restart_server') || 'Weet je zeker dat je de server wilt herstarten?';
+        if (!confirm(confirmMsg)) return;
+
+        const btn = document.getElementById('btn-restart-server');
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '⏳ Herstarten…';
+        }
+
+        try {
+            const resp = await fetch('/api/restart/server', { method: 'POST' });
+            const data = await resp.json();
+            this.showToast(data.message || 'Server herstart aangevraagd...');
+            setTimeout(() => {
+                this.fetchServerStatus();
+            }, 3000);
+        } catch (err) {
+            this.showToast('Herstart fout: ' + err.message);
+        } finally {
+            setTimeout(() => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = __('settings_restart_server') || '🔄 Herstart Server';
+                }
+            }, 3500);
+        }
+    },
+
 };
+
+window.settingsModule = settingsModule;
 
 // Global format helper functions that other modules can use
 window.formatTime = function(hours, minutes) {

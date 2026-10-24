@@ -33,7 +33,6 @@
     <!-- Existing standalone CSS -->
     <link rel='stylesheet' href='css/checklist-modern.css'>
     <link rel='stylesheet' href='css/integration.css?v=1'>
-    <link rel='stylesheet' href='css/supervisor.css'>
     <link rel='stylesheet' href='css/songidassigner.css?v=3'>
     <!-- Critical CSS: splash screen — geladen voor eerste paint -->
     <style>
@@ -261,24 +260,6 @@
                 </li>
             </ul>
 
-            <div class='sidebar-section-label'>Systeem</div>
-            <ul class='sidebar-menu'>
-                <li data-view='supervisor'>
-                    <a href='#' onclick="router.navigate('supervisor'); return false;">
-                        <div class='sidebar-icon'>
-                            <svg class='sidebar-nav-icon' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'>
-                                <line x1='22' y1='12' x2='2' y2='12'></line>
-                                <path d='M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z'></path>
-                                <line x1='6' y1='16' x2='6.01' y2='16'></line>
-                                <line x1='10' y1='16' x2='10.01' y2='16'></line>
-                            </svg>
-                        </div>
-                        <span class='sidebar-text' data-i18n='nav_supervisor'>Supervisor</span>
-                        <span id='badge-supervisor' class='sidebar-badge hidden' title='Update beschikbaar'>⬆</span>
-                    </a>
-                </li>
-            </ul>
-
             <div class='sidebar-section-label'>Admin</div>
             <ul class='sidebar-menu'>
                 <li>
@@ -299,6 +280,7 @@
                             <li data-view='settings'>
                                 <a href='#' onclick="router.navigate('settings'); return false;">
                                     <span class='sidebar-text' data-i18n='nav_settings'>Instellingen</span>
+                                    <span id='badge-settings' class='sidebar-badge hidden' title='Update beschikbaar'>⬆</span>
                                 </a>
                             </li>
                             <li data-view='integration'>
@@ -334,57 +316,6 @@
 
     <!-- Main Content Area -->
     <main class='main-content' id='app-container'>
-
-        <!-- SUPERVISOR VIEW -->
-        <div id='view-supervisor' class='app-view hidden'>
-            <div class="dashboard">
-                <div class='sv-header'>
-                    <div class='sv-title-block'>
-                        <h1>Supervisor Dashboard</h1>
-                        <p class='sv-subtitle'>Beheer updates, herstart de server en bewaak het systeem.</p>
-                    </div>
-                </div>
-
-                <div class="sv-content-area">
-                    <!-- Update Alert Banner -->
-                    <div id="sv-update-banner" class="sv-alert-banner hidden">
-                        <div class="sv-alert-header">
-                            <span>📦</span>
-                            <span id="sv-update-text" class="sv-update-text">Up-to-date — pull om te controleren op wijzigingen</span>
-                        </div>
-                        <div class="sv-alert-actions">
-                            <button id="sv-update-btn" class="sv-btn-pull" onclick="supervisorModule._doUpdate()">Pull & Herstart</button>
-                            <button class="sv-btn-dismiss" onclick="document.getElementById('sv-update-banner').classList.add('hidden')">✕</button>
-                        </div>
-                        <pre id="sv-update-output" class="sv-update-output hidden"></pre>
-                    </div>
-
-                    <!-- Auto-refresh status bar -->
-                    <div class="sv-status-bar">
-                        <span class="sv-status-label">Service status — automatisch verversen elke 5s</span>
-                        <button class="sv-btn-refresh" onclick="supervisorModule._poll()">🔄 Ververs nu</button>
-                    </div>
-
-                    <!-- Service Cards -->
-                    <div id="sv-services-container" class="sv-services-grid">
-                        <div class="sv-loading">🔄 Supervisor status laden…</div>
-                    </div>
-                </div>
-
-                <!-- Log Modal -->
-                <div id="sv-log-modal" class="sv-log-modal hidden">
-                    <div class="sv-log-dialog">
-                        <div class="sv-log-header">
-                            <h3 id="sv-log-title">Logs</h3>
-                            <button class="sv-log-close" onclick="supervisorModule._closeLogModal()" title="Sluiten">✕</button>
-                        </div>
-                        <div class="sv-log-content" id="sv-log-content">
-                            <div class="sv-log-loading">Logs laden…</div>
-                        </div>
-                    </div>
-                </div>
-            </div><!-- /dashboard -->
-        </div><!-- /view-supervisor -->
 
         <!-- AGENDA VIEW -->
         <div id='view-agenda' class='app-view hidden'>
@@ -1206,6 +1137,66 @@
                     </div>
                 </div>
 
+                <!-- ==========================================
+                     SECTION 8: SYSTEM & DEBUG
+                     ========================================== -->
+                <div id="settings-system-debug-wrapper" class="canvas-wrapper settings-wrapper-info">
+                    <div class="table-card-inner">
+                        <strong class="section-title">🖥️ <span data-i18n="settings_system_debug">Systeem / Debug</span></strong>
+                        <p class="control-desc" style="margin-bottom: 12px;" data-i18n="settings_system_debug_desc">Beheer en status van de Ichtus server.</p>
+                        <div class="app-info-grid-matrix">
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_server_status">Server Status</span>
+                                <div class="matrix-value">
+                                    <span id="settings-server-badge" class="status-badge status-ok">🟢 Actief</span>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_server_uptime">Uptime</span>
+                                <div class="matrix-value">
+                                    <code id="settings-server-uptime">—</code>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_server_pid">PID</span>
+                                <div class="matrix-value">
+                                    <code id="settings-server-pid">—</code>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_server_port">Poort</span>
+                                <div class="matrix-value">
+                                    <code id="settings-server-port">8080</code>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_actions">Acties</span>
+                                <div class="matrix-value settings-actions-cluster">
+                                    <button id="btn-view-server-logs" class="btn-nav" onclick="settingsModule.viewServerLogs()" data-i18n="settings_view_logs">📋 Bekijk Server Logs</button>
+                                    <button id="btn-restart-server" class="btn-nav danger-outline" onclick="settingsModule.restartServer()" data-i18n="settings_restart_server">🔄 Herstart Server</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Server Log Viewer Modal -->
+            <div id="settings-log-modal" class="settings-log-modal hidden" role="dialog" aria-modal="true" aria-labelledby="settings-log-title">
+                <div class="settings-log-dialog">
+                    <div class="settings-log-header">
+                        <h3 id="settings-log-title">📋 Server Logs</h3>
+                        <button class="settings-log-close" onclick="settingsModule.closeLogModal()" title="Sluiten">✕</button>
+                    </div>
+                    <div class="settings-log-content" id="settings-log-content">
+                        <div class="settings-log-loading">Logs laden…</div>
+                    </div>
+                    <div class="settings-log-footer">
+                        <button class="btn-nav" onclick="settingsModule.viewServerLogs()">🔄 Vernieuwen</button>
+                        <button class="btn-secondary" onclick="settingsModule.closeLogModal()">Sluiten</button>
+                    </div>
+                </div>
             </div>
 
 
@@ -2472,7 +2463,6 @@
     <script src='js/modules/settings.js'></script>
     <script src='js/modules/integration.js?v=1'></script>
     <script src='js/modules/stagebuilder.js'></script>
-    <script src='js/modules/supervisor.js'></script>
     <script src='js/modules/songidassigner.js'></script>
     <script src='js/ws-client.js'></script>
     <script src='js/modules/update-popup.js?v=1'></script>

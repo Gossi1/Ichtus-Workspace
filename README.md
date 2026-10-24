@@ -74,7 +74,7 @@ npm install               :: only if package.json changed
 nssm restart IchtusServer :: picks up new code without rebooting Windows
 ```
 
-Or use the in-app **Supervisor** tab, which does `git pull` + restart with one click.
+Or check updates in the in-app **Instellingen (Settings)** tab under Systeem / Debug.
 
 ### Uninstalling
 
