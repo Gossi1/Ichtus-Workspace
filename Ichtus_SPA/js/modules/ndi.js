@@ -101,11 +101,11 @@ const ndiModule = {
                         </div>
                         ${source.metadata ? `<div class='ndi-source-meta'>${this.escapeHtml(source.metadata)}</div>` : ''}
                     </div>
-                    <div class='ndi-source-actions'>
-                        <button class='ndi-action-btn' onclick='ndiModule.copyToClipboard(\"${this.escapeHtml(source.name)}\")' title='${__('ndi_copy_title')}'>
+                                        <div class='ndi-source-actions'>
+                        <button class='ndi-action-btn btn-copy-ndi' data-index='${index}' title='${__('ndi_copy_title')}'>
                             📋
                         </button>
-                        <button class='ndi-action-btn' onclick='ndiModule.showSourceDetails(${index})' title='${__('ndi_details_title')}'>
+                        <button class='ndi-action-btn btn-details-ndi' data-index='${index}' title='${__('ndi_details_title')}'>
                             ℹ️
                         </button>
                     </div>
@@ -114,6 +114,21 @@ const ndiModule = {
         });
 
         listEl.innerHTML = html;
+
+        listEl.querySelectorAll('.btn-copy-ndi').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index);
+                const src = this.sources[idx];
+                if (src && src.name) this.copyToClipboard(src.name);
+            });
+        });
+
+        listEl.querySelectorAll('.btn-details-ndi').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const idx = parseInt(btn.dataset.index);
+                this.showSourceDetails(idx);
+            });
+        });
     },
 
     renderError() {
@@ -139,10 +154,12 @@ const ndiModule = {
     },
 
     escapeHtml(text) {
-        if (!text) return '';
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return String(text ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     toggleAutoRefresh(enabled) {

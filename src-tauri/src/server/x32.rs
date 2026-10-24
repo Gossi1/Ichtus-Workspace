@@ -134,8 +134,8 @@ async fn send_osc_to_x32(
 fn resolve_target_ip(ip_val: Option<&Value>) -> String {
     if let Some(Value::String(s)) = ip_val {
         let trimmed = s.trim();
-        if !trimmed.is_empty() {
-            return trimmed.to_string();
+        if let Ok(ip) = trimmed.parse::<std::net::Ipv4Addr>() {
+            return ip.to_string();
         }
     }
     DEFAULT_X32_IP.to_string()
@@ -952,6 +952,8 @@ mod tests {
         assert_eq!(resolve_target_ip(Some(&json!(""))), DEFAULT_X32_IP);
         assert_eq!(resolve_target_ip(Some(&json!("   "))), DEFAULT_X32_IP);
         assert_eq!(resolve_target_ip(Some(&json!("192.168.1.100"))), "192.168.1.100");
+        assert_eq!(resolve_target_ip(Some(&json!("invalid-domain.com"))), DEFAULT_X32_IP);
+        assert_eq!(resolve_target_ip(Some(&json!("999.999.999.999"))), DEFAULT_X32_IP);
     }
 
     #[test]

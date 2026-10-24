@@ -174,6 +174,33 @@ fn spawn_dev_file_watcher(root_dir: PathBuf, ws_hub: ws::WsHub) {
 }
 
 /// Start de Rust Axum server op `0.0.0.0:{public_port}` (100% Native Rust)
+fn is_allowed_origin(origin: &HeaderValue) -> bool {
+    let Ok(s) = origin.to_str() else { return false };
+    if s == "tauri://localhost" {
+        return true;
+    }
+    let Some(stripped) = s.strip_prefix("http://") else {
+        return false;
+    };
+    let host = stripped
+        .split(':')
+        .next()
+        .unwrap_or(stripped)
+        .split('/')
+        .next()
+        .unwrap_or(stripped);
+
+    if host == "localhost" || host == "127.0.0.1" || host.ends_with(".local") {
+        return true;
+    }
+
+    if let Ok(ip) = host.parse::<std::net::Ipv4Addr>() {
+        return ip.is_loopback() || ip.is_private();
+    }
+
+    false
+}
+
 pub async fn start_axum_server(
     root_dir: PathBuf,
     data_dir: PathBuf,
@@ -220,19 +247,15 @@ pub async fn start_axum_server(
 
     // Static file services:
     // 1. /Ichtus_SPA/* -> serveert vanuit root_dir/Ichtus_SPA met index.html fallback
-    // 2. Overige paden (/assets/*, /audio/*, etc.) -> serveert vanuit root_dir,
-    //    met fallback naar spa_dir en uiteindelijk index.html voor SPA-routes.
+    // 2. /assets/* -> serveert gedeelde branding CSS, fonts en JS vanuit root_dir/assets
+    // 3. Fallback -> SPA index.html (voorkomt ongeautoriseerde toegang tot server-config.json, etc.)
     let spa_service = ServeDir::new(&spa_dir)
         .append_index_html_on_directories(true)
         .not_found_service(ServeFile::new(&index_file));
 
-    let root_static_service = ServeDir::new(&root_dir)
-        .append_index_html_on_directories(true)
-        .fallback(
-            ServeDir::new(&spa_dir)
-                .append_index_html_on_directories(true)
-                .not_found_service(ServeFile::new(&index_file)),
-        );
+    let assets_dir = root_dir.join("assets");
+    let assets_service = ServeDir::new(&assets_dir)
+        .not_found_service(ServeFile::new(&index_file));
 
     let no_cache_header = SetResponseHeaderLayer::overriding(
         header::CACHE_CONTROL,
@@ -240,7 +263,9 @@ pub async fn start_axum_server(
     );
 
     let cors = CorsLayer::new()
-        .allow_origin(tower_http::cors::Any)
+        .allow_origin(tower_http::cors::AllowOrigin::predicate(|origin, _| {
+            is_allowed_origin(origin)
+        }))
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -412,8 +437,9 @@ pub async fn start_axum_server(
         .route("/ws", get(ws::ws_handler))
         // Root redirect/serve naar SPA index.html
         .route_service("/", ServeFile::new(&index_file))
-        .nest_service("/Ichtus_SPA", spa_service)
-        .fallback_service(root_static_service)
+        .nest_service("/Ichtus_SPA", spa_service.clone())
+        .nest_service("/assets", assets_service)
+        .fallback_service(spa_service)
         .layer(no_cache_header)
         .layer(cors)
         .with_state(state);

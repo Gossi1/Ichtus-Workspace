@@ -388,7 +388,10 @@ const checklistModule = {
                 div.id = 'task-row-' + task.id;
                 div.className = 'task-row';
 
-                div.innerHTML = '<div class=\"task-info-group\"><input type=\"checkbox\" id=\"check-' + task.id + '\" class=\"task-checkbox\"><div><div id=\"name-' + task.id + '\" class=\"task-name\">' + task.name + '</div><div id=\"team-' + task.id + '\" class=\"task-team\">' + task.team + '</div></div></div><div id=\"time-' + task.id + '\" class=\"task-time heading-font\"></div>';
+                const safeId = this._escapeHtml(task.id);
+                const safeName = this._escapeHtml(task.name);
+                const safeTeam = this._escapeHtml(task.team);
+                div.innerHTML = '<div class="task-info-group"><input type="checkbox" id="check-' + safeId + '" class="task-checkbox"><div><div id="name-' + safeId + '" class="task-name">' + safeName + '</div><div id="team-' + safeId + '" class="task-team">' + safeTeam + '</div></div></div><div id="time-' + safeId + '" class="task-time heading-font"></div>';
                 container.appendChild(div);
 
                 document.getElementById('check-' + task.id)?.addEventListener('change', (e) => {
@@ -521,7 +524,10 @@ const checklistModule = {
             div.className = 'manage-list-item';
 
             const isTeamDisabled = (appState.role && appState.role !== 'Admin') ? 'disabled' : '';
-            div.innerHTML = '<input type=\"text\" value=\"' + task.name + '\" class=\"manage-input flex-1\" onchange=\"checklistModule.updateTask(\u0027' + task.id + '\u0027, \u0027name\u0027, this.value)\"><input type=\"number\" value=\"' + task.minsBefore + '\" class=\"manage-input w-16\" onchange=\"checklistModule.updateTask(\u0027' + task.id + '\u0027, \u0027minsBefore\u0027, this.value)\"><select ' + isTeamDisabled + ' class=\"manage-input w-24\" onchange=\"checklistModule.updateTask(\u0027' + task.id + '\u0027, \u0027team\u0027, this.value)\"><option value=\"Beamer\" ' + (task.team === 'Beamer' ? 'selected' : '') + '>Beamer</option><option value=\"Worship\" ' + (task.team === 'Worship' ? 'selected' : '') + '>Worship</option></select><button onclick=\"checklistModule.deleteTask(\u0027' + task.id + '\u0027)\" class=\"btn-delete-task\" title=\"Verwijderen\">âœ•</button>';
+            const safeName = this._escapeHtml(task.name);
+            const safeId = this._escapeHtml(task.id);
+            const safeMins = parseInt(task.minsBefore) || 0;
+            div.innerHTML = '<input type="text" value="' + safeName + '" class="manage-input flex-1" onchange="checklistModule.updateTask(\'' + safeId + '\', \'name\', this.value)"><input type="number" value="' + safeMins + '" class="manage-input w-16" onchange="checklistModule.updateTask(\'' + safeId + '\', \'minsBefore\', this.value)"><select ' + isTeamDisabled + ' class="manage-input w-24" onchange="checklistModule.updateTask(\'' + safeId + '\', \'team\', this.value)"><option value="Beamer" ' + (task.team === 'Beamer' ? 'selected' : '') + '>Beamer</option><option value="Worship" ' + (task.team === 'Worship' ? 'selected' : '') + '>Worship</option></select><button onclick="checklistModule.deleteTask(\'' + safeId + '\')" class="btn-delete-task" title="Verwijderen">✕</button>';
             container.appendChild(div);
         });
     },
@@ -545,9 +551,12 @@ const checklistModule = {
     // ========================================================================
 
     _escapeHtml(str) {
-        const div = document.createElement('div');
-        div.appendChild(document.createTextNode(str || ''));
-        return div.innerHTML;
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     _getChecklists() {

@@ -106,15 +106,63 @@ fn load_library_config(data_dir: &Path) -> LibraryConfig {
     LibraryConfig::default()
 }
 
+fn validate_library_path(raw_path: &str) -> Result<PathBuf, &'static str> {
+    if raw_path.is_empty() {
+        return Err("libraryPath mag niet leeg zijn");
+    }
+
+    // Disallow directory traversal sequences
+    if raw_path.contains("..") {
+        return Err("Relatieve pad-traversal ('..') is niet toegestaan");
+    }
+
+    let path = PathBuf::from(raw_path);
+
+    // Enforce .json extension
+    let is_json = path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.eq_ignore_ascii_case("json"))
+        .unwrap_or(false);
+
+    if !is_json {
+        return Err("Bestand moet de extensie .json hebben");
+    }
+
+    // Block sensitive Windows system directories
+    let lower = raw_path.to_lowercase().replace('/', "\\");
+    if lower.contains("\\windows\\")
+        || lower.contains("\\system32\\")
+        || lower.contains("\\syswow64\\")
+        || lower.contains("\\program files\\")
+        || lower.contains("\\program files (x86)\\")
+        || lower.starts_with("c:\\windows")
+    {
+        return Err("Systeemmappen zijn niet toegestaan als bibliotheeklocatie");
+    }
+
+    // Require that parent directory exists or is valid
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() && !parent.exists() {
+            return Err("De bovenliggende map bestaat niet. Controleer of de SharePoint/OneDrive map gekoppeld is.");
+        }
+    } else {
+        return Err("Ongeldig bestandspad");
+    }
+
+    Ok(path)
+}
+
 fn get_library_path(root_dir: &Path, data_dir: &Path) -> PathBuf {
     let cfg = load_library_config(data_dir);
     if let Some(configured) = cfg.library_path {
         let configured = configured.trim();
         if !configured.is_empty() {
-            let p = PathBuf::from(configured);
-            if let Some(parent) = p.parent() {
-                if parent.exists() {
-                    return p;
+            if let Ok(p) = validate_library_path(configured) {
+                if let Some(parent) = p.parent() {
+                    if parent.exists() {
+                        return p;
+                    }
                 }
             }
         }
@@ -184,18 +232,16 @@ pub async fn library_config_post_handler(
         .unwrap_or("")
         .trim();
 
-    if raw_path.is_empty() {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(json!({ "success": false, "error": "libraryPath mag niet leeg zijn" })),
-        )
-            .into_response();
-    }
-
-    let lib_path = PathBuf::from(raw_path);
-    if let Some(parent) = lib_path.parent() {
-        let _ = fs::create_dir_all(parent);
-    }
+    let lib_path = match validate_library_path(raw_path) {
+        Ok(p) => p,
+        Err(err_msg) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "success": false, "error": err_msg })),
+            )
+                .into_response();
+        }
+    };
 
     if !lib_path.exists() {
         let init_data = json!({

@@ -29,10 +29,10 @@ const setlistModule = {
         PRO_IP: "100.113.22.22",
         PRO_PORT: "51253",
         LIBRARY_NAME: "Songs", // Library name to search for
-        LOOP_VOOR_UUID: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52",
-        MEDEDELINGEN_UUID: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9",
-        LOOP_NA_UUID: "6e8e3626-ebcc-4efa-aad1-53253561d08a",
-        YOUTH_ANNOUNCEMENT_UUID: "fe887688-747e-442e-a357-8b37865bdf5a"
+        LOOP_VOOR_UUID: "13880ae6-8918-4bfa-ad96-8411bddfa686",
+        MEDEDELINGEN_UUID: "dc61e318-772f-43b7-95e0-91129ad34e5f",
+        LOOP_NA_UUID: "bf333747-d281-418e-b145-362fbd63af53",
+        YOUTH_ANNOUNCEMENT_UUID: "5855dafa-9459-427d-a06f-70af1f359785"
     },
 
     // --- DEFAULT TEMPLATES ---
@@ -41,86 +41,86 @@ const setlistModule = {
             name: "ZondagDienst",
             items: [
                 { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
-                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "13880ae6-8918-4bfa-ad96-8411bddfa686" },
                 { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
-                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "71859f11-ead9-41c6-9764-e8aad1045c6b" },
                 { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
-                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "dc61e318-772f-43b7-95e0-91129ad34e5f" },
                 { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
-                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "ca532b8c-c53f-4cac-a2ce-1980ad7b0be9" },
                 { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
-                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "565f5205-3130-4c29-a14c-6da6442632a2" },
                 { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
-                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "bf333747-d281-418e-b145-362fbd63af53" }
             ]
         },
         "worshipAvond": {
             name: "Worship Avond",
             items: [
                 { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
-                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "13880ae6-8918-4bfa-ad96-8411bddfa686" },
                 { type: "header", name: "Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
-                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "bf333747-d281-418e-b145-362fbd63af53" }
             ]
         },
         "doopDienst": {
             name: "DoopDienst",
             items: [
                 { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
-                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "13880ae6-8918-4bfa-ad96-8411bddfa686" },
                 { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
-                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "71859f11-ead9-41c6-9764-e8aad1045c6b" },
                 { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
-                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "dc61e318-772f-43b7-95e0-91129ad34e5f" },
                 { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
-                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "ca532b8c-c53f-4cac-a2ce-1980ad7b0be9" },
                 { type: "header", name: "Doopliederen", destination: "presentation", color: { red: 0.5882352941176471, green: 0.5176470588235295, blue: 0.13725490196078433, alpha: 1 }, insert: "doop" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
-                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "565f5205-3130-4c29-a14c-6da6442632a2" },
                 { type: "header", name: "Einde-Dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
-                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "bf333747-d281-418e-b145-362fbd63af53" }
             ]
         },
         "avondmaalDienst": {
             name: "AvondmaalDienst",
             items: [
                 { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
-                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "0c473d4a-6d2f-4c47-bc6b-f2f405de4e52" },
+                { type: "presentation", name: "Loop voor de dienst", destination: "presentation", uuid: "13880ae6-8918-4bfa-ad96-8411bddfa686" },
                 { type: "header", name: "Openingslied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "opening" },
-                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "594e3645-8d9b-46de-b233-ce15c923833b" },
+                { type: "presentation", name: "Macro Openingslied", destination: "presentation", uuid: "71859f11-ead9-41c6-9764-e8aad1045c6b" },
                 { type: "header", name: "Mededelingen", destination: "presentation", color: { red: 0.3686274509803922, green: 0.27450980392156865, blue: 0.043137254901960784, alpha: 1 } },
-                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "e111bd8c-b0b2-4caf-ac45-1a6cd3f753e9" },
+                { type: "presentation", name: "Mededelingen", destination: "presentation", uuid: "dc61e318-772f-43b7-95e0-91129ad34e5f" },
                 { type: "header", name: "Praise & Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Avondmaal", destination: "presentation", color: { red: 1, green: 0.8431372549019608, blue: 0, alpha: 1 }, insert: "avondmaal" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
-                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "ca532b8c-c53f-4cac-a2ce-1980ad7b0be9" },
                 { type: "header", name: "Eindlied", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "closing" },
-                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "565f5205-3130-4c29-a14c-6da6442632a2" },
                 { type: "header", name: "Einde-dienst", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 } },
-                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "6e8e3626-ebcc-4efa-aad1-53253561d08a" }
+                { type: "presentation", name: "Loop na de dienst", destination: "presentation", uuid: "bf333747-d281-418e-b145-362fbd63af53" }
             ]
         },
         "delightedYouth": {
             name: "Delighted Youth",
             items: [
                 { type: "header", name: "Welcome", destination: "presentation", color: { red: 0.40784313725490196, green: 0.5725490196078431, blue: 0.6862745098039216, alpha: 1 } },
-                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "fe887688-747e-442e-a357-8b37865bdf5a" },
+                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "5855dafa-9459-427d-a06f-70af1f359785" },
                 { type: "header", name: "Worship", destination: "presentation", color: { red: 0.09803921568627451, green: 0.48627450980392156, blue: 0.09803921568627451, alpha: 1 }, insert: "praise" },
-                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "bd1a174b-1589-4ed5-8f56-238458e013de" },
+                { type: "presentation", name: "Macro Praise & Worship", destination: "presentation", uuid: "8d831395-c61e-464e-b999-92de2fa5f2b8" },
                 { type: "header", name: "Preek", destination: "presentation", color: { red: 0.7137254901960784, green: 0.35294117647058826, blue: 0.06274509803921569, alpha: 1 } },
-                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "17e910c0-e393-46b2-8a06-6a0f362546fb" },
+                { type: "presentation", name: "Macro Preek & Bijbel", destination: "presentation", uuid: "ca532b8c-c53f-4cac-a2ce-1980ad7b0be9" },
                 { type: "header", name: "Service End", destination: "presentation", color: { red: 0.5450980392156862, green: 0, blue: 0, alpha: 1 }, insert: "closing" },
-                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "7333d58f-59e5-4558-8ad6-1156119ab734" },
-                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "fe887688-747e-442e-a357-8b37865bdf5a" }
+                { type: "presentation", name: "Macro Eindlied", destination: "presentation", uuid: "565f5205-3130-4c29-a14c-6da6442632a2" },
+                { type: "presentation", name: "YOUTH Announcement", destination: "announcements", uuid: "5855dafa-9459-427d-a06f-70af1f359785" }
             ]
         }
     },
@@ -1262,7 +1262,7 @@ const setlistModule = {
      * Build sync items from parsedSongs + libraryMap.
      * Returns { items, matchedSongs, unmatchedSongs }.
      */
-    _buildSyncItems(libraryMap) {
+    _buildSyncItems(libraryMap, allPresentationsByName = {}, allPresentationsByUuid = new Set()) {
         const selectedTemplateKey = document.getElementById('setlist-service-type').value;
         const template = (this.SERVICE_TEMPLATES && this.SERVICE_TEMPLATES[selectedTemplateKey])
             || (this.DEFAULT_TEMPLATES && this.DEFAULT_TEMPLATES[selectedTemplateKey]);
@@ -1297,10 +1297,10 @@ const setlistModule = {
         });
 
         sections.forEach(sec => {
-            // 1. Add header
+            // 1. Add header (headers do not need a presentation UUID)
             items.push(this.createItem(
                 sec.header.name,
-                sec.header.uuid || "",
+                "",
                 true,
                 sec.header.color,
                 sec.header.destination || "presentation"
@@ -1308,9 +1308,26 @@ const setlistModule = {
 
             // 2. Add presentations belonging to this header (e.g. Macro Praise & Worship / Loop)
             sec.presentations.forEach(pres => {
+                let uuid = pres.uuid || "";
+                // If pres.uuid is not found in ProPresenter, try to resolve it dynamically by name
+                if (allPresentationsByUuid.size > 0 && (!uuid || !allPresentationsByUuid.has(uuid))) {
+                    const cleanName = (pres.name || "").toLowerCase().trim();
+                    if (allPresentationsByName[cleanName]) {
+                        uuid = allPresentationsByName[cleanName];
+                        console.log(`[Sync] Dynamically matched presentation "${pres.name}":`, uuid);
+                    }
+                }
+
+                // If UUID is still invalid/missing, do not send to ProPresenter (avoids HTTP 404 aborting the whole sync)
+                if (allPresentationsByUuid.size > 0 && (!uuid || !allPresentationsByUuid.has(uuid))) {
+                    console.warn(`[Sync] Presentation "${pres.name}" (UUID: ${uuid}) not found in ProPresenter. Omitting to avoid 404.`);
+                    unmatchedSongs.push(`${pres.name} (presentation niet in ProPresenter)`);
+                    return;
+                }
+
                 items.push(this.createItem(
                     pres.name,
-                    pres.uuid || "",
+                    uuid,
                     false,
                     null,
                     pres.destination || "presentation"
@@ -1337,6 +1354,15 @@ const setlistModule = {
                         if (nameWithoutNumber && nameWithoutNumber !== s) {
                             uuid = libraryMap[nameWithoutNumber.toLowerCase()];
                             if (uuid) console.log('[Sync] Matched by clean name:', nameWithoutNumber, '←', s);
+                        }
+                    }
+
+                    // Also check allPresentationsByName across other libraries as fallback
+                    if (!uuid) {
+                        const cleanName = this.stripSongNumberPrefix(s).toLowerCase().trim();
+                        if (allPresentationsByName[cleanName]) {
+                            uuid = allPresentationsByName[cleanName];
+                            console.log('[Sync] Matched song in other library:', s, '→', uuid);
                         }
                     }
 
@@ -1396,7 +1422,7 @@ const setlistModule = {
             const PROXY_BASE = `${window.location.origin}/api/pro`;
             const BASE_URL = PROXY_BASE;
 
-            // Step 1: Get library
+            // Step 1: Get libraries
             const libsResp = await proFetch(`${BASE_URL}/libraries`, { method: 'GET' });
             if (!libsResp.ok) throw new Error(`Libraries list fetch failed: HTTP ${libsResp.status}`);
             const libsData = await libsResp.json();
@@ -1405,18 +1431,33 @@ const setlistModule = {
             const targetLib = libsData.find(lib => lib.name === this.CONFIG.LIBRARY_NAME);
             if (!targetLib) throw new Error(`Library "${this.CONFIG.LIBRARY_NAME}" not found. Available: ${libsData.map(l => l.name).join(', ')}`);
 
-            // Step 2: Fetch library contents
-            const libResp = await proFetch(`${BASE_URL}/library/${targetLib.uuid}`, { method: 'GET' });
-            if (!libResp.ok) throw new Error(`Library contents fetch failed: HTTP ${libResp.status}`);
-            const libData = await libResp.json();
-
+            // Step 2: Index presentations across all libraries for bulletproof UUID resolution
             const libraryMap = {};
-            libData.items.forEach(item => {
-                libraryMap[item.name.toLowerCase().trim()] = item.uuid;
-            });
+            const allPresentationsByName = {};
+            const allPresentationsByUuid = new Set();
 
-            // Step 3: Build setlist items
-            const { items, matchedSongs, unmatchedSongs } = this._buildSyncItems(libraryMap);
+            await Promise.all(libsData.map(async (lib) => {
+                try {
+                    const resp = await proFetch(`${BASE_URL}/library/${lib.uuid}`, { method: 'GET' });
+                    if (resp.ok) {
+                        const libData = await resp.json();
+                        (libData.items || []).forEach(item => {
+                            if (!item.uuid) return;
+                            const cleanName = (item.name || '').toLowerCase().trim();
+                            allPresentationsByName[cleanName] = item.uuid;
+                            allPresentationsByUuid.add(item.uuid);
+                            if (lib.name === this.CONFIG.LIBRARY_NAME) {
+                                libraryMap[cleanName] = item.uuid;
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.warn(`[Sync] Could not index library "${lib.name}":`, e.message);
+                }
+            }));
+
+            // Step 3: Build setlist items with dynamic resolution
+            const { items, matchedSongs, unmatchedSongs } = this._buildSyncItems(libraryMap, allPresentationsByName, allPresentationsByUuid);
 
             // Step 4: Determine playlist name & check all existing playlists
             const playlistName = this.serviceDate || ("Web Sync: " + new Date().toLocaleTimeString(i18n.getLocale()));
@@ -1498,10 +1539,14 @@ const setlistModule = {
                                 const eindIdx = existingItems.findIndex(i => i.type === 'header' && /eind/i.test(i.id?.name));
                                 if (preekIdx >= 0 && eindIdx > preekIdx) {
                                     preservedManualItems = existingItems.slice(preekIdx + 1, eindIdx).map(item => {
-                                        // id.uuid MOET gelijk zijn aan target_uuid, anders geeft
-                                        // ProPresenter PUT een 404 (de id.uuid van een playlist-item
-                                        // is niet dezelfde als de presentatie-uuid in de library).
-                                        const targetUuid = item.target_uuid || item.presentation_info?.presentation_uuid || item.id?.uuid || '';
+                                        // id.uuid MOET gelijk zijn aan target_uuid, anders geeft ProPresenter PUT een 404
+                                        let targetUuid = item.target_uuid || item.presentation_info?.presentation_uuid || item.id?.uuid || '';
+                                        if (item.type === 'presentation' && allPresentationsByUuid.size > 0 && !allPresentationsByUuid.has(targetUuid)) {
+                                            const cleanName = (item.id?.name || '').toLowerCase().trim();
+                                            if (allPresentationsByName[cleanName]) {
+                                                targetUuid = allPresentationsByName[cleanName];
+                                            }
+                                        }
                                         return {
                                             id: { uuid: targetUuid, name: item.id?.name || '', index: 0 },
                                             type: item.type || 'presentation',
@@ -1510,6 +1555,12 @@ const setlistModule = {
                                             target_uuid: targetUuid,
                                             destination: item.destination || 'presentation'
                                         };
+                                    }).filter(item => {
+                                        if (item.type === 'presentation' && allPresentationsByUuid.size > 0 && !allPresentationsByUuid.has(item.target_uuid)) {
+                                            console.warn('[Sync] Skipping stale manual presentation:', item.id?.name, item.target_uuid);
+                                            return false;
+                                        }
+                                        return true;
                                     });
                                 }
                             }

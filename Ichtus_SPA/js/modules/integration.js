@@ -501,9 +501,9 @@ const integrationModule = {
             // Fill inputs if modal is present
             if (document.getElementById('integration-wt-account-id')) {
                 this._setModalField('integration-wt-account-id', data.accountId || '');
-                this._setModalField('integration-wt-api-key', data.apiKey || '');
-                this._setModalField('integration-wt-refresh-token', data.refreshToken || '');
-                this._setModalField('integration-wt-api-token', data.apiToken || '');
+                this._setModalField('integration-wt-api-key', data.apiKeyMasked || (data.hasApiKey ? '••••••••••••••••' : ''));
+                this._setModalField('integration-wt-refresh-token', data.hasRefreshToken ? '••••••••••••••••' : '');
+                this._setModalField('integration-wt-api-token', data.hasApiToken ? '••••••••••••••••' : '');
             }
 
             return data;
@@ -526,9 +526,14 @@ const integrationModule = {
 
     async saveWorshipToolsConfig() {
         const accountId = (document.getElementById('integration-wt-account-id')?.value || '').trim();
-        const apiKey = (document.getElementById('integration-wt-api-key')?.value || '').trim();
-        const refreshToken = (document.getElementById('integration-wt-refresh-token')?.value || '').trim();
-        const apiToken = (document.getElementById('integration-wt-api-token')?.value || '').trim();
+        let apiKey = (document.getElementById('integration-wt-api-key')?.value || '').trim();
+        let refreshToken = (document.getElementById('integration-wt-refresh-token')?.value || '').trim();
+        let apiToken = (document.getElementById('integration-wt-api-token')?.value || '').trim();
+
+        // Do not send placeholder / masked values to avoid overwriting existing stored secrets
+        if (apiKey.includes('****') || apiKey.includes('•')) apiKey = null;
+        if (refreshToken.includes('****') || refreshToken.includes('•')) refreshToken = null;
+        if (apiToken.includes('****') || apiToken.includes('•')) apiToken = null;
 
         const saveBtn = document.getElementById('btn-wt-save');
         if (saveBtn) saveBtn.disabled = true;

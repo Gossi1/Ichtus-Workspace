@@ -68,33 +68,46 @@ window.dashboardWidgets.micMonitor = {
         }
 
         const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
+        const escapeHtml = str => String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        const safeAvatar = url => {
+            if (!url || typeof url !== 'string') return fallbackSvg;
+            const t = url.trim();
+            if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:image/')) {
+                return t.replace(/["'()]/g, '');
+            }
+            return fallbackSvg;
+        };
 
         gridContainer.innerHTML = channels.map(mic => {
-            const micLabel = mic.name || 'Unassigned / Standby';
-            return `<div class="mic-flip-card" data-mic-id="${mic.mic_id}" onclick="dashboardModule._flipMicCard(${mic.mic_id})">
+            const micLabel = escapeHtml(mic.name || 'Unassigned / Standby');
+            const iemPack = escapeHtml(mic.iem_pack || '');
+            const frequency = escapeHtml(mic.frequency || '');
+            const avatarUrl = safeAvatar(mic.avatar_url);
+            const micId = parseInt(mic.mic_id) || 0;
+            return `<div class="mic-flip-card" data-mic-id="${micId}" onclick="dashboardModule._flipMicCard(${micId})">
                 <div class="mic-flip-inner">
                     <div class="mic-flip-front mic-card">
-                        <div class="mic-card-photo" style="background-image: url(${mic.avatar_url || fallbackSvg});">
-                            <span class="mic-badge">MIC ${mic.mic_id}</span>
+                        <div class="mic-card-photo" style="background-image: url('${avatarUrl}');">
+                            <span class="mic-badge">MIC ${micId}</span>
                         </div>
                         <div class="mic-card-info">
                             <div class="mic-name">${micLabel}</div>
-                            <div class="mic-iem">${mic.iem_pack}</div>
-                            <div class="mic-frequency">${mic.frequency}</div>
+                            <div class="mic-iem">${iemPack}</div>
+                            <div class="mic-frequency">${frequency}</div>
                         </div>
                     </div>
                     <div class="mic-flip-back">
                         <div class="mic-card-header">
-                            <span class="mic-label">CONFIG MIC ${mic.mic_id}</span>
+                            <span class="mic-label">CONFIG MIC ${micId}</span>
                         </div>
                         <div class="mic-edit-fields">
                             <div class="mic-edit-row">
                                 <label>IEM Pack</label>
-                                <input type="text" class="mic-input edit-iem" value="${mic.iem_pack}" placeholder="IEM Pack ${mic.mic_id}" onclick="event.stopPropagation()">
+                                <input type="text" class="mic-input edit-iem" value="${iemPack}" placeholder="IEM Pack ${micId}" onclick="event.stopPropagation()">
                             </div>
                             <div class="mic-edit-row">
                                 <label>RF Frequentie</label>
-                                <input type="text" class="mic-input edit-freq" value="${mic.frequency}" placeholder="000.000 MHz" onclick="event.stopPropagation()">
+                                <input type="text" class="mic-input edit-freq" value="${frequency}" placeholder="000.000 MHz" onclick="event.stopPropagation()">
                             </div>
                         </div>
                     </div>

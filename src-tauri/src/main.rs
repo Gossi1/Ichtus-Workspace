@@ -182,7 +182,8 @@ fn start_app_workflow(
             if connected {
                 let remote_url = format!("http://{}:{}/Ichtus_SPA/", host, target_port);
                 println!("[TAURI] Verbonden met host! Navigeren naar {}", remote_url);
-                let _ = window.eval(&format!("window.location.href = '{}';", remote_url));
+                let safe_url = serde_json::to_string(&remote_url).unwrap_or_default();
+                let _ = window.eval(&format!("window.location.href = {};", safe_url));
             } else {
                 let err_msg = format!(
                     "Kon niet verbinden met Beamer PC op {}:{}. Controleer of de Beamer PC aan staat en verbonden is met hetzelfde netwerk.",
@@ -206,13 +207,22 @@ fn save_mode(
     handle: AppHandle,
 ) -> Result<(), String> {
     let resolved_host = host_address.or(hostAddress).unwrap_or_else(default_host_address);
+    let trimmed_host = resolved_host.trim();
+
+    if trimmed_host.parse::<std::net::IpAddr>().is_err()
+        && trimmed_host != "localhost"
+        && !trimmed_host.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
+    {
+        return Err("Ongeldig host IP-adres of computernaam".to_string());
+    }
+
     println!(
         "[TAURI] Modus opslaan: mode={}, host={:?}",
-        mode, resolved_host
+        mode, trimmed_host
     );
     let cfg = AppConfig {
         mode,
-        host_address: resolved_host,
+        host_address: trimmed_host.to_string(),
     };
     save_app_config(&cfg);
     start_app_workflow(handle, cfg);

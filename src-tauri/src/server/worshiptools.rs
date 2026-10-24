@@ -2150,6 +2150,10 @@ pub async fn close_login_handler(State(state): State<ServerState>) -> impl IntoR
 }
 
 
+fn is_wt_placeholder(s: &str) -> bool {
+    s.is_empty() || s.contains("****") || s.contains('•') || s == "__UNCHANGED__"
+}
+
 pub async fn config_get_handler(State(state): State<ServerState>) -> impl IntoResponse {
     let cfg = state.worshiptools_manager.get_config().ok();
     let account_id = cfg.as_ref().map(|c| c.account_id.clone()).unwrap_or_default();
@@ -2159,13 +2163,19 @@ pub async fn config_get_handler(State(state): State<ServerState>) -> impl IntoRe
 
     let configured = !account_id.is_empty() && !api_key.is_empty() && !refresh_token.is_empty();
 
+    let api_key_masked = if !api_key.is_empty() {
+        let prefix_len = api_key.len().min(6);
+        format!("{}****", &api_key[..prefix_len])
+    } else {
+        String::new()
+    };
+
     Json(json!({
         "success": true,
         "configured": configured,
         "accountId": account_id,
-        "apiKey": api_key,
-        "refreshToken": refresh_token,
-        "apiToken": api_token,
+        "apiKeyMasked": api_key_masked,
+        "hasApiKey": !api_key.is_empty(),
         "hasRefreshToken": !refresh_token.is_empty(),
         "hasApiToken": !api_token.is_empty(),
     }))
@@ -2218,19 +2228,19 @@ pub async fn config_post_handler(
                 }
                 if let Some(ref key) = body.api_key {
                     let s = key.trim();
-                    if !s.is_empty() {
+                    if !is_wt_placeholder(s) {
                         wt_obj.insert("apiKey".to_string(), Value::String(s.to_string()));
                     }
                 }
                 if let Some(ref rt) = body.refresh_token {
                     let s = rt.trim();
-                    if !s.is_empty() {
+                    if !is_wt_placeholder(s) {
                         wt_obj.insert("refreshToken".to_string(), Value::String(s.to_string()));
                     }
                 }
                 if let Some(ref tok) = body.api_token {
                     let s = tok.trim();
-                    if !s.is_empty() {
+                    if !is_wt_placeholder(s) {
                         wt_obj.insert("apiToken".to_string(), Value::String(s.to_string()));
                     }
                 }
@@ -2246,7 +2256,7 @@ pub async fn config_post_handler(
     }
 
     // Trigger sync_people_cache if apiToken was set
-    let people_count = if body.api_token.as_ref().map(|s| !s.trim().is_empty()).unwrap_or(false) {
+    let people_count = if body.api_token.as_ref().map(|s| !is_wt_placeholder(s.trim())).unwrap_or(false) {
         let p = state.worshiptools_manager.sync_people_cache(true).await;
         p.len()
     } else {
