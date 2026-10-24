@@ -1,6 +1,6 @@
 {
   "name": "ichtus-workspace",
-  "version": "3.0.2",
+  "version": "3.0.3",
   "description": "Ichtus Workspace — Native Rust & Tauri desktop application",
   "type": "module",
   "scripts": {
