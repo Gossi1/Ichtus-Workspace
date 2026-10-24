@@ -333,6 +333,7 @@
                         <input type='file' id='fileInput' accept='image/*'>
                     </label>
                     <button class='btn-load' onclick='agendaModule.fetchTockify()'>Agenda ophalen</button>
+                    <button class='btn-feed-settings' onclick='agendaModule.openFeedModal()' title='Kalender feed URL aanpassen' data-i18n='agenda_btn_feed_settings'>⚙️ Feed URL</button>
                     <div class='agenda-filename-container' title='Bestandsnaam voor download'>
                         <span class='filename-prefix'>📁</span>
                         <input type='text' id='agenda-filename' class='agenda-filename-input' placeholder='Agenda_week_38' spellcheck='false'>
@@ -376,6 +377,35 @@
                             <div id='col-pipe' class='column'></div>
                             <div id='col-time' class='column'></div>
                             <div id='col-event' class='column'></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Agenda iCal Feed Modal -->
+            <div id='agenda-feed-modal' class='agenda-feed-modal hidden' role='dialog' aria-modal='true' aria-labelledby='agenda-feed-title'>
+                <div class='agenda-feed-dialog'>
+                    <div class='agenda-feed-header'>
+                        <h3 id='agenda-feed-title'>⚙️ <span data-i18n='agenda_feed_modal_title'>Kalender Feed Instellingen</span></h3>
+                        <button class='agenda-feed-close' onclick='agendaModule.closeFeedModal()' title='Sluiten'>✕</button>
+                    </div>
+                    <div class='agenda-feed-body'>
+                        <p class='agenda-feed-desc' data-i18n='agenda_feed_modal_desc'>
+                            Voer de link in van een willekeurige iCal / Webcal kalenderfeed (Google Calendar, Microsoft Outlook, Apple Calendar, Tockify, etc.).
+                        </p>
+                        <div class='agenda-feed-input-group'>
+                            <label for='agenda-feed-url-input' class='agenda-feed-label' data-i18n='agenda_feed_url_label'>iCal / Webcal URL:</label>
+                            <input type='text' id='agenda-feed-url-input' class='agenda-feed-input' placeholder='https://... of webcal://...' spellcheck='false'>
+                        </div>
+                        <div class='agenda-feed-help'>
+                            💡 <em>Ondersteunt zowel <code>https://</code> als <code>webcal://</code> links.</em>
+                        </div>
+                    </div>
+                    <div class='agenda-feed-footer'>
+                        <button class='btn-secondary' onclick='agendaModule.resetFeedUrl()' data-i18n='agenda_feed_btn_reset'>↺ Standaard herstellen</button>
+                        <div class='agenda-feed-footer-actions'>
+                            <button class='btn-secondary' onclick='agendaModule.closeFeedModal()' data-i18n='agenda_feed_btn_cancel'>Annuleren</button>
+                            <button class='btn-nav btn-feed-save' onclick='agendaModule.saveFeedUrl()' data-i18n='agenda_feed_btn_save'>Opslaan &amp; Ophalen</button>
                         </div>
                     </div>
                 </div>
@@ -1131,6 +1161,13 @@
                                 <div class="matrix-value">
                                     <button id="btn-check-updates" class="btn-nav" onclick="settingsModule.checkForUpdates()">🔄 Check voor updates</button>
                                     <span id="settings-update-status" class="update-notification-tag" style="display:none;"></span>
+                                </div>
+                            </div>
+                            <div class="info-matrix-row">
+                                <span class="matrix-label" data-i18n="settings_calendar_feed">Agenda Feed URL</span>
+                                <div class="matrix-value settings-actions-cluster">
+                                    <input type="text" id="settings-calendar-feed-input" class="form-input" style="min-width: 260px; flex: 1;" placeholder="https://... of webcal://..." onchange="settingsModule.saveCalendarFeedUrl(this.value)">
+                                    <button class="btn-nav" onclick="settingsModule.resetCalendarFeedUrl()" title="Herstel naar standaard Tockify feed" data-i18n="settings_btn_reset_feed">↺ Standaard</button>
                                 </div>
                             </div>
                         </div>

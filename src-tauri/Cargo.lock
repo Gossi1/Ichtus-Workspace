@@ -1755,6 +1755,7 @@ dependencies = [
  "tauri-plugin-window-state",
  "tokio",
  "tower-http",
+ "url",
  "urlencoding",
 ]
 

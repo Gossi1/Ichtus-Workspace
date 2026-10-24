@@ -141,6 +141,17 @@ const i18n = {
             agenda_server_error: 'Server fout: ',
             agenda_error: 'Fout: ',
             agenda_filename_title: 'Bestandsnaam voor download',
+            agenda_btn_feed_settings: '⚙️ Feed URL',
+            agenda_feed_url_label: 'iCal / Webcal URL:',
+            agenda_feed_modal_title: 'Kalender Feed Instellingen',
+            agenda_feed_modal_desc: 'Voer de link in van een willekeurige iCal / Webcal kalenderfeed (Google Calendar, Microsoft Outlook, Apple Calendar, Tockify, etc.).',
+            agenda_feed_btn_reset: '↺ Standaard herstellen',
+            agenda_feed_btn_cancel: 'Annuleren',
+            agenda_feed_btn_save: 'Opslaan & Ophalen',
+            agenda_feed_saved: 'Kalender URL opgeslagen!',
+            agenda_feed_reset: 'Kalender URL hersteld naar standaard.',
+            settings_calendar_feed: 'Agenda Feed URL',
+            settings_btn_reset_feed: '↺ Standaard',
 
 
             // ==================== SETLIST MODULE ====================
@@ -480,6 +491,17 @@ const i18n = {
             agenda_server_error: 'Server error: ',
             agenda_error: 'Error: ',
             agenda_filename_title: 'Filename for download',
+            agenda_btn_feed_settings: '⚙️ Feed URL',
+            agenda_feed_url_label: 'iCal / Webcal URL:',
+            agenda_feed_modal_title: 'Calendar Feed Settings',
+            agenda_feed_modal_desc: 'Enter the link to any iCal / Webcal calendar feed (Google Calendar, Microsoft Outlook, Apple Calendar, Tockify, etc.).',
+            agenda_feed_btn_reset: '↺ Reset to Default',
+            agenda_feed_btn_cancel: 'Cancel',
+            agenda_feed_btn_save: 'Save & Fetch',
+            agenda_feed_saved: 'Calendar URL saved!',
+            agenda_feed_reset: 'Calendar URL reset to default.',
+            settings_calendar_feed: 'Agenda Feed URL',
+            settings_btn_reset_feed: '↺ Default',
 
 
             // ==================== SETLIST MODULE ====================

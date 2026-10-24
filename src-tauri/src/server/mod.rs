@@ -423,8 +423,9 @@ pub async fn start_axum_server(
             "/api/worshiptools/test",
             post(worshiptools::config_test_handler),
         )
-        // Fase 4.9: Native Rust Tockify ICS proxy (/api/tockify/ics)
+        // Fase 4.9: Native Rust Calendar / Tockify ICS proxy (/api/calendar/ics & /api/tockify/ics)
         .route("/api/tockify/ics", get(system::tockify_ics_handler))
+        .route("/api/calendar/ics", get(system::tockify_ics_handler))
         // Fase 4.9: Native Rust Song ID Assigner Library (/api/library/*)
         .route("/api/library/files", get(system::library_files_handler))
         .route(

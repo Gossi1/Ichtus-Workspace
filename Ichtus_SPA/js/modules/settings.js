@@ -76,6 +76,7 @@ const settingsModule = {
         proPresenterIp: '127.0.0.1',
         proPresenterPort: '50001',
         proPresenterPassword: '',
+        calendarIcsUrl: 'https://tockify.com/api/feeds/ics/ichtus',
         // Sidebar app visibility - all apps visible by default
         sidebarApps: {
             dashboard: true,
@@ -382,6 +383,11 @@ const settingsModule = {
             }
         }
 
+        const calendarFeedInput = document.getElementById('settings-calendar-feed-input');
+        if (calendarFeedInput) {
+            calendarFeedInput.value = this.getSetting('calendarIcsUrl') || 'https://tockify.com/api/feeds/ics/ichtus';
+        }
+
         // ==========================================
         // 6. Sidebar Customization
         // ==========================================
@@ -650,6 +656,30 @@ const settingsModule = {
                 }
             }, 3500);
         }
+    },
+
+    saveCalendarFeedUrl(val) {
+        let url = (val || '').trim();
+        if (url.toLowerCase().startsWith('webcal://')) {
+            url = 'https://' + url.substring('webcal://'.length);
+        }
+        if (!url) {
+            url = this.defaults.calendarIcsUrl;
+        }
+        this.setSetting('calendarIcsUrl', url);
+        if (typeof appState !== 'undefined' && appState.agenda) {
+            appState.agenda.icsUrl = url;
+            if (typeof saveAgenda === 'function') saveAgenda();
+        }
+        const feedInput = document.getElementById('settings-calendar-feed-input');
+        if (feedInput) feedInput.value = url;
+        this.showToast(__('agenda_feed_saved') || 'Kalender URL opgeslagen!');
+    },
+
+    resetCalendarFeedUrl() {
+        const defaultUrl = this.defaults.calendarIcsUrl;
+        this.saveCalendarFeedUrl(defaultUrl);
+        this.showToast(__('agenda_feed_reset') || 'Kalender URL hersteld naar standaard.');
     },
 
 };

@@ -345,16 +345,87 @@ const agendaModule = {
         this.fetchTockify();
     },
 
+    getFeedUrl() {
+        let url = (typeof appState !== 'undefined' && appState.agenda && appState.agenda.icsUrl) ||
+                  (window.settingsModule && typeof settingsModule.getSetting === 'function' && settingsModule.getSetting('calendarIcsUrl')) ||
+                  'https://tockify.com/api/feeds/ics/ichtus';
+        url = (url || '').trim();
+        if (url.toLowerCase().startsWith('webcal://')) {
+            url = 'https://' + url.substring('webcal://'.length);
+        }
+        return url || 'https://tockify.com/api/feeds/ics/ichtus';
+    },
+
+    openFeedModal() {
+        const modal = document.getElementById('agenda-feed-modal');
+        const input = document.getElementById('agenda-feed-url-input');
+        if (!modal) return;
+        if (input) {
+            input.value = this.getFeedUrl();
+        }
+        modal.classList.remove('hidden');
+    },
+
+    closeFeedModal() {
+        const modal = document.getElementById('agenda-feed-modal');
+        if (modal) modal.classList.add('hidden');
+    },
+
+    saveFeedUrl() {
+        const input = document.getElementById('agenda-feed-url-input');
+        if (!input) return;
+        let url = input.value.trim();
+        if (url.toLowerCase().startsWith('webcal://')) {
+            url = 'https://' + url.substring('webcal://'.length);
+        }
+        if (!url) {
+            url = 'https://tockify.com/api/feeds/ics/ichtus';
+        }
+        if (typeof appState !== 'undefined' && appState.agenda) {
+            appState.agenda.icsUrl = url;
+            if (typeof saveAgenda === 'function') saveAgenda();
+        }
+        if (window.settingsModule && typeof settingsModule.setSetting === 'function') {
+            settingsModule.setSetting('calendarIcsUrl', url);
+        }
+        this.closeFeedModal();
+        this.fetchTockify();
+    },
+
+    resetFeedUrl() {
+        const defaultUrl = 'https://tockify.com/api/feeds/ics/ichtus';
+        const input = document.getElementById('agenda-feed-url-input');
+        if (input) input.value = defaultUrl;
+        if (typeof appState !== 'undefined' && appState.agenda) {
+            appState.agenda.icsUrl = defaultUrl;
+            if (typeof saveAgenda === 'function') saveAgenda();
+        }
+        if (window.settingsModule && typeof settingsModule.setSetting === 'function') {
+            settingsModule.setSetting('calendarIcsUrl', defaultUrl);
+        }
+        this.closeFeedModal();
+        this.fetchTockify();
+    },
+
     async fetchTockify() {
         const status = document.getElementById('status');
-        const icsUrl = 'https://tockify.com/api/feeds/ics/ichtus';
+        const icsUrl = this.getFeedUrl();
+        const defaultUrl = 'https://tockify.com/api/feeds/ics/ichtus';
+        const isDefault = (icsUrl === defaultUrl);
+
         // CORS proxies — server-side proxy first (most reliable), then public proxies as fallback
         const corsProxies = [
-            '/api/tockify/ics',  // Server-side proxy (no CORS needed)
+            '/api/calendar/ics?url=' + encodeURIComponent(icsUrl),
+            '/api/tockify/ics?url=' + encodeURIComponent(icsUrl),
+        ];
+        if (isDefault) {
+            corsProxies.push('/api/tockify/ics');
+        }
+        corsProxies.push(
             'https://corsproxy.io/?' + encodeURIComponent(icsUrl),
             'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(icsUrl),
             'https://api.allorigins.win/raw?url=' + encodeURIComponent(icsUrl)
-        ];
+        );
         const PROXY_TIMEOUT = 6000; // 6s per proxy attempt
         
         if (status) status.innerText = __('agenda_fetching');

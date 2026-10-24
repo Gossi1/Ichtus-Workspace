@@ -106,6 +106,7 @@ const appState = {
         customLabel: 'EREDIENST',
         logicalX: 110,
         logicalY: 290,
+        icsUrl: 'https://tockify.com/api/feeds/ics/ichtus',
     }
 };
 
@@ -272,6 +273,7 @@ function saveAgenda() {
         customLabel: appState.agenda.customLabel,
         logicalX: appState.agenda.logicalX,
         logicalY: appState.agenda.logicalY,
+        icsUrl: appState.agenda.icsUrl,
     }));
 }
 

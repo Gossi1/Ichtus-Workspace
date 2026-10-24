@@ -27,11 +27,108 @@ fn silent_git_cmd() -> tokio::process::Command {
 
 // ── Tockify ICS Proxy ───────────────────────────────────────────────────
 
-pub async fn tockify_ics_handler(State(state): State<ServerState>) -> impl IntoResponse {
-    let url = "https://tockify.com/api/feeds/ics/ichtus";
-    let resp = match state
-        .http_client
-        .get(url)
+#[derive(Debug, Deserialize)]
+pub struct CalendarIcsQuery {
+    pub url: Option<String>,
+}
+
+fn is_disallowed_url(target: &reqwest::Url) -> Result<(), &'static str> {
+    let scheme = target.scheme();
+    if scheme != "http" && scheme != "https" {
+        return Err("Alleen http:// en https:// URL's worden ondersteund");
+    }
+
+    match target.host() {
+        Some(url::Host::Ipv4(ip)) => {
+            let octets = ip.octets();
+            if ip.is_loopback()
+                || ip.is_unspecified()
+                || ip.is_broadcast()
+                || ip.is_link_local()
+                || ip.is_private()
+                || (octets[0] == 100 && (octets[1] & 0xc0) == 64)
+            {
+                return Err("Toegang tot lokaal/intern IP niet toegestaan");
+            }
+        }
+        Some(url::Host::Ipv6(ip)) => {
+            let segs = ip.segments();
+            let is_ula = (segs[0] & 0xfe00) == 0xfc00;
+            let is_link_local = (segs[0] & 0xffc0) == 0xfe80;
+            let is_ipv4_mapped_private = ip.to_ipv4_mapped().map(|v4| {
+                let octets = v4.octets();
+                v4.is_loopback()
+                    || v4.is_unspecified()
+                    || v4.is_broadcast()
+                    || v4.is_link_local()
+                    || v4.is_private()
+                    || (octets[0] == 100 && (octets[1] & 0xc0) == 64)
+            }).unwrap_or(false);
+
+            if ip.is_loopback() || ip.is_unspecified() || is_ula || is_link_local || is_ipv4_mapped_private {
+                return Err("Toegang tot lokaal/intern IPv6 niet toegestaan");
+            }
+        }
+        Some(url::Host::Domain(domain)) => {
+            let d = domain.to_lowercase();
+            if d == "localhost"
+                || d.ends_with(".localhost")
+                || d.ends_with(".local")
+                || d.ends_with(".internal")
+                || d.ends_with(".lan")
+                || d.ends_with(".home.arpa")
+            {
+                return Err("Toegang tot lokaal domein niet toegestaan");
+            }
+        }
+        None => return Err("Geen geldige host gevonden in URL"),
+    }
+
+    Ok(())
+}
+
+pub async fn tockify_ics_handler(
+    State(state): State<ServerState>,
+    Query(query): Query<CalendarIcsQuery>,
+) -> impl IntoResponse {
+    let mut target_url = query.url.unwrap_or_default().trim().to_string();
+    if target_url.is_empty() {
+        target_url = "https://tockify.com/api/feeds/ics/ichtus".to_string();
+    } else if target_url.to_ascii_lowercase().starts_with("webcal://") {
+        target_url = format!("https://{}", &target_url["webcal://".len()..]);
+    }
+
+    let parsed = match reqwest::Url::parse(&target_url) {
+        Ok(u) => u,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(json!({ "error": format!("Ongeldige kalender URL: {}", e) })),
+            )
+                .into_response();
+        }
+    };
+
+    if let Err(e) = is_disallowed_url(&parsed) {
+        return (StatusCode::FORBIDDEN, Json(json!({ "error": e }))).into_response();
+    }
+
+    let client = reqwest::Client::builder()
+        .redirect(reqwest::redirect::Policy::custom(|attempt| {
+            if attempt.previous().len() >= 5 {
+                return attempt.error("Te veel omleidingen");
+            }
+            if let Err(e) = is_disallowed_url(attempt.url()) {
+                return attempt.error(e);
+            }
+            attempt.follow()
+        }))
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .unwrap_or_else(|_| state.http_client.clone());
+
+    let resp = match client
+        .get(parsed)
         .header(header::USER_AGENT, "Ichtus-Workspace")
         .send()
         .await
@@ -40,7 +137,7 @@ pub async fn tockify_ics_handler(State(state): State<ServerState>) -> impl IntoR
         Err(e) => {
             return (
                 StatusCode::BAD_GATEWAY,
-                Json(json!({ "error": format!("Tockify unreachable: {}", e) })),
+                Json(json!({ "error": format!("Kalender feed onbereikbaar: {}", e) })),
             )
                 .into_response();
         }
@@ -49,7 +146,7 @@ pub async fn tockify_ics_handler(State(state): State<ServerState>) -> impl IntoR
     if !resp.status().is_success() {
         return (
             StatusCode::BAD_GATEWAY,
-            Json(json!({ "error": format!("Tockify HTTP {}", resp.status()) })),
+            Json(json!({ "error": format!("Kalender feed HTTP fout: {}", resp.status()) })),
         )
             .into_response();
     }
@@ -59,7 +156,7 @@ pub async fn tockify_ics_handler(State(state): State<ServerState>) -> impl IntoR
         Err(e) => {
             return (
                 StatusCode::BAD_GATEWAY,
-                Json(json!({ "error": format!("Tockify leesfout: {}", e) })),
+                Json(json!({ "error": format!("Kalender feed leesfout: {}", e) })),
             )
                 .into_response();
         }
