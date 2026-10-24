@@ -176,7 +176,11 @@ fn spawn_dev_file_watcher(root_dir: PathBuf, ws_hub: ws::WsHub) {
 /// Start de Rust Axum server op `0.0.0.0:{public_port}` (100% Native Rust)
 fn is_allowed_origin(origin: &HeaderValue) -> bool {
     let Ok(s) = origin.to_str() else { return false };
-    if s == "tauri://localhost" {
+    if s == "tauri://localhost"
+        || s == "http://tauri.localhost"
+        || s == "https://tauri.localhost"
+        || s == "https://planning.worshiptools.com"
+    {
         return true;
     }
     let Some(stripped) = s.strip_prefix("http://") else {
@@ -190,7 +194,11 @@ fn is_allowed_origin(origin: &HeaderValue) -> bool {
         .next()
         .unwrap_or(stripped);
 
-    if host == "localhost" || host == "127.0.0.1" || host.ends_with(".local") {
+    if host == "localhost"
+        || host == "127.0.0.1"
+        || host.ends_with(".localhost")
+        || host.ends_with(".local")
+    {
         return true;
     }
 
