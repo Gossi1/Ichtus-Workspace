@@ -26,7 +26,7 @@ Er is **geen Node.js, Git of Windows Service (WinSW/NSSM)** meer nodig om de app
 Wil je de app zelf ontwikkelen op je laptop:
 
 ### Vereisten
-- **Node.js 20+**
+- **Node.js 24+**
 - **Rust toolchain** (`rustup default stable`)
 - C++ Build Tools (via Visual Studio Installer)
 
