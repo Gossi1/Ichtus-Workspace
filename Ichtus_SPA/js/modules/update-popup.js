@@ -165,22 +165,27 @@ const updatePopup = {
         }, 320);
 
         try {
-            // Als we in de Tauri desktop app draaien, voer de native Tauri updater uit
+            // Als we in de Tauri desktop app draaien, probeer eerst de native Tauri release updater
             if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-                if (statusText) statusText.textContent = 'Desktop update downloaden en installeren…';
-                await window.__TAURI__.core.invoke('check_and_install_update');
-                clearInterval(fake);
-                if (progressBar) progressBar.style.width = '100%';
-                if (percentText) percentText.textContent = '100%';
-                if (statusText) {
-                    statusText.textContent = 'Update geïnstalleerd! App herstarten…';
-                    statusText.classList.add('up-status-success');
+                try {
+                    const res = await window.__TAURI__.core.invoke('check_and_install_update');
+                    if (res && !String(res).includes('nieuwste versie')) {
+                        clearInterval(fake);
+                        if (progressBar) progressBar.style.width = '100%';
+                        if (percentText) percentText.textContent = '100%';
+                        if (statusText) {
+                            statusText.textContent = 'Update geïnstalleerd! App herstarten…';
+                            statusText.classList.add('up-status-success');
+                        }
+                        this._pulling = false;
+                        setTimeout(() => {
+                            this.close(false);
+                        }, 2000);
+                        return;
+                    }
+                } catch {
+                    // Fall through naar /api/update (git pull / backend updater)
                 }
-                this._pulling = false;
-                setTimeout(() => {
-                    this.close(false);
-                }, 2000);
-                return;
             }
 
             const resp = await fetch('/api/update', { method: 'POST' });
