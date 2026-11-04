@@ -124,6 +124,8 @@ pub struct RosterMember {
     pub status: String,
     #[serde(rename = "userId")]
     pub user_id: String,
+    #[serde(rename = "avatarUrl", skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -134,6 +136,10 @@ pub struct RosterFlatMember {
     pub team: String,
     #[serde(rename = "userId")]
     pub user_id: String,
+    #[serde(rename = "avatarUrl", skip_serializing_if = "Option::is_none")]
+    pub avatar_url: Option<String>,
+    #[serde(rename = "avatar_url", skip_serializing_if = "Option::is_none")]
+    pub avatar_url_snake: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -183,6 +189,8 @@ pub struct WorshipToolsManager {
     song_doc_cache: Arc<Mutex<HashMap<String, (Value, Instant)>>>,
     song_library_cache: Arc<Mutex<Option<LibraryCacheData>>>,
     people_cache: Arc<Mutex<HashMap<String, String>>>,
+    people_avatars_cache: Arc<Mutex<HashMap<String, String>>>,
+    roles_cache: Arc<Mutex<HashMap<String, (String, String)>>>,
     last_people_sync: Arc<Mutex<Option<Instant>>>,
     // Legacy /api/worshiptools/* in-memory cache
     legacy_setlist: Arc<Mutex<Option<(Value, String)>>>,
@@ -202,12 +210,15 @@ impl WorshipToolsManager {
             song_doc_cache: Arc::new(Mutex::new(HashMap::new())),
             song_library_cache: Arc::new(Mutex::new(None)),
             people_cache: Arc::new(Mutex::new(HashMap::new())),
+            people_avatars_cache: Arc::new(Mutex::new(HashMap::new())),
+            roles_cache: Arc::new(Mutex::new(HashMap::new())),
             last_people_sync: Arc::new(Mutex::new(None)),
             legacy_setlist: Arc::new(Mutex::new(None)),
             legacy_roster: Arc::new(Mutex::new(None)),
             legacy_library: Arc::new(Mutex::new(None)),
         };
         mgr.load_people_cache(false);
+        mgr.load_people_avatars_cache();
         mgr
     }
 
@@ -511,6 +522,85 @@ impl WorshipToolsManager {
         }
     }
 
+    pub fn load_people_avatars_cache(&self) -> usize {
+        let mut cache = self.people_avatars_cache.lock().unwrap();
+        let cache_files = [
+            self.data_dir.join("people_avatars.json"),
+            PathBuf::from("people_avatars.json"),
+        ];
+        for cache_file in &cache_files {
+            if cache_file.exists() {
+                if let Ok(content) = fs::read_to_string(cache_file) {
+                    if let Ok(map) = serde_json::from_str::<HashMap<String, String>>(&content) {
+                        *cache = map;
+                        return cache.len();
+                    }
+                }
+            }
+        }
+        cache.len()
+    }
+
+    pub fn save_people_avatars_batch(&self, map: &HashMap<String, String>) -> usize {
+        let mut cache = self.people_avatars_cache.lock().unwrap();
+        for (k, v) in map {
+            if !k.is_empty() && !v.is_empty() {
+                cache.insert(k.clone(), v.clone());
+            }
+        }
+        let count = cache.len();
+        let cache_file = self.data_dir.join("people_avatars.json");
+        if let Ok(pretty) = serde_json::to_string_pretty(&*cache) {
+            let _ = fs::write(&cache_file, pretty);
+        }
+        count
+    }
+
+    pub fn get_people_avatars(&self) -> HashMap<String, String> {
+        self.people_avatars_cache.lock().unwrap().clone()
+    }
+
+    pub async fn sync_roles_cache(&self, access_token: &str, account_id: &str) -> HashMap<String, (String, String)> {
+        {
+            let cache = self.roles_cache.lock().unwrap();
+            if !cache.is_empty() {
+                return cache.clone();
+            }
+        }
+
+        let url = format!(
+            "https://firestore.googleapis.com/v1/projects/worship-extreme-datastore/databases/(default)/documents/accounts/{}/roles?pageSize=200",
+            account_id
+        );
+        if let Ok(resp) = self.http_client.get(&url).bearer_auth(access_token).timeout(Duration::from_secs(5)).send().await {
+            if resp.status().is_success() {
+                if let Ok(data) = resp.json::<Value>().await {
+                    if let Some(docs) = data.get("documents").and_then(|v| v.as_array()) {
+                        let mut cache = self.roles_cache.lock().unwrap();
+                        for doc in docs {
+                            let doc_name = doc.get("name").and_then(|v| v.as_str()).unwrap_or("");
+                            let role_id = doc_name.split('/').last().unwrap_or("").trim();
+                            let fields = doc.get("fields").unwrap_or(&Value::Null);
+                            let r_name = v_str(fields, "name", "").trim();
+                            let team_raw = v_str(fields, "team", "").trim();
+                            if !role_id.is_empty() && !r_name.is_empty() {
+                                let team_label = if team_raw.to_ascii_lowercase().contains("tech") {
+                                    "Tech Team"
+                                } else {
+                                    "Worship Team"
+                                };
+                                cache.insert(role_id.to_string(), (r_name.to_string(), team_label.to_string()));
+                            }
+                        }
+                        return cache.clone();
+                    }
+                }
+            }
+        }
+
+        self.roles_cache.lock().unwrap().clone()
+    }
+
     pub fn load_people_cache(&self, force: bool) -> usize {
         let mut cache = self.people_cache.lock().unwrap();
         if !force && !cache.is_empty() {
@@ -641,7 +731,8 @@ impl WorshipToolsManager {
         };
 
         let mut updated = 0;
-        {
+        let mut extracted_avatars = HashMap::new();
+        let result_cache = {
             let mut cache = self.people_cache.lock().unwrap();
             for p in new_people {
                 let pid = p.get("id").and_then(|v| v.as_str()).unwrap_or("").trim();
@@ -656,6 +747,20 @@ impl WorshipToolsManager {
                         updated += 1;
                     }
                 }
+
+                if !pid.is_empty() {
+                    let avatar_opt = p.get("photoUrl")
+                        .or_else(|| p.get("avatarUrl"))
+                        .or_else(|| p.get("avatar"))
+                        .or_else(|| p.get("imageUrl"))
+                        .or_else(|| p.get("photo"))
+                        .and_then(|v| v.as_str())
+                        .map(|s| s.trim())
+                        .filter(|s| !s.is_empty() && (s.starts_with("http://") || s.starts_with("https://")));
+                    if let Some(av) = avatar_opt {
+                        extracted_avatars.insert(pid.to_string(), av.to_string());
+                    }
+                }
             }
 
             let mut last_sync = self.last_people_sync.lock().unwrap();
@@ -667,7 +772,13 @@ impl WorshipToolsManager {
             }
             println!("  [WT-SVC] People gesynchroniseerd: {} personen ({} nieuw/bijgewerkt)", cache.len(), updated);
             cache.clone()
+        };
+
+        if !extracted_avatars.is_empty() {
+            self.save_people_avatars_batch(&extracted_avatars);
         }
+
+        result_cache
     }
 
     pub async fn fetch_roster_people(&self, access_token: &str, account_id: &str, cuelist_id: &str) -> Result<Vec<Value>, (StatusCode, String)> {
@@ -1232,9 +1343,14 @@ fn normalize_status(raw: &str) -> &'static str {
     }
 }
 
-pub fn build_roster(people_docs: &[Value], people_names: &HashMap<String, String>) -> Vec<TeamRoster> {
+pub fn build_roster(
+    people_docs: &[Value],
+    people_names: &HashMap<String, String>,
+    people_avatars: &HashMap<String, String>,
+    dynamic_roles: &HashMap<String, (String, String)>,
+) -> Vec<TeamRoster> {
     let role_map = get_role_map();
-    let mut teams: HashMap<&'static str, TeamRoster> = HashMap::new();
+    let mut teams: HashMap<String, TeamRoster> = HashMap::new();
 
     for doc in people_docs {
         let f = doc.get("fields").unwrap_or(&Value::Null);
@@ -1242,9 +1358,18 @@ pub fn build_roster(people_docs: &[Value], people_names: &HashMap<String, String
         let role_id = v_str(f, "role", "");
         let status = normalize_status(v_str(f, "status", "pending"));
 
-        let r_info = match role_map.get(role_id) {
-            Some(info) => info,
-            None => continue,
+        let (role_name, team_name, team_order, role_order) = if let Some(info) = role_map.get(role_id) {
+            (info.role.to_string(), info.team.to_string(), info.team_order, info.role_order)
+        } else if let Some((dyn_role, dyn_team)) = dynamic_roles.get(role_id) {
+            let t_order = if dyn_team == "Tech Team" { 1 } else { 2 };
+            (dyn_role.clone(), dyn_team.clone(), t_order, 99)
+        } else {
+            let inline_role = v_str(f, "roleName", v_str(f, "role_name", ""));
+            if !inline_role.is_empty() {
+                (inline_role.to_string(), "Worship Team".to_string(), 2, 99)
+            } else {
+                continue;
+            }
         };
 
         let unknown_fallback = if user_id.len() >= 8 {
@@ -1258,9 +1383,18 @@ pub fn build_roster(people_docs: &[Value], people_names: &HashMap<String, String
             .cloned()
             .unwrap_or(unknown_fallback);
 
-        let team = teams.entry(r_info.team).or_insert_with(|| TeamRoster {
-            name: r_info.team.to_string(),
-            order: r_info.team_order,
+        let avatar_url = people_avatars.get(user_id).cloned().or_else(|| {
+            let doc_av = v_str(f, "photoUrl", v_str(f, "avatarUrl", v_str(f, "avatar", "")));
+            if !doc_av.is_empty() {
+                Some(doc_av.to_string())
+            } else {
+                None
+            }
+        });
+
+        let team = teams.entry(team_name.clone()).or_insert_with(|| TeamRoster {
+            name: team_name,
+            order: team_order,
             accepted: 0,
             declined: 0,
             pending: 0,
@@ -1274,11 +1408,12 @@ pub fn build_roster(people_docs: &[Value], people_names: &HashMap<String, String
         }
 
         team.members.push(RosterMember {
-            role: r_info.role.to_string(),
-            role_order: r_info.role_order,
+            role: role_name,
+            role_order,
             name,
             status: status.to_string(),
             user_id: user_id.to_string(),
+            avatar_url,
         });
     }
 
@@ -1483,7 +1618,9 @@ pub async fn roster_handler(
         Err((_, e)) => return (StatusCode::BAD_GATEWAY, Json(json!({ "success": false, "error": e }))),
     };
 
-    let teams = build_roster(&people_docs, &people);
+    let avatars = state.worshiptools_manager.get_people_avatars();
+    let dynamic_roles = state.worshiptools_manager.sync_roles_cache(&token, &cfg.account_id).await;
+    let teams = build_roster(&people_docs, &people, &avatars, &dynamic_roles);
     let mut roster: Vec<RosterFlatMember> = Vec::new();
     let mut declined_count = 0;
 
@@ -1499,8 +1636,32 @@ pub async fn roster_handler(
                 status: m.status.clone(),
                 team: team.name.clone(),
                 user_id: m.user_id.clone(),
+                avatar_url: m.avatar_url.clone(),
+                avatar_url_snake: m.avatar_url.clone(),
             });
         }
+    }
+
+    // Auto-sync wireless mics & IEM assignments + broadcast roster over WebSocket
+    let iem_roster: Vec<Value> = roster
+        .iter()
+        .map(|r| {
+            let first_name = r.name.split_whitespace().next().unwrap_or(&r.name);
+            json!({
+                "display_name": first_name,
+                "role_name": r.role,
+                "image_url": r.avatar_url,
+            })
+        })
+        .collect();
+    let _ = state.iem_manager.update_roster(&iem_roster).await;
+
+    if let Ok(roster_val) = serde_json::to_value(&roster) {
+        state.worshiptools_manager.set_legacy_roster(json!({
+            "roster": roster_val,
+            "teams_scanned": teams.len(),
+            "source": "server",
+        }));
     }
 
     let service_val = if let Some(p) = parsed {
@@ -1643,8 +1804,9 @@ pub async fn legacy_post_roster_handler(
     let teams_scanned = body.get("teams_scanned").cloned().unwrap_or(json!(0));
     let len = roster.len();
 
-    // Auto-populate people cache from incoming roster
+    // Auto-populate people & avatars cache from incoming roster
     let mut extracted_people = HashMap::new();
+    let mut extracted_avatars = HashMap::new();
     for entry in &roster {
         let name = entry.get("name").and_then(|v| v.as_str()).unwrap_or("").trim();
         let user_id = entry.get("userId")
@@ -1654,11 +1816,17 @@ pub async fn legacy_post_roster_handler(
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .trim();
+        let avatar_raw = entry.get("avatar_url")
+            .or_else(|| entry.get("avatarUrl"))
+            .or_else(|| entry.get("avatar"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .trim();
 
         let id = if user_id.is_empty() {
-            if let Some(avatar) = entry.get("avatar_url").or_else(|| entry.get("avatar")).and_then(|v| v.as_str()) {
-                if let Some(pos) = avatar.find("/users/") {
-                    let sub = &avatar[pos + 7..];
+            if !avatar_raw.is_empty() {
+                if let Some(pos) = avatar_raw.find("/users/") {
+                    let sub = &avatar_raw[pos + 7..];
                     sub.split('/').next().unwrap_or("").trim()
                 } else {
                     ""
@@ -1673,10 +1841,16 @@ pub async fn legacy_post_roster_handler(
         if !name.is_empty() && !id.is_empty() && !name.starts_with("Onbekend") {
             extracted_people.insert(id.to_string(), name.to_string());
         }
+        if !id.is_empty() && !avatar_raw.is_empty() && (avatar_raw.starts_with("http://") || avatar_raw.starts_with("https://")) {
+            extracted_avatars.insert(id.to_string(), avatar_raw.to_string());
+        }
     }
 
     if !extracted_people.is_empty() {
         state.worshiptools_manager.save_people_batch(&extracted_people);
+    }
+    if !extracted_avatars.is_empty() {
+        state.worshiptools_manager.save_people_avatars_batch(&extracted_avatars);
     }
 
     let payload = json!({

@@ -251,42 +251,40 @@ impl IemManager {
                 .unwrap_or(false)
         });
 
-        let piano_player = roster.iter().find(|p| {
-            p.get("role_name")
-                .and_then(|v| v.as_str())
-                .map(|s| s.eq_ignore_ascii_case("piano"))
-                .unwrap_or(false)
-        });
-
-        let leader_is_on_piano = match (worship_leader, piano_player) {
-            (Some(wl), Some(pp)) => {
+        let leader_is_on_piano = match worship_leader {
+            Some(wl) => {
                 let wl_name = wl.get("display_name").and_then(|v| v.as_str()).unwrap_or("");
-                let pp_name = pp.get("display_name").and_then(|v| v.as_str()).unwrap_or("");
-                !wl_name.is_empty() && wl_name == pp_name
+                !wl_name.is_empty()
+                    && roster.iter().any(|p| {
+                        let r = p.get("role_name").and_then(|v| v.as_str()).unwrap_or("");
+                        let n = p.get("display_name").and_then(|v| v.as_str()).unwrap_or("");
+                        n == wl_name && (r.eq_ignore_ascii_case("piano") || r.eq_ignore_ascii_case("keys"))
+                    })
             }
-            _ => false,
+            None => false,
         };
 
-        let mut wireless_users = Vec::new();
+        let mut wireless_users: Vec<&Value> = Vec::new();
         if let Some(wl) = worship_leader {
             if !leader_is_on_piano {
                 wireless_users.push(wl);
             }
         }
 
-        let vocalists: Vec<&Value> = roster
-            .iter()
-            .filter(|p| {
-                if let Some(role) = p.get("role_name").and_then(|v| v.as_str()) {
-                    let lower = role.to_ascii_lowercase();
-                    lower.contains("vocalist") || lower == "vocal"
-                } else {
-                    false
+        for p in roster {
+            if let Some(role) = p.get("role_name").and_then(|v| v.as_str()) {
+                let lower = role.to_ascii_lowercase();
+                if lower.contains("vocalist") || lower == "vocal" {
+                    let p_name = p.get("display_name").and_then(|v| v.as_str()).unwrap_or("");
+                    let already_added = wireless_users.iter().any(|u| {
+                        u.get("display_name").and_then(|v| v.as_str()).unwrap_or("") == p_name
+                    });
+                    if !p_name.is_empty() && !already_added {
+                        wireless_users.push(p);
+                    }
                 }
-            })
-            .collect();
-
-        wireless_users.extend(vocalists);
+            }
+        }
 
         let final_state: Vec<ChannelItem> = hardware
             .iter()

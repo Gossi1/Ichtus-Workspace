@@ -530,9 +530,12 @@ const stagebuilderModule = {
                     team: r.team,
                     status: r.status,
                     userId: r.userId,
+                    avatar_url: r.avatarUrl || r.avatar_url || '',
                 };
             });
+            try { localStorage.setItem('wt_selected_service', serviceId); } catch (e) {}
             this._onRosterReceived(entries);
+            document.dispatchEvent(new CustomEvent('worshiptools-roster', { detail: { roster: entries } }));
 
             const total = entries.length;
             const pending = counts.pending || 0;
@@ -853,9 +856,11 @@ const stagebuilderModule = {
         //    "—" in the channel block.
         this.rosterRows = this.roster.map(function (entry, idx) {
             const slug = stagebuilderModule._rosterSlug(entry.name, entry.role);
-            const restored = stagebuilderModule._loadRowMapping(slug) || {
-                slot: null, channel: null, sings: null, voxSlot: null, voxChannel: null
-            };
+            const isFixedRole = stagebuilderModule._isLockedRole(entry.role);
+            const restored = isFixedRole ? { slot: null, channel: null, sings: null, voxSlot: null, voxChannel: null }
+                : (stagebuilderModule._loadRowMapping(slug) || {
+                    slot: null, channel: null, sings: null, voxSlot: null, voxChannel: null
+                });
             // Id-based DOM id — sanitize the slug so it's HTML-safe and
             // unique even when the same name has two role assignments.
             const safeSlug = slug.replace(/[^a-z0-9]/g, '');
@@ -962,6 +967,8 @@ const stagebuilderModule = {
     },
 
     _isRowRecallReady(row) {
+        // Fixed console patches (piano CH 11-12, drums CH 13-14) are permanent on the mixer and never recalled.
+        if (this._isPianistRow(row) || this._isDrummerRow(row) || (row && row.locked)) return false;
         // A row can be recalled when the preset + channel are set —
         // and for singing guitarists (dual recall) the vocal part
         // (vox preset + vox channel) must be set too, otherwise the
@@ -1327,6 +1334,8 @@ const stagebuilderModule = {
         let candidates = [];
         for (const row of this.rosterRows) {
             if (row.slot != null) continue; // operator set this — keep sticky
+            // Fixed patches (piano and drums) are set on the console — do not suggest or assign presets!
+            if (this._isPianistRow(row) || this._isDrummerRow(row) || row.locked) continue;
             // Locked roles (drums / piano / keys / synth / organ):
             // ONLY consider presets whose name contains a role keyword
             // (e.g. "piano", "drums"). Name-only matches are ignored
@@ -2100,16 +2109,20 @@ const stagebuilderModule = {
         // order (idx+1) up to idx 31, so past the 32nd row it
         // stays null — the Push button is disabled there until
         // the roster is trimmed or a second X32 scene is used.
-        const canPush = this._isRowRecallReady(row) &&
+        const isFixed = this._isPianistRow(row) || this._isDrummerRow(row) || (row && row.locked);
+        const canPush = !isFixed &&
+                        this._isRowRecallReady(row) &&
                         hasPoll &&
                         (row.status !== 'pushing');
         const btnText =
+            isFixed                  ? 'Vaste patch' :
             row.status === 'pushing' ? 'Bezig…' :
             row.status === 'ok'      ? '✓ Recall' :
             row.status === 'err'     ? '✗ Probeer' :
                                        'Recall';
         const btnClass = 'sb-row-push' +
-            (row.status === 'pushing' ? ' sb-row-push--pushing' :
+            (isFixed                 ? ' sb-row-push--fixed' :
+             row.status === 'pushing' ? ' sb-row-push--pushing' :
              row.status === 'ok'      ? ' sb-row-push--ok' :
              row.status === 'err'     ? ' sb-row-push--err' : '');
         const pushCell = '<td>' +
@@ -2126,13 +2139,12 @@ const stagebuilderModule = {
     },
 
     _renderSlotLabel(row, hasPoll, hasConflict) {
-        // Read-only state display. The operator can SEE the
-        // auto-suggested slot (state set by _autoSuggestPending
-        // after a successful X32 poll) but cannot change it from
-        // this view. Three states:
-        //   - waiting: no poll yet
-        //   - empty:   poll ran but auto-suggest didn't match
-        //   - filled:  matched, show slot number + name + auto badge
+        // Fixed patches (piano and drums) are managed directly on the console
+        if (this._isPianistRow(row) || this._isDrummerRow(row) || (row && row.locked)) {
+            return '<div class="sb-row-slot-block sb-row-slot-block--fixed">' +
+                '<span class="sb-row-slot-block__placeholder" style="color: #94a3b8; font-style: italic;">Vaste console preset</span>' +
+                '</div>';
+        }
         if (!hasPoll) {
             return '<div class="sb-row-slot-block sb-row-slot-block--waiting">' +
                 '<span class="sb-row-slot-block__hint">Wacht op Poll…</span>' +
@@ -2160,11 +2172,12 @@ const stagebuilderModule = {
     },
 
     _renderChannelLabel(row) {
-        // Read-only state display for locked roles (drums / piano /
-        // keys / synth / organ). The channel is auto-assigned by
-        // roster order in _rebuildRows (capped at 32). The block
-        // just shows the state — the operator can re-order the
-        // roster in WorshipTools to change the mapping.
+        if (this._isPianistRow(row)) {
+            return '<div class="sb-row-channel-block" style="color: #fbbf24;">CH 11–12 (Vast)</div>';
+        }
+        if (this._isDrummerRow(row)) {
+            return '<div class="sb-row-channel-block" style="color: #fbbf24;">CH 13–14 (Vast)</div>';
+        }
         if (row.channel == null) {
             return '<div class="sb-row-channel-block sb-row-channel-block--empty">—</div>';
         }
@@ -2364,14 +2377,13 @@ const stagebuilderModule = {
     },
 
     async pushRow(rowId, opts) {
-        // `opts.silent`: suppress the per-row success/failure toast.
-        // Used by pushAll() so a batch doesn't fire one toast per row —
-        // the batch shows ONE summary toast at the end instead.
-        // The visual row status (pushing / ok / err) still flips
-        // so the operator sees live progress in the table.
         const silent = !!(opts && opts.silent);
         const row = this.rosterRows.find(function (r) { return r.id === rowId; });
         if (!row) return;
+        if (this._isPianistRow(row) || this._isDrummerRow(row) || (row && row.locked)) {
+            if (!silent) this.showToast(row.name + ' (' + row.role + ') is een vaste console patch — preset wordt niet overschreven.', 'info');
+            return;
+        }
         // Dual recall: a singing guitarist pushes BOTH the guitar
         // preset (guitar channel) AND the vocal preset (mic channel).
         // Build the part list up front so validation covers both.
@@ -2649,6 +2661,8 @@ const stagebuilderModule = {
         // skip them here when the corresponding role is present.
         const unassigned = [];
         for (let ch = 1; ch <= 14; ch++) {
+            // NEVER wipe fixed console patches (CH 11-12 Piano, CH 13-14 Drums) with Preset 100!
+            if (ch >= 11 && ch <= 14) continue;
             if (this.isChannelActive(ch)) continue;
             unassigned.push(ch);
         }
@@ -2684,6 +2698,7 @@ const stagebuilderModule = {
             // and send Ghost scribble strip labels (black backlight, bracketed routing name).
             const messages = [];
             for (const ch of unassigned) {
+                if (ch >= 11 && ch <= 14) continue; // NEVER overwrite icon, name or color of fixed channels (Piano & Drums)
                 const chStr = String(ch).padStart(2, '0');
                 const routing = this.DEFAULT_CHANNEL_ROUTING[ch];
                 const ghostName = routing ? '[' + routing.short + ']' : '[CH ' + chStr + ']';
@@ -2703,7 +2718,7 @@ const stagebuilderModule = {
                 });
                 messages.push({
                     address: '/ch/' + chStr + '/config/color',
-                    args: [{ type: 'i', value: 0 }] // Backlight off / black
+                    args: [{ type: 'i', value: 7 }] // White backlight (clearly legible, not dim/off)
                 });
                 messages.push({
                     address: '/ch/' + chStr + '/config/icon',
@@ -2712,7 +2727,9 @@ const stagebuilderModule = {
             }
 
             // Activate any channels that are manually active or role-fixed but not assigned via roster rows
+            // Note: Fixed channels 11-14 (Piano and Drums) are never activated via preset recall
             for (let ch = 1; ch <= 14; ch++) {
+                if (ch >= 11 && ch <= 14) continue;
                 if (this.isChannelActive(ch) && !assigned.has(ch)) {
                     await this._activateChannelOnX32(ch);
                 }
@@ -3297,8 +3314,7 @@ const stagebuilderModule = {
             if (ch === 9) searchTerms.push('elec', 'electric', 'egtr', 'lead');
             if (ch === 10) searchTerms.push('acoust', 'acoustic', 'agtr');
             if (ch >= 1 && ch <= 6) searchTerms.push('vox', 'zang', 'vocal');
-            if (ch === 11 || ch === 12) searchTerms.push('piano', 'keys');
-            if (ch === 13 || ch === 14) searchTerms.push('drum');
+            // Piano and Drums are fixed patches: no search terms
 
             for (let s = 0; s < 100; s++) {
                 const k = String(s + 1).padStart(3, '0');
@@ -3313,8 +3329,8 @@ const stagebuilderModule = {
             }
         }
 
-        // 1. Recall preset if available and IP present
-        if (targetSlot != null && ip) {
+        // 1. Recall preset if available and IP present (NEVER for fixed channels 11-14)
+        if (targetSlot != null && ip && (ch < 11 || ch > 14)) {
             try {
                 await fetch(this._x32BridgeEndpoint, {
                     method: 'POST',
@@ -3325,13 +3341,18 @@ const stagebuilderModule = {
         }
 
         // 2. Fader to unity (0.75 = 0 dB), unmute (/mix/on = 1), scribble strip config
+        const isFixedChannel = (ch >= 11 && ch <= 14);
         const messages = [
             { address: '/ch/' + chStr + '/mix/fader',    args: [{ type: 'f', value: 0.75 }] },
-            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 1 }] },
-            { address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: liveName }] },
-            { address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: color }] },
-            { address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: icon }] }
+            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 1 }] }
         ];
+
+        // NEVER send name, color or icon to fixed channels (CH 11-14 Piano & Drums) — their config is fixed on the console!
+        if (!isFixedChannel) {
+            messages.push({ address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: liveName }] });
+            messages.push({ address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: color }] });
+            messages.push({ address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: icon }] });
+        }
 
         fetch('/api/x32/session/send', {
             method: 'POST',
@@ -3347,8 +3368,8 @@ const stagebuilderModule = {
         const chStr = String(ch).padStart(2, '0');
         const routing = this.DEFAULT_CHANNEL_ROUTING[ch] || { name: 'CH ' + chStr, short: 'CH ' + chStr, icon: 0 };
 
-        // 1. Reset channel with Preset 100 (slot 99)
-        if (ip) {
+        // 1. Reset channel with Preset 100 (slot 99) - NEVER for fixed channels 11-14!
+        if (ip && (ch < 11 || ch > 14)) {
             try {
                 await fetch(this._x32BridgeEndpoint, {
                     method: 'POST',
@@ -3362,13 +3383,18 @@ const stagebuilderModule = {
         const ghostLabel = owner ? ('[' + owner.name.substring(0, 10) + ']') : ('[' + routing.short + ']');
 
         // 2. Fader to -inf, mute on, ghost name, backlight off
+        const isFixedChannel = (ch >= 11 && ch <= 14);
         const messages = [
             { address: '/ch/' + chStr + '/mix/fader',    args: [{ type: 'f', value: 0.0 }] },
-            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 0 }] },
-            { address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: ghostLabel }] },
-            { address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: 0 }] },
-            { address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: routing.icon || 0 }] }
+            { address: '/ch/' + chStr + '/mix/on',       args: [{ type: 'i', value: 0 }] }
         ];
+
+        // NEVER send ghost name, color or icon to fixed channels (CH 11-14 Piano & Drums) — their config is fixed on the console!
+        if (!isFixedChannel) {
+            messages.push({ address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: ghostLabel }] });
+            messages.push({ address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: 7 }] }); // White backlight (clearly legible, not dim/off)
+            messages.push({ address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: routing.icon || 0 }] });
+        }
 
         fetch('/api/x32/session/send', {
             method: 'POST',

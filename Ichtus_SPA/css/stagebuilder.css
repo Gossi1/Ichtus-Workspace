@@ -208,8 +208,15 @@
 }
 
 @keyframes sb-conn-pulse {
-    0%, 100% { opacity: 1; }
-    50%      { opacity: 0.55; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
 }
 
 #view-stagebuilder .sb-conn-meta {
@@ -227,17 +234,20 @@
         grid-template-columns: 1fr;
         gap: 10px;
     }
+
     #view-stagebuilder .sb-status-right,
     #view-stagebuilder .sb-status-center {
         justify-content: flex-start;
     }
+
     /* Cluster and stand-alone buttons stretch to fill the row when stacked */
     #view-stagebuilder .sb-btn-group,
-    #view-stagebuilder .sb-status-right > .sb-btn {
+    #view-stagebuilder .sb-status-right>.sb-btn {
         flex: 1 1 0;
         justify-content: center;
     }
-    #view-stagebuilder .sb-btn-group > .sb-btn {
+
+    #view-stagebuilder .sb-btn-group>.sb-btn {
         flex: 1 1 0;
         justify-content: center;
     }
@@ -259,7 +269,7 @@
 
 /* Buttons inside the cluster have no radius/border; hairline dividers between them
    make them read as one segmented control. */
-#view-stagebuilder .sb-btn-group > .sb-btn {
+#view-stagebuilder .sb-btn-group>.sb-btn {
     background: transparent;
     border: none;
     border-radius: 0;
@@ -273,28 +283,28 @@
     transition: background-color 0.18s ease, color 0.18s ease;
 }
 
-#view-stagebuilder .sb-btn-group > .sb-btn:hover:not(:disabled) {
+#view-stagebuilder .sb-btn-group>.sb-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);
 }
 
-#view-stagebuilder .sb-btn-group > .sb-btn:not(:last-child) {
+#view-stagebuilder .sb-btn-group>.sb-btn:not(:last-child) {
     border-right: 1px solid rgba(255, 255, 255, 0.09);
 }
 
-#view-stagebuilder .sb-btn-group > .sb-btn:disabled {
+#view-stagebuilder .sb-btn-group>.sb-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
     filter: grayscale(0.3);
 }
 
 /* Disconnect (inside the cluster) — danger hover tint, kept glassy. */
-#view-stagebuilder .sb-btn-group > .sb-btn.sb-btn-danger:hover:not(:disabled) {
+#view-stagebuilder .sb-btn-group>.sb-btn.sb-btn-danger:hover:not(:disabled) {
     background: rgba(248, 113, 113, 0.18);
     color: #fca5a5;
 }
 
 /* Stand-alone buttons in the right cluster (Auto Assign, Recall All) — translucent glass pill. */
-#view-stagebuilder .sb-status-right > .sb-btn {
+#view-stagebuilder .sb-status-right>.sb-btn {
     background: rgba(0, 0, 0, 0.32);
     border: 1px solid rgba(255, 255, 255, 0.10);
     border-top-color: rgba(255, 255, 255, 0.18);
@@ -311,12 +321,12 @@
     gap: 6px;
 }
 
-#view-stagebuilder .sb-status-right > .sb-btn:hover:not(:disabled) {
+#view-stagebuilder .sb-status-right>.sb-btn:hover:not(:disabled) {
     background: rgba(255, 255, 255, 0.06);
     border-color: rgba(255, 255, 255, 0.16);
 }
 
-#view-stagebuilder .sb-status-right > .sb-btn:disabled {
+#view-stagebuilder .sb-status-right>.sb-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
     filter: grayscale(0.45);
@@ -504,6 +514,7 @@
         opacity: 0;
         transform: translateY(-6px) scale(0.98);
     }
+
     to {
         opacity: 1;
         transform: translateY(0) scale(1);
@@ -705,14 +716,17 @@
         flex-wrap: wrap;
         justify-content: flex-end;
     }
+
     #view-stagebuilder .sb-service-dropdown-container {
         max-width: 100%;
         flex: 1;
     }
+
     #view-stagebuilder .sb-service-trigger {
         max-width: 100%;
         width: 100%;
     }
+
     #view-stagebuilder .sb-service-menu {
         left: 0;
         right: auto;
@@ -751,11 +765,26 @@
     z-index: 1;
 }
 
-#view-stagebuilder .sb-col-name    { width: 22%; }
-#view-stagebuilder .sb-col-role    { width: 12%; }
-#view-stagebuilder .sb-col-slot    { width: 32%; }
-#view-stagebuilder .sb-col-channel { width: 14%; }
-#view-stagebuilder .sb-col-push    { width: 14%; text-align: right; }
+#view-stagebuilder .sb-col-name {
+    width: 22%;
+}
+
+#view-stagebuilder .sb-col-role {
+    width: 12%;
+}
+
+#view-stagebuilder .sb-col-slot {
+    width: 32%;
+}
+
+#view-stagebuilder .sb-col-channel {
+    width: 14%;
+}
+
+#view-stagebuilder .sb-col-push {
+    width: 14%;
+    text-align: right;
+}
 
 #view-stagebuilder .sb-roster-table tbody tr {
     transition: background 0.15s ease, box-shadow 0.15s ease;
@@ -916,7 +945,8 @@
 
 #view-stagebuilder .sb-row-slot:disabled,
 #view-stagebuilder .sb-row-channel:disabled {
-    opacity: 0.45;
+    opacity: 0.8;
+    color: #cbd5e1;
     cursor: not-allowed;
     font-style: italic;
 }
@@ -999,6 +1029,15 @@
 #view-stagebuilder .sb-row-push.sb-row-push--err {
     background: #ef4444;
     box-shadow: 0 0 8px rgba(239, 68, 68, 0.4);
+}
+
+#view-stagebuilder .sb-row-push.sb-row-push--fixed {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px dashed rgba(255, 255, 255, 0.14);
+    color: var(--text-muted, #94a3b8);
+    cursor: default;
+    opacity: 0.65;
+    box-shadow: none;
 }
 
 /* Empty / waiting state — takes the same space as the table. */
@@ -1106,17 +1145,32 @@
     color: white;
     padding: 0.75rem 1.5rem;
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5);
     z-index: 10000;
     animation: toast-fade 2s ease-in-out forwards;
     font-weight: 600;
 }
 
 @keyframes toast-fade {
-    0% { opacity: 0; transform: translateX(-50%) translateY(20px); }
-    15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-    85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-    100% { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    0% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(20px);
+    }
+
+    15% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    85% {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+
+    100% {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
 }
 
 /* Mobile responsive — meta header stacks. */
@@ -1125,6 +1179,7 @@
         flex-direction: column;
         align-items: flex-start;
     }
+
     #view-stagebuilder .sb-roster-meta {
         text-align: left;
         white-space: normal;
@@ -1222,9 +1277,9 @@
 }
 
 #view-stagebuilder .sb-row-channel-block--empty {
-    color: var(--text-muted);
+    color: #cbd5e1;
     font-style: italic;
-    background: rgba(0, 0, 0, 0.18);
+    background: rgba(255, 255, 255, 0.05);
 }
 
 
@@ -1399,6 +1454,7 @@
     color: #38bdf8;
     margin-right: auto;
 }
+
 #sb-add-x32-library-row:hover {
     background: rgba(56, 189, 248, 0.15);
     border-color: #38bdf8;
@@ -1435,7 +1491,13 @@
 }
 
 /* --- agenda-positioning xy-input + info-display rules (port v2) --- */
-#view-agenda .info-display { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+#view-agenda .info-display {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 #view-agenda .xy-input {
     background: rgba(255, 255, 255, 0.08);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -1447,15 +1509,22 @@
     text-align: center;
     border-radius: 5px;
 }
+
 #view-agenda .xy-input:focus {
     outline: none;
     border-color: var(--ichtus-orange);
     background: rgba(0, 0, 0, 0.3);
 }
+
 /* Ensure the existing .dragging rule still fires when makeDraggable
    toggles the class on drag start/stop. */
-#view-agenda #agenda-group.dragging .column { opacity: 0.85; }
-#view-agenda #agenda-group.dragging { cursor: grabbing; }
+#view-agenda #agenda-group.dragging .column {
+    opacity: 0.85;
+}
+
+#view-agenda #agenda-group.dragging {
+    cursor: grabbing;
+}
 
 
 
@@ -1568,6 +1637,7 @@
         grid-template-columns: repeat(7, minmax(0, 1fr));
     }
 }
+
 @media (max-width: 650px) {
     #view-stagebuilder .sb-channel-strip-grid {
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1600,15 +1670,48 @@
     transform: translateY(0);
 }
 
-/* Standby tile state: dimmed when off, lights up green on hover indicating toggle-on */
+/* Standby tile state: high contrast, crisp text, clearly visible elevated card */
 #view-stagebuilder .sb-strip-tile.standby {
-    opacity: 0.76;
+    background: #1e293b;
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    opacity: 1;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 #view-stagebuilder .sb-strip-tile.standby:hover {
-    opacity: 1;
-    border-color: rgba(34, 197, 94, 0.5);
-    background: rgba(34, 197, 94, 0.04);
+    border-color: rgba(34, 197, 94, 0.65);
+    background: #253347;
+}
+
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-ch {
+    color: #ffffff;
+    font-weight: 800;
+}
+
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-screen {
+    background: #0f172a;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+}
+
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-name {
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 0.78rem;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-sub {
+    color: #e2e8f0;
+    font-weight: 600;
+    font-size: 0.68rem;
+}
+
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-badge.standby,
+#view-stagebuilder .sb-strip-tile.standby .sb-tile-badge.doop-off {
+    background: rgba(239, 68, 68, 0.28);
+    color: #fecaca;
+    border: 1px solid rgba(239, 68, 68, 0.6);
+    font-weight: 800;
 }
 
 /* Live tile state: warm accent on hover indicating click will mute/standby */
@@ -1647,9 +1750,9 @@
 }
 
 #view-stagebuilder .sb-tile-badge.standby {
-    background: rgba(239, 68, 68, 0.12);
-    color: #f87171;
-    border: 1px solid rgba(239, 68, 68, 0.22);
+    background: rgba(239, 68, 68, 0.16);
+    color: #fca5a5;
+    border: 1px solid rgba(239, 68, 68, 0.35);
 }
 
 #view-stagebuilder .sb-tile-badge.fixed {
@@ -1693,7 +1796,7 @@
 
 #view-stagebuilder .sb-tile-sub {
     font-size: 0.62rem;
-    color: #64748b;
+    color: #94a3b8;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1726,11 +1829,13 @@
     height: 3px;
     width: 100%;
     border-radius: 2px;
-    background: #ef4444; /* default red mute */
+    background: #ef4444;
+    /* default red mute */
 }
 
 #view-stagebuilder .sb-strip-tile.live .sb-tile-indicator {
-    background: #22c55e; /* active green */
+    background: #22c55e;
+    /* active green */
     box-shadow: 0 0 6px rgba(34, 197, 94, 0.5);
 }
 
@@ -1738,4 +1843,3 @@
     background: #0284c7;
     box-shadow: none;
 }
-

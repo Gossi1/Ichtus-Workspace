@@ -211,6 +211,15 @@ const wtServicesModule = {
         try { localStorage.setItem('wt_selected_service', id); } catch (e) {}
         this.renderList();
         await this.loadSetlist(id);
+        // Sync service roster in background so Dashboard Mic Monitor & Stage Builder stay updated automatically
+        fetch(`/api/worshiptools-services/services/${encodeURIComponent(id)}/roster`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => {
+                if (d && Array.isArray(d.roster)) {
+                    document.dispatchEvent(new CustomEvent('worshiptools-roster', { detail: { roster: d.roster } }));
+                }
+            })
+            .catch(() => {});
         // Toon live-indicator zolang een dienst geselecteerd is
         this.updateLiveStatus();
     },

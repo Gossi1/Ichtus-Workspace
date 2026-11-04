@@ -17,9 +17,15 @@ window.dashboardWidgets.micMonitor = {
     _iemListenerAdded: false,
     _onIemStatus: null,
     _rosterListenerAdded: false,
+    _wtSyncInFlight: false,
+    _wtInitialSyncDone: false,
 
     _initMicMonitor() {
         this._initIemListener();
+        this._initRosterListener();
+        if (this._micLocalCache && this._micLocalCache.length > 0) {
+            this._renderMicCardsDOM(this._micLocalCache);
+        }
         this._fetchIemStatus();
     },
 
@@ -51,69 +57,138 @@ window.dashboardWidgets.micMonitor = {
             if (data.channels && Array.isArray(data.channels)) {
                 this._micLocalCache = data.channels;
                 this._renderMicCardsDOM(data.channels);
+
+                const hasAssigned = data.channels.some(c => c.active && c.name && c.name !== 'Unassigned / Standby');
+                if (!hasAssigned || !this._wtInitialSyncDone) {
+                    this._wtInitialSyncDone = true;
+                    this._syncFromWorshipTools();
+                }
             }
         } catch (err) {
             console.warn('[MIC] Status ophalen mislukt:', err.message);
         }
     },
 
-    _renderMicCardsDOM(channels) {
-        const gridContainer = document.getElementById('mic-monitor-grid');
-        if (!gridContainer) return;
-        if (gridContainer.querySelector('.mic-flip-card.flipped')) return;
+    async _syncFromWorshipTools(preferredServiceId) {
+        if (this._wtSyncInFlight) return;
+        this._wtSyncInFlight = true;
+        try {
+            let serviceId = preferredServiceId || '';
+            if (!serviceId) {
+                try { serviceId = localStorage.getItem('wt_selected_service') || ''; } catch (e) {}
+            }
 
-        if (!channels || channels.length === 0) {
-            gridContainer.innerHTML = '<div class="pp-loading">Geen data…</div>';
-            return;
+            const svcsResp = await fetch('/api/worshiptools-services/services', { cache: 'no-store' });
+            if (svcsResp.ok) {
+                const svcsData = await svcsResp.json();
+                const upcoming = Array.isArray(svcsData.upcoming) ? svcsData.upcoming : [];
+                const past = Array.isArray(svcsData.past) ? svcsData.past : [];
+                const all = upcoming.concat(past);
+
+                // Als de opgeslagen serviceId niet (meer) bestaat of in het verleden ligt terwijl er een komende dienst is,
+                // kies dan de eerstvolgende dienst.
+                const found = serviceId ? all.find(s => s.id === serviceId) : null;
+                if (!found || (found.isPast && upcoming.length > 0 && !preferredServiceId)) {
+                    serviceId = (upcoming[0] && upcoming[0].id) || (past[0] && past[0].id) || '';
+                }
+            }
+
+            if (!serviceId) return;
+
+            const rosterResp = await fetch('/api/worshiptools-services/services/' + encodeURIComponent(serviceId) + '/roster', { cache: 'no-store' });
+            if (!rosterResp.ok) return;
+            const rosterData = await rosterResp.json();
+            if (rosterData && Array.isArray(rosterData.roster) && rosterData.roster.length > 0) {
+                this._processRoster(rosterData.roster);
+            }
+        } catch (err) {
+            console.warn('[MIC] Auto-sync vanuit WorshipTools mislukt:', err.message);
+        } finally {
+            this._wtSyncInFlight = false;
         }
+    },
 
-        const fallbackSvg = `data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%23444"><circle cx="12" cy="12" r="12"/></svg>`;
+    _renderMicCardsDOM(channels) {
+        const grids = document.querySelectorAll('#mic-monitor-grid, .mic-monitor-grid');
+        if (!grids || grids.length === 0) return;
+
         const escapeHtml = str => String(str ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-        const safeAvatar = url => {
-            if (!url || typeof url !== 'string') return fallbackSvg;
+        const buildFallbackSvg = (name, isAssigned) => {
+            if (!isAssigned) {
+                return `data:image/svg+xml;utf8,` + encodeURIComponent(
+                    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">` +
+                    `<rect width="120" height="120" fill="#262626"/>` +
+                    `<circle cx="60" cy="54" r="18" fill="#3a3a3a"/>` +
+                    `<path d="M30 106c0-16.5 13.5-30 30-30s30 13.5 30 30" fill="#3a3a3a"/>` +
+                    `</svg>`
+                );
+            }
+            const initial = (String(name || '').trim().charAt(0) || '🎤').toUpperCase();
+            return `data:image/svg+xml;utf8,` + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120">` +
+                `<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#334155"/><stop offset="100%" stop-color="#1e293b"/></linearGradient></defs>` +
+                `<rect width="120" height="120" fill="url(#g)"/>` +
+                `<circle cx="60" cy="64" r="28" fill="rgba(244,121,32,0.18)" stroke="rgba(244,121,32,0.45)" stroke-width="2"/>` +
+                `<text x="60" y="74" text-anchor="middle" fill="#f8fafc" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="700">${initial}</text>` +
+                `</svg>`
+            );
+        };
+        const safeAvatar = (url, name, isAssigned) => {
+            if (!url || typeof url !== 'string') return buildFallbackSvg(name, isAssigned);
             const t = url.trim();
             if (t.startsWith('http://') || t.startsWith('https://') || t.startsWith('data:image/')) {
                 return t.replace(/["'()]/g, '');
             }
-            return fallbackSvg;
+            return buildFallbackSvg(name, isAssigned);
         };
 
-        gridContainer.innerHTML = channels.map(mic => {
-            const micLabel = escapeHtml(mic.name || 'Unassigned / Standby');
-            const iemPack = escapeHtml(mic.iem_pack || '');
-            const frequency = escapeHtml(mic.frequency || '');
-            const avatarUrl = safeAvatar(mic.avatar_url);
-            const micId = parseInt(mic.mic_id) || 0;
-            return `<div class="mic-flip-card" data-mic-id="${micId}" onclick="dashboardModule._flipMicCard(${micId})">
-                <div class="mic-flip-inner">
-                    <div class="mic-flip-front mic-card">
-                        <div class="mic-card-photo" style="background-image: url('${avatarUrl}');">
-                            <span class="mic-badge">MIC ${micId}</span>
-                        </div>
-                        <div class="mic-card-info">
-                            <div class="mic-name">${micLabel}</div>
-                            <div class="mic-iem">${iemPack}</div>
-                            <div class="mic-frequency">${frequency}</div>
-                        </div>
-                    </div>
-                    <div class="mic-flip-back">
-                        <div class="mic-card-header">
-                            <span class="mic-label">CONFIG MIC ${micId}</span>
-                        </div>
-                        <div class="mic-edit-fields">
-                            <div class="mic-edit-row">
-                                <label>IEM Pack</label>
-                                <input type="text" class="mic-input edit-iem" value="${iemPack}" placeholder="IEM Pack ${micId}" onclick="event.stopPropagation()">
+        grids.forEach(gridContainer => {
+            if (gridContainer.querySelector('.mic-flip-card.flipped')) return;
+
+            if (!channels || channels.length === 0) {
+                gridContainer.innerHTML = '<div class="pp-loading">Geen data…</div>';
+                return;
+            }
+
+            gridContainer.innerHTML = channels.map(mic => {
+                const rawName = mic.name || 'Unassigned / Standby';
+                const isAssigned = Boolean(mic.active && rawName !== 'Unassigned / Standby');
+                const micLabel = escapeHtml(rawName);
+                const iemPack = escapeHtml(mic.iem_pack || '');
+                const frequency = escapeHtml(mic.frequency || '');
+                const avatarUrl = safeAvatar(mic.avatar_url, rawName, isAssigned);
+                const micId = parseInt(mic.mic_id) || 0;
+                return `<div class="mic-flip-card" data-mic-id="${micId}" onclick="dashboardModule._flipMicCard(${micId})">
+                    <div class="mic-flip-inner">
+                        <div class="mic-flip-front mic-card">
+                            <div class="mic-card-photo" style="background-image: url('${avatarUrl}');">
+                                <span class="mic-badge">MIC ${micId}</span>
                             </div>
-                            <div class="mic-edit-row">
-                                <label>RF Frequentie</label>
-                                <input type="text" class="mic-input edit-freq" value="${frequency}" placeholder="000.000 MHz" onclick="event.stopPropagation()">
+                            <div class="mic-card-info">
+                                <div class="mic-name">${micLabel}</div>
+                                <div class="mic-iem">${iemPack}</div>
+                                <div class="mic-frequency">${frequency}</div>
                             </div>
                         </div>
+                        <div class="mic-flip-back">
+                            <div class="mic-card-header">
+                                <span class="mic-label">CONFIG MIC ${micId}</span>
+                            </div>
+                            <div class="mic-edit-fields">
+                                <div class="mic-edit-row">
+                                    <label>IEM Pack</label>
+                                    <input type="text" class="mic-input edit-iem" value="${iemPack}" placeholder="IEM Pack ${micId}" onclick="event.stopPropagation()">
+                                </div>
+                                <div class="mic-edit-row">
+                                    <label>RF Frequentie</label>
+                                    <input type="text" class="mic-input edit-freq" value="${frequency}" placeholder="000.000 MHz" onclick="event.stopPropagation()">
+                                </div>
+                            </div>
+                        </div>
                     </div>
-                </div>
-            </div>`;
-        }).join('');
+                </div>`;
+            }).join('');
+        });
     },
 
     _flipMicCard(micId) {
@@ -162,6 +237,14 @@ window.dashboardWidgets.micMonitor = {
             console.log('[MIC] Received roster from extension:', roster.length, 'assignments');
             this._processRoster(roster);
         });
+        document.addEventListener('ws:wt:roster', (e) => {
+            const d = e.detail || {};
+            if (d.source === 'server') return; // Server already updated IEM manager and broadcasted ws:iem:status
+            const roster = d.roster;
+            if (!roster || !Array.isArray(roster)) return;
+            console.log('[MIC] Received roster via WebSocket:', roster.length, 'assignments');
+            this._processRoster(roster);
+        });
     },
 
     _getFirstName(fullName) {
@@ -174,9 +257,11 @@ window.dashboardWidgets.micMonitor = {
         const personAvatars = {};
         roster.forEach(entry => {
             const firstName = this._getFirstName(entry.name);
+            if (!firstName) return;
             if (!personRoles[firstName]) personRoles[firstName] = new Set();
-            personRoles[firstName].add(entry.role);
-            if (entry.avatar_url && !personAvatars[firstName]) personAvatars[firstName] = entry.avatar_url;
+            if (entry.role) personRoles[firstName].add(entry.role);
+            const avatar = entry.avatar_url || entry.avatarUrl || '';
+            if (avatar && !personAvatars[firstName]) personAvatars[firstName] = avatar;
         });
 
         let wlName = null;
@@ -184,7 +269,7 @@ window.dashboardWidgets.micMonitor = {
 
         for (const [name, roles] of Object.entries(personRoles)) {
             const rolesLower = new Set();
-            roles.forEach(r => rolesLower.add(r.toLowerCase()));
+            roles.forEach(r => rolesLower.add(String(r).toLowerCase()));
             if (rolesLower.has('worship leader')) wlName = name;
             if (rolesLower.has('vocalist')) vocalists.push(name);
         }
@@ -197,12 +282,12 @@ window.dashboardWidgets.micMonitor = {
         if (wlName) {
             const wlRoles = personRoles[wlName];
             const wlRolesLower = new Set();
-            wlRoles.forEach(r => wlRolesLower.add(r.toLowerCase()));
-            if (!wlRolesLower.has('piano')) {
+            wlRoles.forEach(r => wlRolesLower.add(String(r).toLowerCase()));
+            if (!wlRolesLower.has('piano') && !wlRolesLower.has('keys')) {
                 assignments.push({ mic_id: micIndex, name: wlName });
                 micIndex++;
             } else {
-                console.log('[MIC] WL', wlName, 'also on Piano — skipping mic assignment');
+                console.log('[MIC] WL', wlName, 'also on Piano/Keys — skipping mic assignment');
             }
         }
 
@@ -218,16 +303,19 @@ window.dashboardWidgets.micMonitor = {
         const channels = [];
         for (let i = 1; i <= 4; i++) {
             const assigned = assignments.find(a => a.mic_id === i);
+            const existing = (this._micLocalCache || []).find(c => c.mic_id === i);
             channels.push({
                 mic_id: i,
                 name: assigned ? assigned.name : 'Unassigned / Standby',
-                iem_pack: 'IEM Pack ' + i,
-                frequency: '',
+                iem_pack: (existing && existing.iem_pack) ? existing.iem_pack : ('IEM Pack ' + i),
+                frequency: (existing && existing.frequency) ? existing.frequency : '',
                 active: !!assigned,
-                avatar_url: assigned ? (personAvatars[assigned.name] || '') : ''
+                avatar_url: assigned ? (personAvatars[assigned.name] || (existing && existing.avatar_url) || '') : ''
             });
         }
 
+        this._micLocalCache = channels;
+        this._renderMicCardsDOM(channels);
         this._postIemAssign(channels);
     },
 

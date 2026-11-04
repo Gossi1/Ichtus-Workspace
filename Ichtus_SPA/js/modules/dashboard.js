@@ -35,18 +35,23 @@ const dashboardModule = {
             const pwd = prompt('Voer het ProPresenter netwerk wachtwoord in voor WebSocket connectie:');
             if (pwd) localStorage.setItem('ichtus_pp_ws_password', pwd);
         }
-        if (this.initialized && this._lastView === 'dashboard') return;
+        if (this.initialized && this._lastView === 'dashboard') {
+            this._updateRowHeight();
+            try { this._initMicMonitor(); } catch (e) {}
+            return;
+        }
         this.initialized = true;
         this._lastView = 'dashboard';
 
         this.setupDragAndDrop();
         this._migrateProPresenterSpan();
         this._migratePlaylistCache();
-        try { this._initMicMonitor(); } catch (e) { console.warn('[DASHBOARD] Mic monitor init failed:', e); }
-        try { this._initRosterListener(); } catch (e) { console.warn('[DASHBOARD] Roster listener init failed:', e); }
 
         const activeLayout = this.getActiveLayoutName();
         this.applyLayout(activeLayout);
+
+        try { this._initMicMonitor(); } catch (e) { console.warn('[DASHBOARD] Mic monitor init failed:', e); }
+        try { this._initRosterListener(); } catch (e) { console.warn('[DASHBOARD] Roster listener init failed:', e); }
 
         localStorage.removeItem('ichtus_dashboard_collapsed');
         this._updateRowHeight();
@@ -686,6 +691,10 @@ const dashboardModule = {
                                     this._startPlaylistOverviewPolling();
                                     this._startPlaylistSlideTracking();
                                 }
+                                if (id === 'mic-iem-monitor') {
+                                    this._initMicMonitor();
+                                    this._initRosterListener();
+                                }
 
                             } catch (e) { console.warn('[DASHBOARD] Widget init for', id, 'failed:', e); }
                         }
@@ -996,6 +1005,10 @@ const dashboardModule = {
 
         this.populateLayoutSelector();
         document.querySelectorAll('#widget-grid .widget-body').forEach(b => { b.style.display = ''; });
+        if (grid.querySelector('[data-widget-id="mic-iem-monitor"]')) {
+            try { this._initMicMonitor(); } catch (e) {}
+            try { this._initRosterListener(); } catch (e) {}
+        }
     },
 
     switchLayout(layoutName) {
@@ -1347,6 +1360,10 @@ const dashboardModule = {
             if (widgetId === 'playlist-overview') {
                 this._startPlaylistOverviewPolling();
                 this._startPlaylistSlideTracking();
+            }
+            if (widgetId === 'mic-iem-monitor') {
+                this._initMicMonitor();
+                this._initRosterListener();
             }
         } catch (e) { console.warn('[DASHBOARD] Widget init for', widgetId, 'failed:', e); }
 
