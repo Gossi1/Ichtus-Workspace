@@ -362,30 +362,13 @@ const setlistModule = {
      */
     async _loadKnownSongIdsFromLibrary() {
         const norm = s => String(s || '').replace(/\s+/g, '');
-        let filePath = null;
-        try {
-            const cfgResp = await fetch('/api/library/config');
-            if (cfgResp.ok) {
-                const cfg = await cfgResp.json();
-                if (cfg && cfg.success && cfg.libraryPath) {
-                    filePath = cfg.libraryPath;
-                }
-            }
-        } catch (e) {
-            console.warn('[SPA] /api/library/config unreachable:', e?.message);
-        }
-
-        const url = filePath
-            ? '/api/library/load?file=' + encodeURIComponent(filePath)
-            : '/api/library/load';
-
-        const resp = await fetch(url);
+        const resp = await fetch('/api/library/load');
         if (!resp.ok) {
             console.warn('[SPA] /api/library/load HTTP', resp.status);
             return new Set();
         }
         const json = await resp.json();
-        const songs = (json && (json.songs || json.data?.songs)) || [];
+        const songs = (json && (json.library?.songs || json.songs || json.data?.songs)) || [];
         if (!Array.isArray(songs) || songs.length === 0) {
             console.warn('[SPA] Library is empty or has a different shape — no known songs to compare against');
             return new Set();
@@ -1700,7 +1683,7 @@ const setlistModule = {
         div.innerHTML = `
             <div class="tpl-drag-handle">${dragHandleSvg}</div>
             <div class="tpl-row-fields">
-                <input type="text" class="i-name" value="${item.name || ''}" placeholder="Name" style="width: 100%; flex-basis: 100%;">
+                <input type="text" class="i-name" value="${this.escapeHtml(item.name || '')}" placeholder="Name" style="width: 100%; flex-basis: 100%;">
                 <select class="i-type" onchange="setlistModule.toggleRowFields(this)" style="flex: 1;">
                     <option value="header" ${isHeader ? 'selected' : ''}>Header</option>
                     <option value="presentation" ${!isHeader ? 'selected' : ''}>Presentation</option>
@@ -1714,8 +1697,8 @@ const setlistModule = {
                     <option value="doop" ${item.insert === 'doop' ? 'selected' : ''}>+ Doop</option>
                     <option value="avondmaal" ${item.insert === 'avondmaal' ? 'selected' : ''}>+ Avondmaal</option>
                 </select>
-                <input type="text" class="i-uuid" value="${item.uuid || ''}" placeholder="Target UUID" style="display:${!isHeader ? 'block' : 'none'}; flex: 2;">
-                <input type="text" class="i-dest" value="${item.destination || 'presentation'}" placeholder="Dest" style="width: 90px;">
+                <input type="text" class="i-uuid" value="${this.escapeHtml(item.uuid || '')}" placeholder="Target UUID" style="display:${!isHeader ? 'block' : 'none'}; flex: 2;">
+                <input type="text" class="i-dest" value="${this.escapeHtml(item.destination || 'presentation')}" placeholder="Dest" style="width: 90px;">
             </div>
             <button class="tpl-btn-remove" onclick="setlistModule.removeRow(this)" title="Verwijder">${removeSvg}</button>
             <div class="tpl-inline-insert-trigger" onclick="setlistModule.addNewItemAtPosition(this)" title="Voeg item hier tussenin toe">+</div>

@@ -124,6 +124,10 @@ show_roster.py
 
 # Persoonsgegevens (namen + UUIDs van kerkleden)
 people_cache.json
+people_avatars.json
+app-config.json
+.env
+.env.*
 
 # ===========================
 # WAV Library (local audio files, never commit)

@@ -32,6 +32,30 @@ pub struct CalendarIcsQuery {
     pub url: Option<String>,
 }
 
+fn is_disallowed_ip(ip: &std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(v4) => {
+            let octets = v4.octets();
+            v4.is_loopback()
+                || v4.is_unspecified()
+                || v4.is_broadcast()
+                || v4.is_link_local()
+                || v4.is_private()
+                || (octets[0] == 100 && (octets[1] & 0xc0) == 64)
+        }
+        std::net::IpAddr::V6(v6) => {
+            let segs = v6.segments();
+            let is_ula = (segs[0] & 0xfe00) == 0xfc00;
+            let is_link_local = (segs[0] & 0xffc0) == 0xfe80;
+            let is_ipv4_mapped_private = v6
+                .to_ipv4_mapped()
+                .map(|v4| is_disallowed_ip(&std::net::IpAddr::V4(v4)))
+                .unwrap_or(false);
+            v6.is_loopback() || v6.is_unspecified() || is_ula || is_link_local || is_ipv4_mapped_private
+        }
+    }
+}
+
 fn is_disallowed_url(target: &reqwest::Url) -> Result<(), &'static str> {
     let scheme = target.scheme();
     if scheme != "http" && scheme != "https" {
@@ -40,32 +64,12 @@ fn is_disallowed_url(target: &reqwest::Url) -> Result<(), &'static str> {
 
     match target.host() {
         Some(url::Host::Ipv4(ip)) => {
-            let octets = ip.octets();
-            if ip.is_loopback()
-                || ip.is_unspecified()
-                || ip.is_broadcast()
-                || ip.is_link_local()
-                || ip.is_private()
-                || (octets[0] == 100 && (octets[1] & 0xc0) == 64)
-            {
+            if is_disallowed_ip(&std::net::IpAddr::V4(ip)) {
                 return Err("Toegang tot lokaal/intern IP niet toegestaan");
             }
         }
         Some(url::Host::Ipv6(ip)) => {
-            let segs = ip.segments();
-            let is_ula = (segs[0] & 0xfe00) == 0xfc00;
-            let is_link_local = (segs[0] & 0xffc0) == 0xfe80;
-            let is_ipv4_mapped_private = ip.to_ipv4_mapped().map(|v4| {
-                let octets = v4.octets();
-                v4.is_loopback()
-                    || v4.is_unspecified()
-                    || v4.is_broadcast()
-                    || v4.is_link_local()
-                    || v4.is_private()
-                    || (octets[0] == 100 && (octets[1] & 0xc0) == 64)
-            }).unwrap_or(false);
-
-            if ip.is_loopback() || ip.is_unspecified() || is_ula || is_link_local || is_ipv4_mapped_private {
+            if is_disallowed_ip(&std::net::IpAddr::V6(ip)) {
                 return Err("Toegang tot lokaal/intern IPv6 niet toegestaan");
             }
         }
@@ -111,6 +115,21 @@ pub async fn tockify_ics_handler(
 
     if let Err(e) = is_disallowed_url(&parsed) {
         return (StatusCode::FORBIDDEN, Json(json!({ "error": e }))).into_response();
+    }
+
+    if let Some(host_str) = parsed.host_str() {
+        let port = parsed.port_or_known_default().unwrap_or(443);
+        if let Ok(addrs) = tokio::net::lookup_host((host_str, port)).await {
+            for addr in addrs {
+                if is_disallowed_ip(&addr.ip()) {
+                    return (
+                        StatusCode::FORBIDDEN,
+                        Json(json!({ "error": "Kalender-host verwijst naar een intern of lokaal IP-adres" })),
+                    )
+                        .into_response();
+                }
+            }
+        }
     }
 
     let client = reqwest::Client::builder()
@@ -162,12 +181,19 @@ pub async fn tockify_ics_handler(
         }
     };
 
-    Response::builder()
+    match Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/calendar; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-cache")
         .body(axum::body::Body::from(text))
-        .unwrap()
+    {
+        Ok(res) => res,
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({ "error": format!("Response bouwfout: {}", e) })),
+        )
+            .into_response(),
+    }
 }
 
 // ── Song ID Assigner Library ────────────────────────────────────────────

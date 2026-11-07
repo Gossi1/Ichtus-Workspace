@@ -214,6 +214,15 @@ const patchbayModule = (function() {
         requestAnimationFrame(renderConnections);
     }
 
+    function escapeHtml(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function renderNodes() {
         nodesContainer.innerHTML = '';
         state.data.nodes.forEach(node => {
@@ -227,16 +236,16 @@ const patchbayModule = (function() {
             nodeEl.style.top = `${node.y}px`;
             nodeEl.id = `node-${node.id}`;
 
-            let inputsHtml = node.inputs.map((p, i) => `<div class=\"port input\" data-port=\"${i}\"><span class=\"port-label\">${p}</span></div>`).join('');
-            let outputsHtml = node.outputs.map((p, i) => `<div class=\"port output\" data-port=\"${i}\"><span class=\"port-label\">${p}</span></div>`).join('');
+            let inputsHtml = node.inputs.map((p, i) => `<div class="port input" data-port="${i}"><span class="port-label">${escapeHtml(p)}</span></div>`).join('');
+            let outputsHtml = node.outputs.map((p, i) => `<div class="port output" data-port="${i}"><span class="port-label">${escapeHtml(p)}</span></div>`).join('');
 
             nodeEl.innerHTML = `
-                <div class=\"node-menu-btn\" data-node-id=\"${node.id}\">⋮</div>
-                <div class=\"node-header\">${node.title}</div>
-                <div class=\"node-ip\">${node.ip}</div>
-                <div class=\"node-ports\">
-                    <div class=\"port-group inputs\">${inputsHtml}</div>
-                    <div class=\"port-group outputs\">${outputsHtml}</div>
+                <div class="node-menu-btn" data-node-id="${escapeHtml(node.id)}">⋮</div>
+                <div class="node-header">${escapeHtml(node.title)}</div>
+                <div class="node-ip">${escapeHtml(node.ip)}</div>
+                <div class="node-ports">
+                    <div class="port-group inputs">${inputsHtml}</div>
+                    <div class="port-group outputs">${outputsHtml}</div>
                 </div>
             `;
             nodesContainer.appendChild(nodeEl);
@@ -317,10 +326,10 @@ const patchbayModule = (function() {
             const uiDiv = document.createElementNS('http://www.w3.org/1999/xhtml', 'div');
             uiDiv.className = 'conn-ui';
             uiDiv.innerHTML = `
-                <div class=\"conn-label\">${conn.cable || conn.type || 'Link'}</div>
-                <div class=\"conn-btn-group\">
-                    <button class=\"conn-btn edit\" data-index=\"${index}\" title=\"Edit Cable\">⚙️</button>
-                    <button class=\"conn-btn delete\" data-index=\"${index}\" title=\"Delete Cable\">🗑️</button>
+                <div class="conn-label">${escapeHtml(conn.cable || conn.type || 'Link')}</div>
+                <div class="conn-btn-group">
+                    <button class="conn-btn edit" data-index="${index}" title="Edit Cable">⚙️</button>
+                    <button class="conn-btn delete" data-index="${index}" title="Delete Cable">🗑️</button>
                 </div>
             `;
             fo.appendChild(uiDiv);
@@ -706,23 +715,23 @@ const patchbayModule = (function() {
         modal.innerHTML = `
             <h3>Edit Block</h3>
             <label>Title:</label>
-            <input type=\"text\" id=\"cfg-title\" value=\"${node.title}\">
+            <input type="text" id="cfg-title" value="${escapeHtml(node.title)}">
             <label>IP / Subtext:</label>
-            <input type=\"text\" id=\"cfg-ip\" value=\"${node.ip}\">
+            <input type="text" id="cfg-ip" value="${escapeHtml(node.ip)}">
             
             <label>Inputs:</label>
-            <div id=\"cfg-inputs-container\" class=\"ports-container\"></div>
-            <button id=\"cfg-add-input\" class=\"btn-add-port\">+ Add Input</button>
+            <div id="cfg-inputs-container" class="ports-container"></div>
+            <button id="cfg-add-input" class="btn-add-port">+ Add Input</button>
             
             <label>Outputs:</label>
-            <div id=\"cfg-outputs-container\" class=\"ports-container\"></div>
-            <button id=\"cfg-add-output\" class=\"btn-add-port\">+ Add Output</button>
+            <div id="cfg-outputs-container" class="ports-container"></div>
+            <button id="cfg-add-output" class="btn-add-port">+ Add Output</button>
 
-            <div class=\"config-actions\">
-                <button id=\"cfg-delete\" class=\"btn-delete\">Delete</button>
+            <div class="config-actions">
+                <button id="cfg-delete" class="btn-delete">Delete</button>
                 <div>
-                    <button id=\"cfg-cancel\" class=\"btn-cancel\">Cancel</button>
-                    <button id=\"cfg-save\" class=\"btn-save\">Save</button>
+                    <button id="cfg-cancel" class="btn-cancel">Cancel</button>
+                    <button id="cfg-save" class="btn-save">Save</button>
                 </div>
             </div>
         `;
@@ -744,7 +753,7 @@ const patchbayModule = (function() {
             row.innerHTML = `
                 <button class="btn-move-port" data-dir="up" title="Move Up">▲</button>
                 <button class="btn-move-port" data-dir="down" title="Move Down">▼</button>
-                <input type="text" value="${port}" class="port-input-field">
+                <input type="text" value="${escapeHtml(port)}" class="port-input-field">
                 <button class="btn-remove-port" title="Remove Port">&times;</button>
             `;
             row.querySelector('.btn-move-port[data-dir="up"]').onclick = () => movePort(containerId, row, 'up');
@@ -3172,21 +3181,6 @@ const patchbayModule = (function() {
         updateTransform();
         state.initialized = true;
     }
-
-    // Return public API
-    return {
-        init,
-        getData,
-        getProjects,
-        getCurrentProjectId,
-        getCanvasTransform,
-        renderAll,
-        renderSidebar,
-        switchCanvas,
-        saveData,
-        openNodeConfig,
-        openConnConfig
-    };
 
     // ==================== HELPER FUNCTIONS ====================
 

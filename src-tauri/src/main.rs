@@ -46,11 +46,24 @@ fn get_config_path() -> PathBuf {
     get_data_dir().join("app-config.json")
 }
 
+fn is_valid_host_address(host: &str) -> bool {
+    let trimmed = host.trim();
+    !trimmed.is_empty()
+        && (trimmed.parse::<std::net::IpAddr>().is_ok()
+            || trimmed == "localhost"
+            || trimmed
+                .chars()
+                .all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'))
+}
+
 fn load_app_config() -> Option<AppConfig> {
     let path = get_config_path();
     if path.exists() {
         if let Ok(data) = fs::read_to_string(&path) {
-            if let Ok(cfg) = serde_json::from_str::<AppConfig>(&data) {
+            if let Ok(mut cfg) = serde_json::from_str::<AppConfig>(&data) {
+                if !is_valid_host_address(&cfg.host_address) {
+                    cfg.host_address = default_host_address();
+                }
                 return Some(cfg);
             }
         }
@@ -163,9 +176,10 @@ fn start_app_workflow(
                 host, target_port
             );
 
+            let status_msg = format!("Verbinden met Beamer PC op {}…", host);
             let _ = window.eval(&format!(
-                "if (window.ichtusStatus) window.ichtusStatus('Verbinden met Beamer PC op {}…');",
-                host
+                "if (window.ichtusStatus) window.ichtusStatus({});",
+                serde_json::to_string(&status_msg).unwrap_or_default()
             ));
 
             let mut attempts = 0;
@@ -209,10 +223,7 @@ fn save_mode(
     let resolved_host = host_address.or(hostAddress).unwrap_or_else(default_host_address);
     let trimmed_host = resolved_host.trim();
 
-    if trimmed_host.parse::<std::net::IpAddr>().is_err()
-        && trimmed_host != "localhost"
-        && !trimmed_host.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-')
-    {
+    if !is_valid_host_address(trimmed_host) {
         return Err("Ongeldig host IP-adres of computernaam".to_string());
     }
 
@@ -270,12 +281,20 @@ async fn open_worshiptools_login(app: AppHandle) -> Result<String, String> {
             function reportToken(tok, accId) {
                 if (!tok || tok.length < 40) return;
                 console.log('[WT-EXTRACTOR] Token gevonden! Doorgeven aan server...');
+                var payload = JSON.stringify({ apiToken: tok, accountId: accId });
+                var headers = { 'Content-Type': 'application/json' };
                 fetch('http://127.0.0.1:8080/api/worshiptools/token', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ apiToken: tok, accountId: accId })
+                    headers: headers,
+                    body: payload
+                }).catch(function() {
+                    return fetch('http://127.0.0.1:8090/api/worshiptools/token', {
+                        method: 'POST',
+                        headers: headers,
+                        body: payload
+                    });
                 }).then(function(r) {
-                    if (r.ok) {
+                    if (r && r.ok) {
                         console.log('[WT-EXTRACTOR] Token succesvol opgeslagen op de server!');
                     }
                 }).catch(function(err) {
@@ -398,10 +417,13 @@ fn main() {
 
             let tray_menu = Menu::with_items(&handle, &[&item_show, &item_reload, &item_quit])?;
 
-            let _tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().unwrap().clone())
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&tray_menu)
-                .tooltip("Ichtus Workspace")
+                .tooltip("Ichtus Workspace");
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+            let _tray = tray_builder
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(win) = app.get_webview_window("main") {

@@ -679,19 +679,18 @@ const settingsModule = {
                     tail.map(entry => {
                         const lineText = typeof entry === 'string' ? entry : (entry.line || '');
                         const tsText = entry.ts || '';
-                        const div = document.createElement('div');
-                        div.textContent = lineText;
-                        const safeLine = div.innerHTML;
+                        const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
                         return `<div class="settings-log-line">
-                            ${tsText ? `<span class="settings-log-ts">${tsText}</span>` : ''}
-                            <span class="settings-log-msg">${safeLine}</span>
+                            ${tsText ? `<span class="settings-log-ts">${esc(tsText)}</span>` : ''}
+                            <span class="settings-log-msg">${esc(lineText)}</span>
                         </div>`;
                     }).join('') +
                     '</div>';
                 content.scrollTop = content.scrollHeight;
             }
         } catch (err) {
-            content.innerHTML = `<div class="settings-log-error">Fout bij laden: ${err.message}</div>`;
+            const escErr = String(err?.message ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            content.innerHTML = `<div class="settings-log-error">Fout bij laden: ${escErr}</div>`;
         }
     },
 

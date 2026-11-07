@@ -9,7 +9,15 @@ const checklistModule = {
     _contextMenuActive: false,
 
     init() {
-        // Skip if already initialized for this view
+        // Ensure timer interval is running when returning to Checklist view
+        if (!this._timersInterval) {
+            this._timersInterval = setInterval(() => {
+                if (!router.isChecklistActive()) return;
+                this.updateTimersAndColors();
+            }, 1000);
+        }
+
+        // Skip full DOM re-initialization if already initialized for this view
         if (this.initialized && this._lastView === 'checklist') return;
         this.initialized = true;
         this._lastView = 'checklist';
@@ -26,13 +34,6 @@ const checklistModule = {
         // Setup event listeners
         this.setupEventListeners();
         this._setupContextMenuListeners();
-
-        // Start timer — no-op while another view is active so the per-second
-        // DOM walk over every task row stays scoped to the checklist view.
-        this._timersInterval = setInterval(() => {
-            if (!router.isChecklistActive()) return;
-            this.updateTimersAndColors();
-        }, 1000);
 
         // Local-first sync: haal state op bij de server (REST) en luister
         // live naar de WebSocket hub. Firestore is enkel backup op de server.
@@ -1616,8 +1617,8 @@ const checklistModule = {
             row.className = 'manage-list-item';
             row.innerHTML = '<span style="font-size:1rem;">' + this._escapeHtml(tag.icon || '') + '</span>' +
                 '<span style="flex:1;margin-left:8px;color:#eee;">' + this._escapeHtml(tag.name) + '</span>' +
-                '<span style="width:16px;height:16px;border-radius:50%;background:' + tag.color + ';display:inline-block;margin-right:8px;"></span>' +
-                '<button class="btn-delete-task" onclick="checklistModule.deleteTag(\'' + tag.id + '\')" title="' + __('delete') + '">&#x2715;</button>';
+                '<span style="width:16px;height:16px;border-radius:50%;background:' + this._escapeHtml(tag.color || '') + ';display:inline-block;margin-right:8px;"></span>' +
+                '<button class="btn-delete-task" onclick="checklistModule.deleteTag(\'' + this._escapeHtml(tag.id || '') + '\')" title="' + __('delete') + '">&#x2715;</button>';
             list.appendChild(row);
         });
     },

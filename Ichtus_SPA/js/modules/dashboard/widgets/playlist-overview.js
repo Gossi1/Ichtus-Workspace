@@ -119,19 +119,20 @@ window.dashboardWidgets.playlistOverview = {
                 } else {
                     totalItems++;
                     const presUuid = item.presentation_info?.presentation_uuid || item.target_uuid || '';
+                    const safePresUuid = setlistModule.escapeHtml(presUuid);
                     if (isActive) activeItemName = itemName;
 
                     let slideCounterHtml = '';
                     if (isActive && presUuid && this._playlistOverviewSlidesData && this._playlistOverviewLastPresUuid === presUuid) {
                         const currentIdx = (this._proPresenterCurrentSlideIdx ?? 0) + 1;
-                        slideCounterHtml = `<span class="plo-v2-slide-counter" data-counter-uuid="${presUuid}">${currentIdx}/${this._playlistOverviewSlidesData.length}</span>`;
+                        slideCounterHtml = `<span class="plo-v2-slide-counter" data-counter-uuid="${safePresUuid}">${currentIdx}/${this._playlistOverviewSlidesData.length}</span>`;
                     } else {
-                        slideCounterHtml = `<span class="plo-v2-slide-counter" data-counter-uuid="${presUuid}" style="${isActive ? '' : 'display:none;'}"></span>`;
+                        slideCounterHtml = `<span class="plo-v2-slide-counter" data-counter-uuid="${safePresUuid}" style="${isActive ? '' : 'display:none;'}"></span>`;
                     }
 
                     html += `
                     <div class="plo-v2-item${isActive ? ' active' : ''}"
-                         data-pres-uuid="${presUuid}">
+                         data-pres-uuid="${safePresUuid}">
                         <div class="plo-v2-item-left">
                             <span class="plo-v2-item-name">${setlistModule.escapeHtml(itemName)}</span>
                         </div>
@@ -273,14 +274,17 @@ window.dashboardWidgets.playlistOverview = {
                 else thumbUrl = 'data:image/jpeg;base64,' + slide.image;
             }
 
-            const groupBadge = slide.groupName ? `<div class="plo-slide-group-badge" style="${groupStyle}">${slide.groupName}</div>` : '';
+            const safeGroup = setlistModule.escapeHtml(slide.groupName || '');
+            const safeUuid = setlistModule.escapeHtml(slide.uuid || '');
+            const safeSlideIdx = Number(slide.slideIndex) || 0;
+            const groupBadge = safeGroup ? `<div class="plo-slide-group-badge" style="${groupStyle}">${safeGroup}</div>` : '';
 
             html += `<div class="plo-slide-card${activeClass}" 
-                          data-slide-index="${slide.slideIndex}"
-                          onclick="dashboardModule._triggerPlaylistSlide('${slide.uuid}', ${slide.slideIndex}, this)">
-                <div class="plo-slide-num">${slide.slideIndex + 1}</div>
+                          data-slide-index="${safeSlideIdx}"
+                          onclick="dashboardModule._triggerPlaylistSlide('${safeUuid}', ${safeSlideIdx}, this)">
+                <div class="plo-slide-num">${safeSlideIdx + 1}</div>
                 ${groupBadge}
-                <img class="plo-slide-thumb" src="${thumbUrl}" onerror="this.style.opacity=0" loading="lazy" />
+                <img class="plo-slide-thumb" src="${setlistModule.escapeHtml(thumbUrl)}" onerror="this.style.opacity=0" loading="lazy" />
                 <div class="plo-slide-checkerboard"></div>
             </div>`;
         });

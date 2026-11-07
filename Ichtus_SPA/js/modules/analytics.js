@@ -17,15 +17,29 @@ const analyticsModule = {
     initialized: false,
     _availableLooks: [],
 
-    init() {
-        if (this.initialized && this._lastView === 'analytics') return;
+    escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
 
-        if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
+    init() {
+        this.BASE_URL = `${window.location.origin}/api/pro`;
+
+        if (!this._pollInterval) {
+            this._pollInterval = setInterval(() => {
+                if (!router.isAnalyticsActive()) return;
+                this.pollProPresenter();
+            }, 1000);
+        }
+
+        if (this.initialized && this._lastView === 'analytics') return;
 
         this.initialized = true;
         this._lastView = 'analytics';
-
-        this.BASE_URL = `http://${this.PP_IP}:${this.PP_PORT}/v1`;
 
         // Load look durations from localStorage
         this.lookDurations = JSON.parse(localStorage.getItem('lookDurations')) || {};
@@ -34,19 +48,10 @@ const analyticsModule = {
         this.refreshLooks();
         this.renderDashboard();
         this.renderAutoStartStatus();
-
-        // Poll ProPresenter for look changes. Outer guard skips when the
-        // analytics view is hidden; the inner pollProPresenter still has its
-        // own !isServiceRunning short-circuit for use-on-the-view moments.
-        this._pollInterval = setInterval(() => {
-            if (!router.isAnalyticsActive()) return;
-            this.pollProPresenter();
-        }, 1000);
     },
 
     cleanup() {
         if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
-        if (this.autoStartTimeout) { clearTimeout(this.autoStartTimeout); this.autoStartTimeout = null; }
     },
 
     // --- API Functions ---
@@ -125,11 +130,12 @@ const analyticsModule = {
             const currentDuration = this.lookDurations[lookName] || '';
             const displayTime = currentDuration ? analyticsModule.formatTime(parseInt(currentDuration)) : '—';
 
+            const safeLook = this.escapeHtml(lookName);
             row.innerHTML = `
-                <span style="font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${lookName}</span>
+                <span style="font-weight:600; flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${safeLook}</span>
                 <span style="font-size:0.8rem; color:var(--text-muted); margin:0 8px; min-width:50px; text-align:right; flex-shrink:0;">${displayTime}</span>
-                <input type="number" class="form-input" value="${currentDuration}" placeholder="Sec" style="width:80px; padding:4px 8px; font-size:0.8rem; flex-shrink:0;" data-look="${lookName}">
-                <button class="btn-nav" style="padding:4px 10px; font-size:0.75rem; border-radius:6px; flex-shrink:0;" data-look="${lookName}">Opslaan</button>
+                <input type="number" class="form-input" value="${this.escapeHtml(currentDuration)}" placeholder="Sec" style="width:80px; padding:4px 8px; font-size:0.8rem; flex-shrink:0;" data-look="${safeLook}">
+                <button class="btn-nav" style="padding:4px 10px; font-size:0.75rem; border-radius:6px; flex-shrink:0;" data-look="${safeLook}">Opslaan</button>
             `;
 
             const saveBtn = row.querySelector('button');
@@ -332,7 +338,8 @@ const analyticsModule = {
             const diffText = (diff > 0 ? '+' : '') + analyticsModule.formatTime(diff);
             const rowClass = isActive ? 'class="active-row"' : '';
             const namePrefix = isActive ? '▶ ' : '<span class="status-complete">✔ </span>';
-            const formattedName = item.name.replace(/US/g, '<span class="highlight-us">US</span>').replace(/us/g, '<span class="highlight-us">us</span>');
+            const safeName = this.escapeHtml(item.name);
+            const formattedName = safeName.replace(/US/g, '<span class="highlight-us">US</span>').replace(/us/g, '<span class="highlight-us">us</span>');
 
             tbody.innerHTML += `
                 <tr ${rowClass}>

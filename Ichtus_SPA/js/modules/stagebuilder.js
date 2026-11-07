@@ -192,9 +192,10 @@ const stagebuilderModule = {
 
         if (!this.__sbKeyBound) {
             // Escape-binding kept for future expansions (e.g. settings drawer).
-            document.addEventListener('keydown', (e) => {
+            this.__sbKeyHandler = (e) => {
                 if (e.key !== 'Escape') return;
-            });
+            };
+            document.addEventListener('keydown', this.__sbKeyHandler);
             this.__sbKeyBound = true;
         }
 
@@ -233,6 +234,10 @@ const stagebuilderModule = {
         // would receive a stale CustomEvent from the bridge's cached roster.
         this._tearDownRosterListener();
         this._unbindServiceDropdownListeners();
+        if (this.__sbKeyHandler) {
+            document.removeEventListener('keydown', this.__sbKeyHandler);
+            this.__sbKeyHandler = null;
+        }
         this.initialized = false;
         this.__sbKeyBound = false;
     },
@@ -669,7 +674,7 @@ const stagebuilderModule = {
             }
             const sel = document.getElementById('sb-service-select');
             if (sel && sel.value) {
-                this.loadRoster(true);
+                this.loadRosterForService();
             }
         };
         document.addEventListener('ws:worshiptools:token_updated', this.__wsTokenUpdatedHandler);
@@ -2967,13 +2972,16 @@ const stagebuilderModule = {
     },
 
     escapeHtml(s) {
-        const div = document.createElement('div');
-        div.textContent = (s == null) ? '' : String(s);
-        return div.innerHTML;
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     },
 
     escapeAttr(s) {
-        return this.escapeHtml(s).replace(/"/g, '&quot;');
+        return this.escapeHtml(s);
     },
 
     // -------- Disconnect-intent persistence --------

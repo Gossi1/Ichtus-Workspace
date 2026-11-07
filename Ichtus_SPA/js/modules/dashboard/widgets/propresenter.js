@@ -18,6 +18,15 @@ window.dashboardWidgets.propresenter = {
     //  PROPRESENTER URL HELPERS
     // ===============================
 
+    _escapeHtml(str) {
+        return String(str ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    },
+
     _getProPresenterBaseUrl() {
         let ip = '127.0.0.1', port = '50001';
         if (typeof settingsModule !== 'undefined' && settingsModule.settings && settingsModule.settings.proPresenterIp) {
@@ -115,7 +124,7 @@ window.dashboardWidgets.propresenter = {
             })
             .catch(err => {
                 const container = widgetEl.querySelector('.widget-body-inner') || widgetEl.querySelector('#propresenter-slides-container') || widgetEl.querySelector('.widget-body') || widgetEl;
-                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${err.message}</div></div>`;
+                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${this._escapeHtml(err.message)}</div></div>`;
             });
     },
 
@@ -756,7 +765,7 @@ window.dashboardWidgets.propresenter = {
                         }
                     } catch(e) {}
                 }
-                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${err.message}</div></div>`;
+                container.innerHTML = `<div class="pp-offline"><div class="pp-offline-icon">⚠️</div><div>ProPresenter offline</div><div style="font-size:0.75rem;margin-top:0.5rem;color:#888;">${this._escapeHtml(err.message)}</div></div>`;
             });
     },
 
@@ -768,25 +777,29 @@ window.dashboardWidgets.propresenter = {
         let html = '';
         allSlides.forEach((item) => {
             if (item.type === 'header') {
-                html += `<div class="pl-slide-header" style="border-left: 4px solid ${item.color}; background: ${item.color.replace('0.3', '0.08')};">
-                    <span class="pl-header-label">${item.name}</span>
+                const safeColor = this._escapeHtml(item.color || '');
+                html += `<div class="pl-slide-header" style="border-left: 4px solid ${safeColor}; background: ${safeColor.replace('0.3', '0.08')};">
+                    <span class="pl-header-label">${this._escapeHtml(item.name)}</span>
                 </div>`;
             } else if (item.type === 'presentation-header') {
                 html += `<div class="pl-presentation-header${item.isActive ? ' active' : ''}">
-                    <span class="pl-header-label">${item.name}</span>
+                    <span class="pl-header-label">${this._escapeHtml(item.name)}</span>
                 </div>`;
             } else {
                 const activeClass = item.isActive ? ' active' : '';
-                let thumbUrl = item.thumbUrl || `${baseUrl}/v1/presentation/${item.uuid}/thumbnail/${item.slideIndex}`;
-                const labelAttr = (item.label || '').replace(/'/g, "&#39;").replace(/"/g, "&quot;");
-                const groupBadge = item.groupName ? `<div class="pp-group-badge">${item.groupName.replace(/'/g, "&#39;").replace(/"/g, "&quot;")}</div>` : '';
+                const safeUuid = this._escapeHtml(item.uuid || '');
+                const safeSlideIdx = Number(item.slideIndex) || 0;
+                const safeItemIdx = Number(item.itemIndex) || 0;
+                let thumbUrl = item.thumbUrl || `${baseUrl}/v1/presentation/${encodeURIComponent(item.uuid || '')}/thumbnail/${safeSlideIdx}`;
+                const labelAttr = this._escapeHtml(item.label || '');
+                const groupBadge = item.groupName ? `<div class="pp-group-badge">${this._escapeHtml(item.groupName)}</div>` : '';
                 html += `<div class="pp-slide-item${activeClass}" 
-                            data-pl-uuid="${item.uuid}" 
-                            data-pl-item-index="${item.itemIndex}" 
-                            data-pl-slide-index="${item.slideIndex}"
-                            onclick="dashboardModule._triggerPlaylistSlide('${item.uuid}', ${item.slideIndex}, this)">
+                            data-pl-uuid="${safeUuid}" 
+                            data-pl-item-index="${safeItemIdx}" 
+                            data-pl-slide-index="${safeSlideIdx}"
+                            onclick="dashboardModule._triggerPlaylistSlide('${safeUuid}', ${safeSlideIdx}, this)">
                     ${groupBadge}
-                    <img class="pp-slide-thumb" src="${thumbUrl}" alt="${labelAttr}" loading="lazy" onerror="this.style.visibility='hidden'" />
+                    <img class="pp-slide-thumb" src="${this._escapeHtml(thumbUrl)}" alt="${labelAttr}" loading="lazy" onerror="this.style.visibility='hidden'" />
                 </div>`;
             }
         });

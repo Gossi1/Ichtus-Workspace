@@ -1461,6 +1461,7 @@ pub async fn services_handler(
                 "upcoming": upcoming,
                 "past": past,
                 "count": upcoming.len() + past.len(),
+                "fetchedAt": Utc::now().to_rfc3339(),
             })),
         ),
         Err(err) => (

@@ -7,10 +7,14 @@ const ndiModule = {
     sources: [],
     pollingInterval: null,
     lastDiscovery: null,
+    initialized: false,
 
     init() {
         console.log('NDI Module initialized');
-        this.bindEvents();
+        if (!this.initialized) {
+            this.bindEvents();
+            this.initialized = true;
+        }
         this.refreshSources();
     },
 
@@ -163,17 +167,16 @@ const ndiModule = {
     },
 
     toggleAutoRefresh(enabled) {
+        if (this.pollingInterval) {
+            clearInterval(this.pollingInterval);
+            this.pollingInterval = null;
+        }
         if (enabled) {
             // Skip the 5 s refresh when the user has navigated to a different view.
             this.pollingInterval = setInterval(() => {
                 if (!router.isNdiActive()) return;
                 this.refreshSources();
             }, 5000);
-        } else {
-            if (this.pollingInterval) {
-                clearInterval(this.pollingInterval);
-                this.pollingInterval = null;
-            }
         }
     },
 

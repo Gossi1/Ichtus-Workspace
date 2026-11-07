@@ -183,9 +183,12 @@ const songidassignerModule = (() => {
 
     // ── UI Renderers ───────────────────────────────────────────
     function escapeHtml(t) {
-        const d = document.createElement('div');
-        d.textContent = t;
-        return d.innerHTML;
+        return String(t ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
 
     function renderStats() {

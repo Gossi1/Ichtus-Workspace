@@ -151,7 +151,7 @@ const wtServicesModule = {
             this.services = [...(data.upcoming || []), ...(data.past || [])];
             this.renderList();
 
-            const when = new Date(data.fetchedAt).toLocaleTimeString('nl-NL');
+            const when = new Date(data.fetchedAt || Date.now()).toLocaleTimeString('nl-NL');
             if (statusEl) statusEl.textContent = `Geverifieerd ${when}`;
         } catch (err) {
             console.warn('[WT-SVC] Diensten ophalen mislukt:', err?.message);
