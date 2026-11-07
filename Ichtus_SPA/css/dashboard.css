@@ -878,7 +878,7 @@
 
 body.is-editing .edit-overlay {
     display: flex;
-    pointer-events: none;
+    pointer-events: auto;
 }
 body.is-editing .edit-overlay .overlay-top-left,
 body.is-editing .edit-overlay .overlay-top-right {
