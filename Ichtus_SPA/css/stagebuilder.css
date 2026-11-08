@@ -1576,6 +1576,65 @@
     margin-left: 6px;
 }
 
+#view-stagebuilder .sb-strip-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#view-stagebuilder .sb-standby-mode-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #e2e8f0;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+#view-stagebuilder .sb-standby-mode-btn:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
+}
+
+#view-stagebuilder .sb-standby-mode-btn .sb-mode-icon {
+    font-size: 0.95rem;
+    line-height: 1;
+}
+
+#view-stagebuilder .sb-standby-mode-btn .sb-mode-label {
+    color: #94a3b8;
+    font-size: 0.76rem;
+    font-weight: 600;
+}
+
+#view-stagebuilder .sb-mode-status {
+    padding: 2px 7px;
+    border-radius: 5px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+}
+
+#view-stagebuilder .sb-mode-status.black {
+    background: rgba(0, 0, 0, 0.45);
+    color: #e2e8f0;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+#view-stagebuilder .sb-mode-status.color {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.22) 0%, rgba(56, 189, 248, 0.22) 100%);
+    color: #67e8f9;
+    border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
 #view-stagebuilder .sb-doop-badge-btn {
     display: inline-flex;
     align-items: center;
@@ -1712,6 +1771,96 @@
     color: #fecaca;
     border: 1px solid rgba(239, 68, 68, 0.6);
     font-weight: 800;
+}
+
+/* Mode: Black with text */
+#view-stagebuilder .sb-strip-tile.standby.mode-black {
+    background: #0f141c;
+    border: 1px solid rgba(255, 255, 255, 0.20);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-black .sb-tile-screen {
+    background: #05070a;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-black .sb-tile-name {
+    color: #ffffff;
+}
+
+/* Mode: Keep color (ambient tint matching instrument role) */
+#view-stagebuilder .sb-strip-tile.standby.mode-color {
+    background: #172030;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="green"] {
+    border-color: rgba(34, 197, 94, 0.45);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="green"] .sb-tile-screen {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="green"] .sb-tile-name {
+    color: #86efac;
+}
+
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="yellow"] {
+    border-color: rgba(234, 179, 8, 0.45);
+    background: linear-gradient(180deg, rgba(234, 179, 8, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="yellow"] .sb-tile-screen {
+    background: rgba(234, 179, 8, 0.12);
+    border-color: rgba(234, 179, 8, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="yellow"] .sb-tile-name {
+    color: #fde047;
+}
+
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="teal"] {
+    border-color: rgba(20, 184, 166, 0.45);
+    background: linear-gradient(180deg, rgba(20, 184, 166, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="teal"] .sb-tile-screen {
+    background: rgba(20, 184, 166, 0.12);
+    border-color: rgba(20, 184, 166, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="teal"] .sb-tile-name {
+    color: #5eead4;
+}
+
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="blue"] {
+    border-color: rgba(56, 189, 248, 0.45);
+    background: linear-gradient(180deg, rgba(56, 189, 248, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="blue"] .sb-tile-screen {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: rgba(56, 189, 248, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="blue"] .sb-tile-name {
+    color: #7dd3fc;
+}
+
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="amber"] {
+    border-color: rgba(245, 158, 11, 0.45);
+    background: linear-gradient(180deg, rgba(245, 158, 11, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="amber"] .sb-tile-screen {
+    background: rgba(245, 158, 11, 0.12);
+    border-color: rgba(245, 158, 11, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="amber"] .sb-tile-name {
+    color: #fcd34d;
+}
+
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="cyan"] {
+    border-color: rgba(6, 182, 212, 0.45);
+    background: linear-gradient(180deg, rgba(6, 182, 212, 0.09) 0%, #151e2c 100%);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="cyan"] .sb-tile-screen {
+    background: rgba(6, 182, 212, 0.12);
+    border-color: rgba(6, 182, 212, 0.32);
+}
+#view-stagebuilder .sb-strip-tile.standby.mode-color[data-color="cyan"] .sb-tile-name {
+    color: #67e8f9;
 }
 
 /* Live tile state: warm accent on hover indicating click will mute/standby */

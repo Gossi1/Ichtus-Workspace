@@ -28,7 +28,7 @@
     <link rel='stylesheet' href='css/analytics.css?v=1'>
     <link rel='stylesheet' href='css/ndi.css?v=1'>
     <link rel='stylesheet' href='css/setlist.css?v=7'>
-    <link rel='stylesheet' href='css/stagebuilder.css?v=20261029c'>
+    <link rel='stylesheet' href='css/stagebuilder.css?v=20261108'>
     
     <!-- Existing standalone CSS -->
     <link rel='stylesheet' href='css/checklist-modern.css'>
@@ -2199,6 +2199,11 @@
                             <span class='sb-strip-hint'>Klik op een kanaal om direct in/uit te schakelen (Live ↔ Standby)</span>
                         </div>
                         <div class='sb-strip-actions'>
+                            <button id='sb-standby-mode-btn' class='sb-standby-mode-btn' onclick='stagebuilderModule.toggleStandbyColorMode()' title='Wissel tussen zwart scherm (backlight uit) of kleur behouden voor ongebruikte/standby kanalen'>
+                                <span class='sb-mode-icon' id='sb-standby-mode-icon'>⬛</span>
+                                <span class='sb-mode-label'>Standby kanalen:</span>
+                                <span id='sb-standby-mode-status' class='sb-mode-status black'>Zwart met tekst</span>
+                            </button>
                             <button id='sb-doop-toggle-btn' class='sb-doop-badge-btn' onclick='stagebuilderModule.toggleDoopdienst()' title='Klik om Doopdienst modus in of uit te schakelen (activeert CH 07 Doop Microfoon)'>
                                 <span class='sb-doop-icon'>💧</span>
                                 <span class='sb-doop-label'>Doopdienst:</span>

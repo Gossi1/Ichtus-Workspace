@@ -142,8 +142,8 @@ pub async fn pro_proxy_handler(
                 .get(header::CONTENT_TYPE)
                 .and_then(|v| HeaderValue::from_bytes(v.as_bytes()).ok());
 
-            let resp_text = match resp.text().await {
-                Ok(t) => t,
+            let resp_bytes = match resp.bytes().await {
+                Ok(b) => b,
                 Err(err) => {
                     eprintln!("[PRO-PROXY] Error reading response: {}", err);
                     return (
@@ -154,10 +154,24 @@ pub async fn pro_proxy_handler(
                 }
             };
 
-            let preview: String = resp_text.chars().take(200).collect();
-            println!("[PRO-PROXY] Response: {} body={}", status.as_u16(), preview);
+            let is_image = content_type_out
+                .as_ref()
+                .and_then(|v| v.to_str().ok())
+                .map(|ct| ct.starts_with("image/"))
+                .unwrap_or(false);
 
-            let mut response = Response::new(Body::from(resp_text));
+            if !is_image {
+                let preview = String::from_utf8_lossy(&resp_bytes[..resp_bytes.len().min(200)]);
+                println!("[PRO-PROXY] Response: {} body={}", status.as_u16(), preview);
+            } else {
+                println!(
+                    "[PRO-PROXY] Response: {} [image bytes={}]",
+                    status.as_u16(),
+                    resp_bytes.len()
+                );
+            }
+
+            let mut response = Response::new(Body::from(resp_bytes));
             *response.status_mut() = status;
             if let Some(ct) = content_type_out {
                 response.headers_mut().insert(header::CONTENT_TYPE, ct);

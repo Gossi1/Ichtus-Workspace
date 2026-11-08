@@ -63,21 +63,22 @@ const stagebuilderModule = {
 
     // -------- Doopdienst (CH 08) & Channel Routing System --------
     isDoopdienst: false,
+    standbyColorMode: 'black', // 'black' (backlight off) or 'color' (keep instrument/role color)
     DEFAULT_CHANNEL_ROUTING: {
-        1:  { name: 'WL Zang', short: 'WL VOX', icon: 1 },
-        2:  { name: 'Zang 2', short: 'VOX 2', icon: 1 },
-        3:  { name: 'Zang 3', short: 'VOX 3', icon: 1 },
-        4:  { name: 'WL Inst', short: 'WL INST', icon: 17 },
-        5:  { name: 'Zang 4', short: 'VOX 4', icon: 1 },
-        6:  { name: 'Zang 5', short: 'VOX 5', icon: 1 },
-        7:  { name: 'Doop Mic', short: 'DOOP', icon: 1, isBaptism: true },
-        8:  { name: 'Basgitaar', short: 'BASS', icon: 20 },
-        9:  { name: 'Elek Gitaar', short: 'E-GTR', icon: 19 },
-        10: { name: 'Akoust Gitaar', short: 'A-GTR', icon: 18 },
-        11: { name: 'Piano L', short: 'PIANO L', icon: 16, isFixed: true },
-        12: { name: 'Piano R', short: 'PIANO R', icon: 16, isFixed: true },
-        13: { name: 'Drums L', short: 'DRUMS L', icon: 24, isFixed: true },
-        14: { name: 'Drums R', short: 'DRUMS R', icon: 24, isFixed: true }
+        1:  { name: 'WL Zang', short: 'WL VOX', icon: 1, color: 2 },
+        2:  { name: 'Zang 2', short: 'VOX 2', icon: 1, color: 2 },
+        3:  { name: 'Zang 3', short: 'VOX 3', icon: 1, color: 2 },
+        4:  { name: 'WL Inst', short: 'WL INST', icon: 17, color: 5 },
+        5:  { name: 'Zang 4', short: 'VOX 4', icon: 1, color: 2 },
+        6:  { name: 'Zang 5', short: 'VOX 5', icon: 1, color: 2 },
+        7:  { name: 'Doop Mic', short: 'DOOP', icon: 1, isBaptism: true, color: 4 },
+        8:  { name: 'Basgitaar', short: 'BASS', icon: 20, color: 5 },
+        9:  { name: 'Elek Gitaar', short: 'E-GTR', icon: 19, color: 3 },
+        10: { name: 'Akoust Gitaar', short: 'A-GTR', icon: 18, color: 3 },
+        11: { name: 'Piano L', short: 'PIANO L', icon: 16, isFixed: true, color: 3 },
+        12: { name: 'Piano R', short: 'PIANO R', icon: 16, isFixed: true, color: 3 },
+        13: { name: 'Drums L', short: 'DRUMS L', icon: 24, isFixed: true, color: 6 },
+        14: { name: 'Drums R', short: 'DRUMS R', icon: 24, isFixed: true, color: 6 }
     },
 
     // -------- Roster listener bookkeeping --------
@@ -172,6 +173,12 @@ const stagebuilderModule = {
             this.isDoopdienst = localStorage.getItem('ichtus.sb.isDoopdienst') === '1';
         } catch (_) {
             this.isDoopdienst = false;
+        }
+        try {
+            const savedMode = localStorage.getItem('ichtus.sb.standbyColorMode');
+            this.standbyColorMode = (savedMode === 'color') ? 'color' : 'black';
+        } catch (_) {
+            this.standbyColorMode = 'black';
         }
         this._sbDebugLog('init() re-entry=' + this.initialized +
             ', rosterStatus=' + this.rosterStatus +
@@ -2709,6 +2716,8 @@ const stagebuilderModule = {
                 const ghostName = routing ? '[' + routing.short + ']' : '[CH ' + chStr + ']';
                 const ghostIcon = (routing && routing.icon) || 0;
 
+                const standbyColor = this._getChannelStandbyColor(ch, null);
+
                 messages.push({
                     address: '/ch/' + chStr + '/mix/fader',
                     args: [{ type: 'f', value: 0.0 }]
@@ -2723,7 +2732,7 @@ const stagebuilderModule = {
                 });
                 messages.push({
                     address: '/ch/' + chStr + '/config/color',
-                    args: [{ type: 'i', value: 7 }] // White backlight (clearly legible, not dim/off)
+                    args: [{ type: 'i', value: standbyColor }]
                 });
                 messages.push({
                     address: '/ch/' + chStr + '/config/icon',
@@ -3275,6 +3284,111 @@ const stagebuilderModule = {
         }
     },
 
+    getStandbyColorMode() {
+        if (this.standbyColorMode) return this.standbyColorMode;
+        try {
+            const val = localStorage.getItem('ichtus.sb.standbyColorMode');
+            if (val === 'color' || val === 'black') return val;
+        } catch (_) {}
+        return 'black';
+    },
+
+    setStandbyColorMode(mode) {
+        this.standbyColorMode = (mode === 'color') ? 'color' : 'black';
+        try {
+            localStorage.setItem('ichtus.sb.standbyColorMode', this.standbyColorMode);
+        } catch (_) {}
+        this._updateStandbyColorModeButton();
+        this._renderChannelStrip();
+        this._applyStandbyColorModeToX32();
+    },
+
+    toggleStandbyColorMode() {
+        const current = this.getStandbyColorMode();
+        const next = (current === 'black') ? 'color' : 'black';
+        this.setStandbyColorMode(next);
+        if (next === 'color') {
+            this.showToast('🎨 Standby kanalen: Kleur behouden (alleen tekst tussen haken)', 'info');
+        } else {
+            this.showToast('⬛ Standby kanalen: Zwart scherm met tekst', 'info');
+        }
+    },
+
+    _updateStandbyColorModeButton() {
+        const btn = document.getElementById('sb-standby-mode-btn');
+        const icon = document.getElementById('sb-standby-mode-icon');
+        const statusText = document.getElementById('sb-standby-mode-status');
+        if (!btn || !statusText) return;
+        const mode = this.getStandbyColorMode();
+        if (mode === 'color') {
+            btn.classList.add('mode-color');
+            btn.classList.remove('mode-black');
+            if (icon) icon.textContent = '🎨';
+            statusText.textContent = 'Kleur behouden';
+            statusText.className = 'sb-mode-status color';
+            btn.title = 'Standby kanalen: Kleur behouden (alleen tekst tussen haken). Klik om te wisselen naar Zwart met tekst.';
+        } else {
+            btn.classList.add('mode-black');
+            btn.classList.remove('mode-color');
+            if (icon) icon.textContent = '⬛';
+            statusText.textContent = 'Zwart met tekst';
+            statusText.className = 'sb-mode-status black';
+            btn.title = 'Standby kanalen: Zwart scherm met tekst. Klik om te wisselen naar Kleur behouden.';
+        }
+    },
+
+    _getChannelStandbyColor(ch, owner) {
+        const mode = this.getStandbyColorMode();
+        if (mode === 'black') return 0; // 0 = backlight off / black on X32
+
+        // mode === 'color': keep instrument / role color
+        if (owner) {
+            return owner.isVox ? 2 : 5; // Vox: green (2), Instrument: cyan/teal (5)
+        }
+        if (ch === 7) return 4; // Blue for Doop
+        if (ch === 8) return 5; // Teal/Cyan for Bass
+        if (ch === 9 || ch === 10) return 3; // Yellow for Guitars
+        if (ch >= 1 && ch <= 6) return 2; // Green for Vocals
+        const routing = this.DEFAULT_CHANNEL_ROUTING[ch];
+        return routing ? (routing.color || 2) : 2;
+    },
+
+    async _applyStandbyColorModeToX32() {
+        if (!this._x32SessionConnected && !this._getX32Ip()) return;
+        const messages = [];
+
+        // Build owner map
+        const channelOwners = {};
+        for (const row of (this.rosterRows || [])) {
+            if (row.channel != null) channelOwners[row.channel] = { isVox: false };
+            if (row.voxChannel != null) channelOwners[row.voxChannel] = { isVox: true };
+        }
+
+        for (let ch = 1; ch <= 14; ch++) {
+            if (ch >= 11 && ch <= 14) continue; // NEVER send config to Piano / Drums
+            if (this.isChannelActive(ch)) continue; // Keep live channels active
+
+            const chStr = String(ch).padStart(2, '0');
+            const owner = channelOwners[ch];
+            const color = this._getChannelStandbyColor(ch, owner);
+
+            messages.push({
+                address: '/ch/' + chStr + '/config/color',
+                args: [{ type: 'i', value: color }]
+            });
+        }
+
+        if (messages.length > 0) {
+            fetch('/api/x32/session/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ messages: messages })
+            }).catch(function (e) {
+                console.warn('[SB] Failed to apply standby color mode to X32:', e);
+            });
+        }
+    },
+
     async _activateChannelOnX32(ch) {
         const ip = this._getX32Ip();
         const chStr = String(ch).padStart(2, '0');
@@ -3399,8 +3513,9 @@ const stagebuilderModule = {
 
         // NEVER send ghost name, color or icon to fixed channels (CH 11-14 Piano & Drums) — their config is fixed on the console!
         if (!isFixedChannel) {
+            const standbyColor = this._getChannelStandbyColor(ch, owner);
             messages.push({ address: '/ch/' + chStr + '/config/name',  args: [{ type: 's', value: ghostLabel }] });
-            messages.push({ address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: 7 }] }); // White backlight (clearly legible, not dim/off)
+            messages.push({ address: '/ch/' + chStr + '/config/color', args: [{ type: 'i', value: standbyColor }] });
             messages.push({ address: '/ch/' + chStr + '/config/icon',  args: [{ type: 'i', value: routing.icon || 0 }] });
         }
 
@@ -3425,7 +3540,9 @@ const stagebuilderModule = {
         const grid = document.getElementById('sb-channel-strip-grid');
         if (!grid) return;
         this._updateDoopdienstButton();
+        this._updateStandbyColorModeButton();
 
+        const colorMode = this.getStandbyColorMode();
         const pianistRow = (this.rosterRows || []).find(r => this._isPianistRow(r));
         const drummerRow = (this.rosterRows || []).find(r => this._isDrummerRow(r));
         const channelOwners = {};
@@ -3457,7 +3574,22 @@ const stagebuilderModule = {
             const isDoop = (ch === 7);
 
             let tileClass = 'sb-strip-tile' + (isActive ? ' live' : ' standby');
+            if (!isActive) {
+                tileClass += (colorMode === 'color' ? ' mode-color' : ' mode-black');
+            }
             if (isDoop && isActive) tileClass += ' doop-active';
+
+            let colorAttr = '';
+            if (!isActive && colorMode === 'color') {
+                let colorName = 'green';
+                if (ch === 7) colorName = 'blue';
+                else if (ch === 8) colorName = 'teal';
+                else if (ch === 9 || ch === 10) colorName = 'yellow';
+                else if (ch === 11 || ch === 12) colorName = 'amber';
+                else if (ch === 13 || ch === 14) colorName = 'cyan';
+                else if (owner && !owner.isVox) colorName = 'teal';
+                colorAttr = ' data-color="' + colorName + '"';
+            }
 
             let statusBadge = '';
             let displayName = '';
@@ -3512,7 +3644,7 @@ const stagebuilderModule = {
             const actionHint = isActive ? 'uitschakelen (standby / mute)' : 'inschakelen (live)';
             const clickAttr = ' onclick="stagebuilderModule.toggleChannel(' + ch + ')" style="cursor:pointer;" title="Klik om CH ' + chStr + ' (' + stagebuilderModule.escapeAttr(routing.short) + ') ' + actionHint + '"';
 
-            html += '<div class="' + tileClass + '"' + clickAttr + '>' +
+            html += '<div class="' + tileClass + '"' + colorAttr + clickAttr + '>' +
                 '<div class="sb-tile-top">' +
                     '<span class="sb-tile-ch">CH ' + chStr + '</span>' +
                     statusBadge +
