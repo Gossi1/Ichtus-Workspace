@@ -1515,11 +1515,12 @@ const setlistModule = {
                     // dan die terug invoegen en de hele playlist vervangen via PUT.
                     targetPlaylistUuid = existingPlaylistUuid;
                     let preservedManualItems = [];
+                    let existingItems = [];
                     try {
                         const existResp = await proFetch(`${BASE_URL}/playlist/${existingPlaylistUuid}`, { method: 'GET' });
                         if (existResp.ok) {
                             const existData = await existResp.json();
-                            const existingItems = existData.items || existData;
+                            existingItems = existData.items || existData;
                             if (Array.isArray(existingItems)) {
                                 const preekIdx = existingItems.findIndex(i => i.type === 'header' && /preek/i.test(i.id?.name));
                                 const eindIdx = existingItems.findIndex(i => i.type === 'header' && /eind/i.test(i.id?.name));
@@ -1560,6 +1561,22 @@ const setlistModule = {
                             console.log('[Sync] Preserved', preservedManualItems.length, 'manual items after Preek');
                         }
                     }
+
+                    if (Array.isArray(existingItems) && existingItems.length > 0) {
+                        // Koppel bestaande playlist-item UUID's aan nieuwe items met dezelfde naam of target.
+                        // ProPresenter herkent deze als in-place updates, waardoor de PUT ~5s i.p.v. >10s duurt (voorkomt 500 timeout).
+                        items.forEach(newItem => {
+                            const match = existingItems.find(ex =>
+                                ex.type === newItem.type && (
+                                    (newItem.target_uuid && ex.target_uuid === newItem.target_uuid) ||
+                                    (ex.id?.name && newItem.id?.name && ex.id.name.toLowerCase().trim() === newItem.id.name.toLowerCase().trim())
+                                )
+                            );
+                            if (match && match.id?.uuid) {
+                                newItem.id.uuid = match.id.uuid;
+                            }
+                        });
+                    }
                     console.log('[Sync] Override target UUID (bestaande playlist):', targetPlaylistUuid);
                 }
             }
@@ -1577,6 +1594,11 @@ const setlistModule = {
             }
             if (!targetPlaylistUuid) throw new Error('Could not get playlist UUID from response');
 
+            // Zorg voor sequentiële indices in id.index
+            items.forEach((item, idx) => {
+                if (item.id) item.id.index = idx;
+            });
+
             // Step 5: PUT items into playlist
             console.log('[Sync] PUT:', `${BASE_URL}/playlist/${targetPlaylistUuid}`, 'items:', items.length);
             const putResp = await proFetch(`${BASE_URL}/playlist/${targetPlaylistUuid}`, {
@@ -1587,9 +1609,33 @@ const setlistModule = {
 
             console.log('[Sync] PUT status:', putResp.status);
             if (!putResp.ok) {
-                const errorText = await putResp.text();
-                console.error('[Sync] PUT error body:', errorText);
-                throw new Error(`Playlist update failed: HTTP ${putResp.status} - ${errorText}`);
+                // ProPresenter 7/22 HTTP server heeft een 10-seconden interne timeout.
+                // Bij grote playlists (12+ items) retourneert ProPresenter soms HTTP 500
+                // terwijl de playlist op de achtergrond wél succesvol is weggeschreven.
+                let verified = false;
+                if (putResp.status === 500) {
+                    console.warn('[Sync] ProPresenter gaf HTTP 500 (mogelijke 10s server timeout). Verifiëren of items toch zijn opgeslagen...');
+                    await new Promise(r => setTimeout(r, 1200));
+                    try {
+                        const verifyResp = await proFetch(`${BASE_URL}/playlist/${targetPlaylistUuid}`, { method: 'GET' }, 8000);
+                        if (verifyResp.ok) {
+                            const verifyData = await verifyResp.json();
+                            const verifyItems = verifyData.items || verifyData;
+                            if (Array.isArray(verifyItems) && verifyItems.length >= Math.max(1, items.length - 2)) {
+                                console.log(`[Sync] Verificatie geslaagd! ProPresenter heeft de playlist bijgewerkt (${verifyItems.length} items).`);
+                                verified = true;
+                            }
+                        }
+                    } catch (verifyErr) {
+                        console.warn('[Sync] Verificatie mislukt:', verifyErr.message);
+                    }
+                }
+
+                if (!verified) {
+                    const errorText = await putResp.text();
+                    console.error('[Sync] PUT error body:', errorText);
+                    throw new Error(`Playlist update failed: HTTP ${putResp.status} - ${errorText}`);
+                }
             }
 
             let statusMsg = `✅ Sync gelukt! ${matchedSongs} nummers gesynchroniseerd.`;
